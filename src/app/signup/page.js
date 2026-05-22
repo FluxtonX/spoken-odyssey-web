@@ -42,7 +42,7 @@ export default function SignUp() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-700 shadow-lg shadow-amber-200 flex items-center justify-center mb-4">
             <span className="text-3xl text-white font-extrabold">S</span>
           </div>
-          <h1 className="text-3xl font-black text-stone-900 tracking-tight mb-2">Create Account</h1>
+          <h1 className="text-3xl font-black text-[var(--ink)] tracking-tight mb-2">Create Account</h1>
           <p className="text-sm font-semibold text-stone-500">Begin your legacy journey today.</p>
         </div>
 

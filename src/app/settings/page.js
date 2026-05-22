@@ -9,15 +9,15 @@ export default function Settings() {
     {
       title: "Account",
       items: [
-        { id: "profile", href: "/settings/profile", icon: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80", label: "Edit Profile", desc: "Name, Avatar & Bio", bg: "bg-amber-50" },
-        { id: "privacy", href: "/settings/privacy", icon: "privacy", label: "Privacy Default", desc: "Currently set to Family Only", bg: "bg-amber-50/40" },
+        { id: "profile", href: "/settings/profile", icon: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80", label: "Edit Profile", desc: "Name, Avatar & Bio", bg: "bg-[var(--brand-soft)]" },
+        { id: "privacy", href: "/settings/privacy", icon: "privacy", label: "Privacy Default", desc: "Currently set to Family Only", bg: "bg-[var(--brand-soft)]" },
       ]
     },
     {
       title: "Preferences",
       items: [
-        { id: "notifications", href: "/settings/notifications", icon: "notification", label: "Notifications", desc: "Push & Email alerts", bg: "bg-amber-50/40" },
-        { id: "security", href: "/settings/security", icon: "security", label: "Security & Login", desc: "Password & 2FA", bg: "bg-amber-50/40" },
+        { id: "notifications", href: "/settings/notifications", icon: "notification", label: "Notifications", desc: "Push & Email alerts", bg: "bg-[var(--brand-soft)]" },
+        { id: "security", href: "/settings/security", icon: "security", label: "Security & Login", desc: "Password & 2FA", bg: "bg-[var(--brand-soft)]" },
       ]
     }
   ];
@@ -26,14 +26,14 @@ export default function Settings() {
     <div className="w-full animation-fade-in max-w-2xl mx-auto pb-24 px-4 sm:px-0">
       {/* Header */}
       <header className="pt-8 pb-6 text-left">
-        <h1 className="text-3xl font-black text-stone-900 tracking-tight mb-2">Settings</h1>
+        <h1 className="text-3xl font-black text-[var(--ink)] tracking-tight mb-2">Settings</h1>
         <p className="text-sm font-semibold text-stone-500">Manage your account and preferences.</p>
       </header>
 
       {/* User Profile Summary Card */}
       <div className="mb-8">
         <div className="bg-white border border-stone-200/80 p-5 rounded-[2rem] flex items-center gap-4 shadow-sm">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-16 h-16 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center shrink-0 shadow-sm">
             {resolveGlass3DIcon("family")}
           </div>
           <div className="flex-1 text-left">
@@ -54,7 +54,7 @@ export default function Settings() {
             <div className="bg-white border border-stone-200/80 rounded-[2rem] overflow-hidden divide-y divide-stone-100 shadow-sm">
               {group.items.map((item) => (
                 <Link href={item.href} key={item.id} className="flex items-center gap-4 p-5 hover:bg-stone-50 transition-colors cursor-pointer group w-full text-left">
-                  <div className={`w-12 h-12 rounded-xl ${item.bg} border border-amber-100/30 flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden shrink-0`}>
+                  <div className={`w-12 h-12 rounded-lg ${item.bg} border border-[var(--border)] flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden shrink-0`}>
                     {item.icon.startsWith("http") ? (
                       <img src={item.icon} alt={item.label} className="w-full h-full object-cover" />
                     ) : (

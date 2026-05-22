@@ -1,36 +1,42 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #fbf8f3;
-  --color-brand-100: #f5eedf;
-  --color-brand-200: #ecdfc2;
-  --color-brand-300: #e0c89d;
-  --color-brand-400: #d2ac70;
-  --color-brand-500: #c8954b;
-  --color-brand-600: #b97d3e;
-  --color-brand-700: #9a6134;
-  --color-brand-800: #7f502f;
-  --color-brand-900: #674229;
+  --color-brand-50: #f9fafb;
+  --color-brand-100: #f6e4d1;
+  --color-brand-200: #d1d9e0;
+  --color-brand-300: #9b7b5d;
+  --color-brand-400: #5544ff;
+  --color-brand-500: #384358;
+  --color-brand-600: #242b3a;
+  --color-brand-700: #1e2532;
+  --color-brand-800: #162033;
+  --color-brand-900: #0f172a;
 }
 
 @layer base {
   :root {
-    --background: #fdfcfa;
-    --foreground: #1f2937;
+    --background: #f3efe9;
+    --foreground: #384358;
     --surface: #ffffff;
-    --surface-hover: #f3f4f6;
-    --border: #e5e7eb;
-    --brand: var(--color-brand-600);
+    --surface-hover: #f9fafb;
+    --border: #d1d9e0;
+    --brand: var(--color-brand-300);
+    --ink: var(--color-brand-600);
+    --brand-soft: var(--color-brand-100);
+    --brand-accent: var(--color-brand-400);
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --background: #121212;
-      --foreground: #f3f4f6;
-      --surface: #1e1e1e;
-      --surface-hover: #2d2d2d;
-      --border: #374151;
-      --brand: var(--color-brand-400);
+      --background: #0f172a;
+      --foreground: #f8fafc;
+      --surface: #162033;
+      --surface-hover: #1d2940;
+      --border: #334155;
+      --brand: #8b7bff;
+      --ink: #f8fafc;
+      --brand-soft: #1d2940;
+      --brand-accent: #f6e4d1;
     }
   }
 }

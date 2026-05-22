@@ -25,8 +25,8 @@ export default function NotificationSettings() {
         <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
       </header>
 
-      <div className="mb-6 flex justify-center text-amber-500">
-        <div className="w-24 h-24 rounded-full bg-amber-500/10 flex items-center justify-center relative shadow-inner">
+      <div className="mb-6 flex justify-center text-[var(--brand)]">
+        <div className="w-24 h-24 rounded-full bg-[var(--brand-soft)] flex items-center justify-center relative shadow-inner">
           <BellRing size={40} className="filter drop-shadow-md" />
         </div>
       </div>

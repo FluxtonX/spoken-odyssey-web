@@ -19,9 +19,9 @@ const useScopedIconIds = () => {
 const IconDefs = ({ ids }) => (
   <defs>
     <linearGradient id={ids.gold3d} x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stopColor="#f59e0b" />
-      <stop offset="50%" stopColor="#d97706" />
-      <stop offset="100%" stopColor="#b45309" />
+      <stop offset="0%" stopColor="#f6e4d1" />
+      <stop offset="50%" stopColor="#9b7b5d" />
+      <stop offset="100%" stopColor="#384358" />
     </linearGradient>
     <linearGradient id={ids.purple3d} x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stopColor="#818cf8" />
@@ -249,7 +249,7 @@ export const resolveGlass3DIcon = (title) => {
   if (norm.includes("voice") || norm.includes("audio") || norm.includes("record")) return <Voice3D />;
   if (norm.includes("text") || norm.includes("write") || norm.includes("journal")) return <Text3D />;
   if (norm.includes("album")) return <Albums3D />;
-  if (norm.includes("feed")) return <Feed3D />;
+  if (norm.includes("feed") || norm.includes("discover") || norm.includes("search")) return <Feed3D />;
   if (norm.includes("family")) return <Family3D />;
   if (norm.includes("privacy") || norm.includes("security")) return <Privacy3D />;
   if (norm.includes("home")) return <Home3D />;
