@@ -123,7 +123,7 @@ export default function Home() {
             <div className="grid grid-cols-4 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               {quickActions.map((action) => (
                 <Link href={action.href} key={action.name} className="group flex flex-col items-center sm:items-start justify-center sm:p-5 p-3 bg-white border border-stone-200/80 hover:border-[var(--brand)]/40 hover:shadow-lg rounded-lg transition-all active:scale-95 w-full">
-                  <div className="w-14 h-14 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-sm">
+                  <div className="w-14 h-14 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-sm text-[var(--brand)]">
                     {resolveGlass3DIcon(action.name)}
                   </div>
                   <span className="text-[11px] md:text-sm font-bold text-stone-800">{action.name}</span>
@@ -140,7 +140,7 @@ export default function Home() {
               {recentMemories.map((memory) => (
                 <Link href={`/memories/${memory.id}`} key={memory.id} className="block p-5 glass-card group cursor-pointer hover:-translate-y-1 transition-all duration-300">
                   <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+                    <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm text-[var(--brand)]">
                       {resolveGlass3DIcon(memory.title)}
                     </div>
                     <div className="flex-1">
@@ -174,7 +174,7 @@ export default function Home() {
               ].map((stat) => (
                 <Link key={stat.label} href={stat.href} className="flex items-center justify-between rounded-lg p-2 transition hover:bg-[var(--surface-hover)]">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="w-12 h-12 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center shrink-0 shadow-sm text-[var(--brand)]">
                       {resolveGlass3DIcon(stat.label)}
                     </div>
                     <span className="font-medium opacity-80">{stat.label}</span>

@@ -15,6 +15,7 @@ import {
   Pause,
   Play,
   Save,
+  Search,
   Square,
   Trash2,
   Type,
@@ -26,6 +27,14 @@ import {
 import Link from "next/link";
 import { albums } from "@/data/mockApp";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
+import {
+  postBackgrounds,
+  getBackgroundStyles,
+  getBackgroundTextStyles,
+  getBackgroundOverlay,
+} from "@/data/postBackgrounds";
+import { getFontFamily } from "@/data/postFonts";
+import FontSelectorModal from "@/components/ui/FontSelectorModal";
 
 const LOCAL_MEMORIES_KEY = "spokenOdysseyLocalMemories";
 
@@ -122,6 +131,10 @@ function RecordMemoryContent() {
   const [selectedAudiences, setSelectedAudiences] = useState(["family"]);
   const [notice, setNotice] = useState("");
   const [savedMemories, setSavedMemories] = useState([]);
+  const [backgroundId, setBackgroundId] = useState("none");
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [fontId, setFontId] = useState("default");
+  const [isFontOpen, setIsFontOpen] = useState(false);
 
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
@@ -297,6 +310,8 @@ function RecordMemoryContent() {
     setCapturedVoiceSeconds(0);
     setElapsedSeconds(0);
     setIsAudioPlaying(false);
+    setBackgroundId("none");
+    setFontId("default");
   }
 
   function saveMemory() {
@@ -343,6 +358,9 @@ function RecordMemoryContent() {
       audiences: selectedAudiences,
       audio: activeFormat === "Voice" ? { url: audioUrl, mimeType: audioMimeType, seconds: capturedVoiceSeconds } : null,
       media: activeFormat === "Photo" || activeFormat === "Video" ? mediaDraft : null,
+      backgroundId: activeFormat === "Text" ? backgroundId : "none",
+      fontId: activeFormat === "Text" ? fontId : "default",
+      ownerId: "alexander",
     };
 
     const nextMemories = [localMemory, ...savedMemories].slice(0, 20);
@@ -358,7 +376,7 @@ function RecordMemoryContent() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col bg-[var(--background)] px-4 pb-28 animation-fade-in sm:px-0">
+    <div className="flex min-h-screen w-full flex-col bg-[var(--background)] pb-28 animation-fade-in">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/90 py-5 backdrop-blur-md">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-[var(--brand)]">Create</p>
@@ -373,7 +391,8 @@ function RecordMemoryContent() {
         </Link>
       </header>
 
-      <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-sm">
+      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col">
+        <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-sm">
         <div className="grid grid-cols-4 gap-1.5">
           {formats.map((format) => {
             const Icon = format.icon;
@@ -424,7 +443,16 @@ function RecordMemoryContent() {
             />
           )}
 
-          {activeFormat === "Text" && <TextComposer value={storyText} onChange={setStoryText} />}
+          {activeFormat === "Text" && (
+            <TextComposer
+              value={storyText}
+              onChange={setStoryText}
+              backgroundId={backgroundId}
+              onOpenCustomizer={() => setIsCustomizerOpen(true)}
+              fontId={fontId}
+              onOpenFontSelector={() => setIsFontOpen(true)}
+            />
+          )}
 
           {(activeFormat === "Photo" || activeFormat === "Video") && (
             <MediaComposer activeFormat={activeFormat} mediaDraft={mediaDraft} onFile={handleMediaFile} onRemove={() => setMediaDraft(null)} />
@@ -497,6 +525,21 @@ function RecordMemoryContent() {
 
         <SavedPreview memories={savedMemories} />
       </main>
+      </div>
+
+      <BackgroundCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+        selectedId={backgroundId}
+        onSelect={setBackgroundId}
+      />
+
+      <FontSelectorModal
+        isOpen={isFontOpen}
+        onClose={() => setIsFontOpen(false)}
+        selectedId={fontId}
+        onSelect={setFontId}
+      />
 
       <style jsx>{`
         @keyframes voice-wave {
@@ -538,7 +581,7 @@ function VoiceRecorder({
     <div className="flex min-h-[360px] flex-col items-center justify-center p-6 text-center">
       <div
         className={`relative mb-6 flex h-28 w-28 items-center justify-center rounded-full border ${
-          isRecording ? "border-[var(--brand)]/30 bg-[var(--brand)]/10" : "border-[var(--border)] bg-[var(--background)]"
+          isRecording ? "border-[var(--brand)]/30 bg-[var(--brand)]/10 text-[var(--brand)]" : "border-[var(--border)] bg-[var(--background)] text-stone-500"
         }`}
       >
         {isRecording && (
@@ -608,21 +651,213 @@ function VoiceRecorder({
   );
 }
 
-function TextComposer({ value, onChange }) {
+function TextComposer({ value, onChange, backgroundId, onOpenCustomizer, fontId, onOpenFontSelector }) {
+  const hasBg = backgroundId && backgroundId !== "none";
+  const bgStyle = getBackgroundStyles(backgroundId);
+  const textStyle = {
+    ...getBackgroundTextStyles(backgroundId),
+    fontFamily: getFontFamily(fontId),
+  };
+  const overlay = getBackgroundOverlay(backgroundId);
+
+  // Determine font classes based on text length
+  const textLength = value.length;
+  const fontClass = hasBg
+    ? textLength < 80
+      ? "text-2xl font-black text-center"
+      : textLength < 180
+        ? "text-lg font-extrabold text-center"
+        : "text-base font-semibold text-center"
+    : "text-base font-semibold leading-7";
+
   return (
-    <div className="flex min-h-[360px] flex-col p-5">
-      <label className="mb-3 text-xs font-black uppercase tracking-wide text-stone-500">Your memory</label>
+    <div
+      className={`relative flex min-h-[360px] flex-col p-5 transition-all duration-500 ${
+        hasBg ? "justify-center items-center rounded-lg" : ""
+      }`}
+      style={hasBg ? bgStyle : undefined}
+    >
+      {hasBg && overlay}
+
+      {!hasBg && (
+        <label className="mb-3 text-xs font-black uppercase tracking-wide text-stone-500 z-10">
+          Your memory
+        </label>
+      )}
+
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Write the scene, the people, and why this moment matters."
-        className="min-h-72 flex-1 resize-none bg-transparent text-base font-semibold leading-7 text-[var(--ink)] outline-none placeholder:text-stone-400 dark:text-white"
+        placeholder={hasBg ? "Write your memory here..." : "Write the scene, the people, and why this moment matters."}
+        className={`w-full min-h-72 resize-none bg-transparent outline-none placeholder:text-stone-400/80 dark:text-white z-10 transition-all ${fontClass} ${
+          hasBg ? "flex items-center justify-center pt-24" : "flex-1"
+        }`}
+        style={hasBg ? textStyle : undefined}
         autoFocus
       />
-      <div className="mt-4 flex gap-2 border-t border-[var(--border)] pt-4">
-        {["bg-brand-100 border-brand-500", "bg-stone-100 border-stone-300", "bg-emerald-100 border-emerald-400", "bg-rose-100 border-rose-400"].map((tone) => (
-          <button key={tone} className={`h-8 w-8 rounded-full border-2 ${tone}`} aria-label="Select note color" />
-        ))}
+
+      <div className="w-full mt-4 flex flex-wrap gap-2 border-t border-[var(--border)] pt-4 z-10">
+        <button
+          type="button"
+          onClick={onOpenCustomizer}
+          className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-black text-stone-700 hover:bg-[var(--surface-hover)] hover:border-[var(--brand)] transition active:scale-95"
+        >
+          🎨 Customize Background
+        </button>
+        <button
+          type="button"
+          onClick={onOpenFontSelector}
+          className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-black text-stone-700 hover:bg-[var(--surface-hover)] hover:border-[var(--brand)] transition active:scale-95"
+        >
+          🔤 Fonts
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BackgroundCustomizerModal({ isOpen, onClose, selectedId, onSelect }) {
+  const [activeTab, setActiveTab] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const categories = ["All", "Islamic", "Funny", "Sad", "Angry", "Aesthetic", "Gradient"];
+
+  const filteredBackgrounds = useMemo(() => {
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase().trim();
+      return postBackgrounds.filter(
+        (bg) =>
+          bg.name.toLowerCase().includes(query) ||
+          bg.category.toLowerCase().includes(query) ||
+          bg.mood.toLowerCase().includes(query) ||
+          bg.keywords.some((kw) => kw.toLowerCase().includes(query))
+      );
+    }
+    if (activeTab === "All") {
+      return postBackgrounds.filter((bg) => bg.featured || bg.id === "none");
+    }
+    return postBackgrounds.filter((bg) => bg.category === activeTab);
+  }, [activeTab, searchQuery]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 sm:items-center sm:p-4">
+      <div className="absolute inset-0" onClick={onClose} />
+      
+      <div className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl transition-all duration-300 sm:max-w-2xl sm:rounded-2xl md:max-h-[75vh]">
+        <header className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+          <div>
+            <h3 className="text-lg font-black text-[var(--ink)] dark:text-white">Customize Background</h3>
+            <p className="text-xs font-semibold text-stone-500">Choose a theme that fits your memory</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--background)] text-stone-500 hover:bg-[var(--border)] transition active:scale-95"
+            aria-label="Close customizer"
+          >
+            <X size={18} />
+          </button>
+        </header>
+
+        {/* Search Box */}
+        <div className="px-5 pt-3 pb-1.5">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search backgrounds (e.g. happy, rain, gold, dark, sunset)..."
+              className="w-full h-10 rounded-full border border-[var(--border)] bg-[var(--background)] pl-10 pr-10 text-xs font-bold outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition"
+            />
+            <span className="absolute left-3.5 text-stone-400">
+              <Search size={14} />
+            </span>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[var(--border)] text-stone-400 hover:text-stone-700 transition"
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Categories Tabs */}
+        <div className="flex gap-1.5 overflow-x-auto border-b border-[var(--border)] bg-[var(--background)] px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                setActiveTab(cat);
+                setSearchQuery(""); // Clear search on tab switch
+              }}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-black whitespace-nowrap transition ${
+                activeTab === cat && !searchQuery
+                  ? "bg-[var(--brand)] text-white shadow-sm"
+                  : "bg-[var(--surface)] text-stone-600 hover:bg-[var(--surface-hover)] border border-[var(--border)]"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {filteredBackgrounds.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <p className="text-sm font-bold text-stone-500">No backgrounds match your search.</p>
+              <button
+                onClick={() => setSearchQuery("")}
+                className="mt-2 text-xs font-black text-[var(--brand)] hover:underline"
+              >
+                Clear Search
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {filteredBackgrounds.map((bg) => {
+                const isSelected = selectedId === bg.id;
+                return (
+                  <button
+                    key={bg.id}
+                    onClick={() => {
+                      onSelect(bg.id);
+                      onClose();
+                    }}
+                    className={`group relative flex h-24 flex-col justify-between overflow-hidden rounded-xl p-3 text-left transition-all active:scale-[0.98] ${
+                      isSelected
+                        ? "ring-4 ring-[var(--brand)] ring-offset-2 ring-offset-[var(--surface)]"
+                        : "border border-[var(--border)] hover:border-[var(--brand)]/50 hover:shadow-md"
+                    }`}
+                    style={bg.id === "none" ? bg.previewStyle : bg.containerStyle}
+                  >
+                    {bg.id !== "none" && getBackgroundOverlay(bg.id)}
+                    
+                    {isSelected && (
+                      <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--brand)] text-white z-20">
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                    )}
+
+                    <span className="text-xl font-bold opacity-80 self-end select-none pointer-events-none z-10">
+                      {bg.overlayEmoji ? bg.overlayEmoji[0] : ""}
+                    </span>
+                    
+                    <span 
+                      className="text-xs font-black truncate max-w-full z-10"
+                      style={bg.id === "none" ? undefined : bg.textStyle}
+                    >
+                      {bg.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -748,6 +983,23 @@ function SavedPreview({ memories }) {
                 Local
               </span>
             </div>
+            {memory.type === "Text" && (
+              <div 
+                className="mt-3 p-4 rounded-lg flex flex-col items-center justify-center min-h-[120px] text-center relative overflow-hidden"
+                style={getBackgroundStyles(memory.backgroundId)}
+              >
+                {getBackgroundOverlay(memory.backgroundId)}
+                <p 
+                  className="text-sm font-extrabold italic leading-relaxed z-10"
+                  style={{
+                    ...getBackgroundTextStyles(memory.backgroundId),
+                    fontFamily: getFontFamily(memory.fontId),
+                  }}
+                >
+                  "{memory.description}"
+                </p>
+              </div>
+            )}
             {memory.audio?.url && <audio src={memory.audio.url} controls className="mt-3 w-full" />}
             {memory.media?.url && memory.type === "Photo" && <img src={memory.media.url} alt={memory.title} className="mt-3 max-h-52 w-full rounded-lg object-cover" />}
             {memory.media?.url && memory.type === "Video" && <video src={memory.media.url} controls className="mt-3 max-h-52 w-full rounded-lg bg-[var(--ink)] object-contain" />}

@@ -23,6 +23,12 @@ import {
   X,
 } from "lucide-react";
 import { albums, getAlbumById, getMemoryById, getPersonById, memories } from "@/data/mockApp";
+import {
+  getBackgroundStyles,
+  getBackgroundTextStyles,
+  getBackgroundOverlay,
+} from "@/data/postBackgrounds";
+import { getFontFamily } from "@/data/postFonts";
 
 const typeIcons = {
   Voice: Mic,
@@ -68,36 +74,74 @@ export default function MemoryDetailPage() {
 
       <main className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-          <div className="relative min-h-[360px] bg-stone-100">
-            <img src={memory.image} alt={memory.title} className="h-full min-h-[360px] w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-
-            {(memory.type === "Voice" || memory.type === "Video") && (
-              <button
-                onClick={() => setPlaying((current) => !current)}
-                className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--brand)] shadow-2xl transition active:scale-95"
-                aria-label={playing ? "Pause media preview" : "Play media preview"}
-              >
-                {playing ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
-              </button>
-            )}
-
-            <div className="absolute bottom-0 left-0 right-0 p-5 text-white sm:p-7">
-              <div className="mb-3 flex flex-wrap gap-2">
-                <span className="flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black backdrop-blur-md">
-                  <Icon size={14} />
-                  {memory.type}
-                </span>
-                <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black backdrop-blur-md">
-                  {memory.mood}
-                </span>
+          {memory.type === "Text" ? (
+            <div
+              className="relative min-h-[360px] flex flex-col items-center justify-center p-6 text-center overflow-hidden"
+              style={getBackgroundStyles(memory.backgroundId)}
+            >
+              {getBackgroundOverlay(memory.backgroundId)}
+              <div className="z-10 max-w-2xl">
+                <div className="mb-4 flex justify-center gap-2">
+                  <span className="flex items-center gap-1.5 rounded-full border border-current/25 bg-current/10 px-3 py-1 text-xs font-black backdrop-blur-sm">
+                    <Icon size={14} />
+                    {memory.type}
+                  </span>
+                  <span className="rounded-full border border-current/25 bg-current/10 px-3 py-1 text-xs font-black backdrop-blur-sm">
+                    {memory.mood}
+                  </span>
+                </div>
+                <h1 
+                  className="text-3xl font-black tracking-tight sm:text-4xl mb-4" 
+                  style={{
+                    ...getBackgroundTextStyles(memory.backgroundId),
+                    fontFamily: getFontFamily(memory.fontId),
+                  }}
+                >
+                  {memory.title}
+                </h1>
+                <p 
+                  className="text-lg font-bold leading-relaxed italic" 
+                  style={{
+                    ...getBackgroundTextStyles(memory.backgroundId),
+                    fontFamily: getFontFamily(memory.fontId),
+                  }}
+                >
+                  "{memory.description}"
+                </p>
               </div>
-              <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{memory.title}</h1>
-              <p className="mt-3 max-w-2xl text-sm font-bold leading-6 text-white/85 sm:text-base">
-                {memory.description}
-              </p>
             </div>
-          </div>
+          ) : (
+            <div className="relative min-h-[360px] bg-stone-100">
+              <img src={memory.image} alt={memory.title} className="h-full min-h-[360px] w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+              {(memory.type === "Voice" || memory.type === "Video") && (
+                <button
+                  onClick={() => setPlaying((current) => !current)}
+                  className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--brand)] shadow-2xl transition active:scale-95"
+                  aria-label={playing ? "Pause media preview" : "Play media preview"}
+                >
+                  {playing ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
+                </button>
+              )}
+
+              <div className="absolute bottom-0 left-0 right-0 p-5 text-white sm:p-7">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <span className="flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black backdrop-blur-md">
+                    <Icon size={14} />
+                    {memory.type}
+                  </span>
+                  <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black backdrop-blur-md">
+                    {memory.mood}
+                  </span>
+                </div>
+                <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{memory.title}</h1>
+                <p className="mt-3 max-w-2xl text-sm font-bold leading-6 text-white/85 sm:text-base">
+                  {memory.description}
+                </p>
+              </div>
+            </div>
+          )}
 
           {memory.type === "Voice" && (
             <div className="border-t border-[var(--border)] bg-[var(--background)] p-5">

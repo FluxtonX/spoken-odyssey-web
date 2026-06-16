@@ -32,6 +32,7 @@ export default function PersonDetailPage() {
   const person = getPersonById(id) ?? people[0];
   const personMemories = getPersonMemories(person.id);
   const [viewer, setViewer] = useState(null);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   return (
     <div className="mx-auto w-full max-w-5xl pb-24 animation-fade-in">
@@ -74,13 +75,33 @@ export default function PersonDetailPage() {
                   <MapPin size={14} />
                   {person.location}
                 </p>
+                <div className="mt-3 flex items-center gap-3 text-xs font-bold text-stone-500 dark:text-stone-400">
+                  <span>
+                    <strong className="text-[var(--ink)] dark:text-white font-black">
+                      {((person.id === "sarah" ? 1200 : person.id === "robert" ? 980 : 1530) + (isFollowing ? 1 : 0)).toLocaleString()}
+                    </strong> followers
+                  </span>
+                  <span className="text-stone-300 dark:text-stone-700">•</span>
+                  <span>
+                    <strong className="text-[var(--ink)] dark:text-white font-black">
+                      {person.id === "sarah" ? "432" : person.id === "robert" ? "280" : "512"}
+                    </strong> following
+                  </span>
+                </div>
               </div>
             </div>
 
             <div className="relative z-20 grid grid-cols-[1fr_1fr_auto] gap-2 sm:flex">
-              <button className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 text-sm font-black text-white">
+              <button 
+                onClick={() => setIsFollowing(!isFollowing)}
+                className={`flex h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-black transition-all cursor-pointer ${
+                  isFollowing 
+                    ? "bg-stone-100 dark:bg-stone-850 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-800" 
+                    : "bg-[var(--brand)] text-white hover:scale-[1.01] active:scale-95 shadow-sm"
+                }`}
+              >
                 <UserCheck size={16} />
-                Follow
+                {isFollowing ? "Following" : "Follow"}
               </button>
               <button className="flex h-11 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-sm font-black text-[var(--ink)]">
                 <MessageCircle size={16} />
@@ -113,28 +134,8 @@ export default function PersonDetailPage() {
         </div>
       </header>
 
-      <main className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="space-y-5">
-          <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-            <h2 className="text-lg font-black text-[var(--ink)]">Intro</h2>
-            <div className="mt-4 space-y-3 text-sm font-bold text-stone-600">
-              <p className="flex items-center gap-2">
-                <MapPin size={16} className="text-[var(--brand)]" />
-                Lives in {person.location}
-              </p>
-              <p className="flex items-center gap-2">
-                <ImageIcon size={16} className="text-[var(--brand)]" />
-                {person.stats.albums} public albums
-              </p>
-              <p className="flex items-center gap-2">
-                <Heart size={16} className="text-[var(--brand)]" />
-                Followed by family members
-              </p>
-            </div>
-          </section>
-        </aside>
-
-        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+      <main className="mt-6">
+        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm w-full">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black tracking-tight text-[var(--ink)]">Public Memories</h2>

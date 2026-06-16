@@ -91,6 +91,7 @@ export const memories = [
     duration: null,
     likes: 89,
     comments: 12,
+    backgroundId: "aesthetic-sunset",
   },
   {
     id: "recipe-book",
@@ -215,12 +216,28 @@ export const notifications = [
     unread: true,
   },
   {
+    id: "n5",
+    title: "Mudassir posted a memory",
+    body: "Mudassir shared a memory 'Childhood Cricket Days' that you might have missed.",
+    time: "25 min ago",
+    type: "family",
+    unread: true,
+  },
+  {
     id: "n2",
     title: "Robert accepted legacy access",
     body: "Your custodian invitation is now active.",
     time: "2 hours ago",
     type: "legacy",
     unread: true,
+  },
+  {
+    id: "n6",
+    title: "Secure Archive Backup",
+    body: "Generational oral history vault was successfully synced and encrypted.",
+    time: "5 hours ago",
+    type: "legacy",
+    unread: false,
   },
   {
     id: "n3",

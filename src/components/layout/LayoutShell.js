@@ -1,21 +1,37 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
 export default function LayoutShell({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    setIsLoggedIn(localStorage.getItem("isLoggedIn") === "true");
-  }, [pathname]);
+    const loggedIn = localStorage.getItem("isLoggedIn") === "true";
+    setIsLoggedIn(loggedIn);
 
-  // Prevent flash on mount — use neutral transparent wrapper
+    const isAuth = 
+      pathname?.startsWith("/onboarding") || 
+      pathname?.startsWith("/auth") || 
+      pathname?.startsWith("/signup") || 
+      pathname?.startsWith("/profile-setup");
+
+    if (!loggedIn && !isAuth) {
+      router.replace("/auth");
+    }
+  }, [pathname, router]);
+
+  // Prevent flash on mount — use neutral loading wrapper
   if (!mounted) {
-    return <div className="min-h-screen">{children}</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
+        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin" />
+      </div>
+    );
   }
 
   const isAuthRoute = 
@@ -23,6 +39,15 @@ export default function LayoutShell({ children }) {
     pathname?.startsWith("/auth") || 
     pathname?.startsWith("/signup") || 
     pathname?.startsWith("/profile-setup");
+
+  // If not logged in and not on an auth route, show loading spinner while redirecting
+  if (!isLoggedIn && !isAuthRoute) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
+        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   // Full-bleed layout — landing page & auth pages control their own bg
   if (!isLoggedIn || isAuthRoute) {

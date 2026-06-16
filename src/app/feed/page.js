@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  Bell,
   Camera,
   Compass,
   Filter,
@@ -14,9 +15,19 @@ import {
   Share2,
   Sparkles,
   UserPlus,
+  Users,
+  X,
 } from "lucide-react";
-import { memories, people } from "@/data/mockApp";
+import { memories, people, notifications } from "@/data/mockApp";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
+import { getStoredUserProfile, seedInitialMemoriesIfNeeded } from "@/data/userProfile";
+import FeedCard from "@/components/ui/FeedCard";
+import {
+  getBackgroundStyles,
+  getBackgroundTextStyles,
+  getBackgroundOverlay,
+} from "@/data/postBackgrounds";
+import { getFontFamily } from "@/data/postFonts";
 
 const feedTabs = ["For You", "Family", "Public", "Themes", "People"];
 const themes = ["Family Heritage", "Travel", "Recipes", "Milestones", "Voice Notes", "Reflection"];
@@ -31,45 +42,92 @@ const reactions = [
 export default function Feed() {
   const [activeTab, setActiveTab] = useState("For You");
   const [activeTheme, setActiveTheme] = useState("Family Heritage");
+  const [showThemes, setShowThemes] = useState(true);
+  const [showPeople, setShowPeople] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
+  const [localMemories, setLocalMemories] = useState([]);
+
+  useEffect(() => {
+    seedInitialMemoriesIfNeeded();
+    
+    function loadProfile() {
+      setUserProfile(getStoredUserProfile());
+    }
+    function loadLocalMemories() {
+      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+      if (saved) {
+        try {
+          setLocalMemories(JSON.parse(saved));
+        } catch {
+          // ignore
+        }
+      }
+    }
+    
+    loadProfile();
+    loadLocalMemories();
+    window.addEventListener("profileUpdated", loadProfile);
+    return () => window.removeEventListener("profileUpdated", loadProfile);
+  }, []);
+
+  const combinedMemories = useMemo(() => {
+    const sortedLocal = [...localMemories].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return [...sortedLocal, ...memories];
+  }, [localMemories]);
 
   const feedItems = useMemo(() => {
     if (activeTab === "Family") {
-      return memories.filter((memory) => memory.privacy === "Family Circle");
+      return combinedMemories.filter((memory) => memory.privacy === "Family Circle" || memory.audiences?.includes("family"));
     }
 
     if (activeTab === "Public") {
-      return memories.filter((memory) => memory.privacy === "Public");
+      return combinedMemories.filter((memory) => memory.privacy === "Public" || memory.audiences?.includes("public"));
     }
 
     if (activeTab === "Themes") {
-      return memories.filter((memory) => {
-        const haystack = `${memory.title} ${memory.description} ${memory.tags.join(" ")} ${memory.mood}`.toLowerCase();
+      return combinedMemories.filter((memory) => {
+        const tagsList = memory.tags || [];
+        const haystack = `${memory.title} ${memory.description} ${tagsList.join(" ")} ${memory.mood || ""}`.toLowerCase();
         return haystack.includes(activeTheme.split(" ")[0].toLowerCase());
       });
     }
 
-    return memories;
-  }, [activeTab, activeTheme]);
+    return combinedMemories;
+  }, [activeTab, activeTheme, combinedMemories]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-24 animation-fade-in">
-      <header className="sticky top-0 z-30 -mx-4 bg-[var(--background)]/95 px-4 py-4 backdrop-blur-md sm:mx-0 sm:px-0">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-black uppercase tracking-wide text-[var(--brand)]">
-              <Compass size={14} />
-              Feed & Discover
-            </p>
-            <h1 className="text-3xl font-black tracking-tight text-[var(--ink)]">Community Feed</h1>
-            <p className="mt-1 text-sm font-semibold text-stone-500">Browse memories, themes, and public profiles in one place.</p>
-          </div>
-          <Link
-            href="/search"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm"
-            aria-label="Search"
-          >
-            <Search size={18} />
+    <div className="w-full pb-24 animation-fade-in">
+      <header className="sticky top-0 z-30 bg-[var(--background)]/95 py-4 backdrop-blur-md">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Link href="/" className="flex shrink-0 items-center transition hover:opacity-95">
+            <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-8 w-auto object-contain md:h-9" />
           </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/followers"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 hover:text-[var(--brand)]"
+              aria-label="Followers"
+            >
+              <Users size={18} />
+            </Link>
+            <Link
+              href="/search"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 hover:text-[var(--brand)]"
+              aria-label="Search"
+            >
+              <Search size={18} />
+            </Link>
+            <Link
+              href="/notifications"
+              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95"
+              aria-label="Notifications"
+            >
+              <Bell size={18} />
+              {notifications.some((n) => n.unread) && (
+                <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-[var(--surface)]" />
+              )}
+            </Link>
+          </div>
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -89,11 +147,11 @@ export default function Feed() {
         </div>
       </header>
 
-      <main className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <main className="mt-5 w-full max-w-4xl mx-auto">
         <section className="min-w-0">
           {activeTab !== "People" && (
             <>
-              <CreatePostBox />
+              <CreatePostBox userProfile={userProfile} />
 
               {activeTab === "Themes" && (
                 <div className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
@@ -123,7 +181,25 @@ export default function Feed() {
 
               <div className="space-y-6">
                 {feedItems.length ? (
-                  feedItems.map((memory) => <FeedCard key={memory.id} memory={memory} />)
+                  feedItems.map((memory, index) => (
+                    <div key={memory.id} className="space-y-6">
+                      <FeedCard memory={memory} />
+                      
+                      {/* Inline Themes Panel after 2nd post */}
+                      {index === 1 && showThemes && (
+                        <div className="my-6 animate-fade-in">
+                          <ThemePanel activeTheme={activeTheme} onChange={setActiveTheme} onClose={() => setShowThemes(false)} />
+                        </div>
+                      )}
+                      
+                      {/* Inline Suggested People after 4th post */}
+                      {index === 3 && showPeople && (
+                        <div className="my-6 animate-fade-in">
+                          <PeoplePanel onClose={() => setShowPeople(false)} />
+                        </div>
+                      )}
+                    </div>
+                  ))
                 ) : (
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 text-center shadow-sm">
                     <p className="text-sm font-bold text-stone-500">No memories match this filter yet.</p>
@@ -135,23 +211,24 @@ export default function Feed() {
 
           {activeTab === "People" && <PeopleDiscover />}
         </section>
-
-        <aside className="hidden space-y-5 lg:block">
-          <ThemePanel activeTheme={activeTheme} onChange={setActiveTheme} />
-          <PeoplePanel />
-        </aside>
       </main>
     </div>
   );
 }
 
-function CreatePostBox() {
+function CreatePostBox({ userProfile }) {
   return (
     <div className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
       <div className="mb-4 flex gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--brand)] text-lg font-black text-white shadow-sm">
-          A
-        </div>
+        <Link href="/profile" className="shrink-0 transition hover:opacity-90">
+          {userProfile?.avatar ? (
+            <img src={userProfile.avatar} alt={userProfile.name} className="h-10 w-10 rounded-lg object-cover border border-stone-200/50 shadow-sm" />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--brand)] text-lg font-bold text-white shadow-sm">
+              {userProfile?.name?.charAt(0) || "A"}
+            </div>
+          )}
+        </Link>
         <Link
           href="/record"
           className="flex flex-1 items-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-left text-xs font-semibold text-stone-500 transition hover:border-[var(--brand)]"
@@ -171,7 +248,7 @@ function CreatePostBox() {
             href={`/record?mode=${label}`}
             className="flex h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-black text-stone-700 transition hover:bg-[var(--background)]"
           >
-            <div className="scale-50 -mx-3 -my-3 shrink-0">{resolveGlass3DIcon(icon)}</div>
+            <div className="scale-50 -mx-3 -my-3 shrink-0 text-[var(--brand)]">{resolveGlass3DIcon(icon)}</div>
             {label}
           </Link>
         ))}
@@ -180,231 +257,18 @@ function CreatePostBox() {
   );
 }
 
-function FeedCard({ memory }) {
-  const owner = people.find((person) => person.id === memory.ownerId) ?? people[0];
-  const [reaction, setReaction] = useState(null);
-  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [comments, setComments] = useState([
-    { id: `${memory.id}-c1`, author: "Alexander", text: "Beautiful memory. This feels worth preserving." },
-  ]);
-  const [shareNotice, setShareNotice] = useState("");
-  const holdTimerRef = useRef(null);
-  const selectedReaction = reactions.find((item) => item.id === reaction);
-  const reactionCount = memory.likes + (reaction ? 1 : 0);
 
-  function clearHoldTimer() {
-    if (holdTimerRef.current) {
-      window.clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  }
-
-  function startReactionHold() {
-    clearHoldTimer();
-    holdTimerRef.current = window.setTimeout(() => {
-      setReactionPickerOpen(true);
-    }, 450);
-  }
-
-  function quickReact() {
-    clearHoldTimer();
-    if (reactionPickerOpen) return;
-    setReaction((current) => (current === "heart" ? null : "heart"));
-  }
-
-  function chooseReaction(nextReaction) {
-    setReaction(nextReaction);
-    setReactionPickerOpen(false);
-  }
-
-  function addComment(event) {
-    event.preventDefault();
-    const cleanComment = commentText.trim();
-    if (!cleanComment) return;
-
-    setComments((current) => [
-      ...current,
-      { id: `${memory.id}-c${Date.now()}`, author: "Alexander", text: cleanComment },
-    ]);
-    setCommentText("");
-    setCommentsOpen(true);
-  }
-
-  async function shareMemory() {
-    const shareUrl = `${window.location.origin}/memories/${memory.id}`;
-    const shareData = {
-      title: memory.title,
-      text: memory.description,
-      url: shareUrl,
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        setShareNotice("Shared");
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        setShareNotice("Link copied");
-      }
-    } catch {
-      setShareNotice("Share cancelled");
-    }
-
-    window.setTimeout(() => setShareNotice(""), 1800);
-  }
-
+function ThemePanel({ activeTheme, onChange, onClose }) {
   return (
-    <article className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-      <div className="flex items-center justify-between p-5 text-left">
-        <Link href={`/people/${owner.id}`} className="flex min-w-0 items-center gap-3">
-          <img src={owner.avatar} alt={owner.name} className="h-10 w-10 rounded-lg object-cover" />
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-extrabold leading-tight text-[var(--ink)]">{owner.name}</h3>
-            <span className="text-[10px] font-semibold text-stone-400">{memory.date}</span>
-          </div>
-        </Link>
-        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-400 transition hover:bg-stone-50 hover:text-stone-700">
-          <MoreHorizontal size={18} />
-        </button>
-      </div>
-
-      <div className="px-5 pb-3 text-left">
-        <div className="mb-2 flex flex-wrap gap-2">
-          <span className="rounded-full bg-[var(--brand-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[var(--brand)]">
-            {memory.type}
-          </span>
-          <span className="rounded-full bg-[var(--background)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-stone-500">
-            {memory.privacy}
-          </span>
-        </div>
-        <Link href={`/memories/${memory.id}`} className="block">
-          <h4 className="mb-1 text-base font-extrabold text-[var(--ink)]">{memory.title}</h4>
-          <p className="text-sm font-semibold leading-relaxed text-stone-500">{memory.description}</p>
-        </Link>
-      </div>
-
-      {memory.type === "Photo" || memory.type === "Video" ? (
-        <Link href={`/memories/${memory.id}`} className="relative flex w-full items-center justify-center overflow-hidden border-y border-stone-100 bg-stone-50">
-          <img src={memory.image} alt={memory.title} className="max-h-[420px] w-full object-cover" />
-          {memory.type === "Video" && (
-            <span className="absolute flex h-14 w-14 items-center justify-center rounded-full bg-white text-[var(--brand)] shadow-lg">
-              <Play fill="currentColor" size={20} className="ml-1" />
-            </span>
-          )}
-        </Link>
-      ) : null}
-
-      {memory.type === "Voice" && (
-        <div className="mx-5 mb-5 flex items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--brand-soft)] p-4 text-left">
-          <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-white shadow-lg shadow-black/10 transition hover:scale-105 active:scale-95">
-            <Play fill="currentColor" size={18} className="ml-1" />
-          </button>
-          <div className="flex-1">
-            <div className="flex h-6 w-full items-center gap-1 opacity-70">
-              {Array.from({ length: 24 }).map((_, index) => (
-                <div key={index} className="flex-1 rounded-full bg-[var(--brand)]" style={{ height: `${20 + (index % 4) * 25}%` }} />
-              ))}
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[10px] font-black text-[var(--brand)]">
-              <span>0:00</span>
-              <span>{memory.duration}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {memory.type === "Text" && (
-        <Link href={`/memories/${memory.id}`} className="mx-5 mb-5 flex min-h-[140px] items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--brand-soft)] p-6 text-center">
-          <p className="text-base font-extrabold italic leading-relaxed text-[var(--ink)]">"{memory.description}"</p>
-        </Link>
-      )}
-
-      <div className="border-t border-stone-100 px-5 py-3.5">
-        <div className="mb-3 flex items-center justify-between px-1 text-[10px] font-bold text-stone-400">
-          <span className="flex items-center gap-1">
-            {reaction && <span className={selectedReaction?.color}>{selectedReaction?.icon}</span>}
-            {reactionCount} reactions
-          </span>
-          <button onClick={() => setCommentsOpen((current) => !current)} className="hover:text-[var(--brand)]">
-            {memory.comments + comments.length} comments
-          </button>
-        </div>
-
-        <div className="relative flex items-center justify-between gap-1.5 border-t border-stone-100 pt-2">
-          {reactionPickerOpen && (
-            <div className="absolute bottom-full left-0 z-20 mb-2 flex rounded-full border border-[var(--border)] bg-white p-1.5 shadow-xl">
-              {reactions.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => chooseReaction(item.id)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-xl transition hover:-translate-y-1 hover:bg-[var(--brand-soft)]"
-                  aria-label={item.label}
-                >
-                  {item.icon}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <button
-            onMouseDown={startReactionHold}
-            onMouseUp={quickReact}
-            onMouseLeave={clearHoldTimer}
-            onTouchStart={startReactionHold}
-            onTouchEnd={quickReact}
-            className={`group flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 font-bold transition hover:bg-stone-50 ${
-              reaction ? selectedReaction?.color : "text-stone-600 hover:text-[var(--brand)]"
-            }`}
-          >
-            <span className="text-lg leading-none">{reaction ? selectedReaction?.icon : "♥"}</span>
-            <span className="text-xs">{reaction ? selectedReaction?.label : "Like"}</span>
-          </button>
-          <ActionButton icon={MessageCircle} label="Comment" onClick={() => setCommentsOpen((current) => !current)} />
-          <ActionButton icon={Share2} label={shareNotice || "Share"} onClick={shareMemory} />
-        </div>
-
-        {commentsOpen && (
-          <div className="mt-3 space-y-3 border-t border-stone-100 pt-3">
-            {comments.map((comment) => (
-              <div key={comment.id} className="rounded-lg bg-[var(--background)] px-3 py-2">
-                <p className="text-xs font-black text-[var(--ink)]">{comment.author}</p>
-                <p className="mt-1 text-sm font-medium leading-5 text-stone-600">{comment.text}</p>
-              </div>
-            ))}
-
-            <form onSubmit={addComment} className="flex gap-2">
-              <input
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                placeholder="Write a comment..."
-                className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-bold outline-none focus:border-[var(--brand)]"
-              />
-              <button className="h-10 rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white">
-                Post
-              </button>
-            </form>
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
-
-function ActionButton({ icon: Icon, label, onClick }) {
-  return (
-    <button onClick={onClick} className="group flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 font-bold text-stone-600 transition hover:bg-stone-50 hover:text-[var(--brand)]">
-      <Icon size={18} className="transition-transform group-active:scale-90" />
-      <span className="text-xs">{label}</span>
-    </button>
-  );
-}
-
-function ThemePanel({ activeTheme, onChange }) {
-  return (
-    <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-      <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ink)]">
+    <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm relative">
+      <button 
+        onClick={onClose}
+        className="absolute top-3 right-3 text-stone-400 hover:text-stone-700 dark:hover:text-stone-250 transition-colors p-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
+        aria-label="Dismiss themes panel"
+      >
+        <X size={14} />
+      </button>
+      <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ink)] pr-6">
         <Sparkles size={18} className="text-[var(--brand)]" />
         Discover Themes
       </h2>
@@ -427,21 +291,59 @@ function ThemePanel({ activeTheme, onChange }) {
   );
 }
 
-function PeoplePanel() {
+function PeoplePanel({ onClose }) {
+  const [followedIds, setFollowedIds] = useState(["sarah"]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("followedPeople");
+    if (saved) {
+      setFollowedIds(JSON.parse(saved));
+    }
+  }, []);
+
+  const toggleFollow = (id) => {
+    setFollowedIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      localStorage.setItem("followedPeople", JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
-    <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-      <h2 className="mb-4 text-lg font-black text-[var(--ink)]">Suggested People</h2>
-      <div className="space-y-3">
-        {people.map((person) => (
-          <Link key={person.id} href={`/people/${person.id}`} className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 transition hover:border-[var(--brand)]">
-            <img src={person.avatar} alt={person.name} className="h-11 w-11 rounded-lg object-cover" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-black text-[var(--ink)]">{person.name}</p>
-              <p className="truncate text-xs font-bold text-stone-500">{person.role}</p>
+    <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm relative text-left">
+      <button 
+        onClick={onClose}
+        className="absolute top-3 right-3 text-stone-400 hover:text-stone-700 dark:hover:text-stone-250 transition-colors p-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer z-10"
+        aria-label="Dismiss suggested people panel"
+      >
+        <X size={14} />
+      </button>
+      <h2 className="mb-4 text-lg font-black text-[var(--ink)] pr-6">Suggested People</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {people.map((person) => {
+          const isFollowing = followedIds.includes(person.id);
+          return (
+            <div key={person.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 transition hover:border-[var(--brand)]">
+              <Link href={`/people/${person.id}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90">
+                <img src={person.avatar} alt={person.name} className="h-10 w-10 rounded-lg object-cover shrink-0" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[var(--ink)]">{person.name}</p>
+                  <p className="truncate text-xs font-bold text-stone-500">{person.role}</p>
+                </div>
+              </Link>
+              <button
+                onClick={() => toggleFollow(person.id)}
+                className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-black transition active:scale-95 ${
+                  isFollowing
+                    ? "bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200"
+                    : "bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white"
+                }`}
+              >
+                {isFollowing ? "Following" : "Follow"}
+              </button>
             </div>
-            <UserPlus size={16} className="text-[var(--brand)]" />
-          </Link>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

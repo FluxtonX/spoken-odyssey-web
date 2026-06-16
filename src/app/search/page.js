@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Album, ArrowLeft, CalendarDays, FileText, Search, SlidersHorizontal, UserRound } from "lucide-react";
 import { albums, memories, people } from "@/data/mockApp";
 
@@ -10,6 +10,22 @@ const tabs = ["All", "Memories", "Albums", "People"];
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("All");
+  const [followedIds, setFollowedIds] = useState(["sarah"]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("followedPeople");
+    if (saved) {
+      setFollowedIds(JSON.parse(saved));
+    }
+  }, []);
+
+  const toggleFollow = (id) => {
+    setFollowedIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      localStorage.setItem("followedPeople", JSON.stringify(next));
+      return next;
+    });
+  };
 
   const normalized = query.trim().toLowerCase();
   const results = useMemo(() => {
@@ -115,16 +131,31 @@ export default function SearchPage() {
         {(tab === "All" || tab === "People") && (
           <ResultSection title="People" count={results.people.length} icon={UserRound}>
             <div className="grid gap-3 md:grid-cols-2">
-              {results.people.map((person) => (
-                <Link key={person.id} href={`/people/${person.id}`} className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition hover:border-[var(--brand)]">
-                  <img src={person.avatar} alt={person.name} className="h-14 w-14 rounded-full object-cover" />
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-black">{person.name}</h3>
-                    <p className="truncate text-xs font-bold text-stone-500">{person.role}</p>
-                    <p className="mt-1 truncate text-xs font-medium text-stone-400">{person.location}</p>
+              {results.people.map((person) => {
+                const isFollowing = followedIds.includes(person.id);
+                return (
+                  <div key={person.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+                    <Link href={`/people/${person.id}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90">
+                      <img src={person.avatar} alt={person.name} className="h-14 w-14 rounded-full object-cover shrink-0" />
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-black">{person.name}</h3>
+                        <p className="truncate text-xs font-bold text-stone-500">{person.role}</p>
+                        <p className="mt-1 truncate text-xs font-medium text-stone-400">{person.location}</p>
+                      </div>
+                    </Link>
+                    <button
+                      onClick={() => toggleFollow(person.id)}
+                      className={`ml-4 shrink-0 px-4 py-1.5 rounded-full text-xs font-black transition active:scale-95 ${
+                        isFollowing
+                          ? "bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200"
+                          : "bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white"
+                      }`}
+                    >
+                      {isFollowing ? "Following" : "Follow"}
+                    </button>
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </ResultSection>
         )}

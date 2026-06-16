@@ -44,7 +44,7 @@ export function ProblemSection() {
               className="p-6 rounded-3xl bg-gradient-to-br from-stone-50 to-amber-50/20 border border-stone-200/80 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left relative overflow-hidden group"
             >
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/5 rounded-full blur-2xl group-hover:bg-amber-200/10 transition-colors" />
-              <div className="w-14 h-14 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform text-amber-700">
                 {resolveGlass3DIcon(c.title)}
               </div>
               <h3 className="font-extrabold text-base text-stone-800 mb-2">{c.title}</h3>
@@ -83,7 +83,7 @@ export function SolutionSection() {
               className="group p-8 rounded-[2rem] bg-white border border-stone-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-amber-400/60 transition-all duration-300 text-left relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-colors" />
-              <div className="w-16 h-16 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm text-amber-700">
                 {resolveGlass3DIcon(c.title)}
               </div>
               <h3 className="font-extrabold text-lg text-stone-850 mb-2">{c.title}</h3>
@@ -118,7 +118,7 @@ export function FeaturesSection() {
               viewport={{ once: true }}
               className="group flex gap-5 p-6 rounded-3xl border border-stone-200/80 bg-gradient-to-br from-white to-stone-50/50 hover:border-amber-400/40 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left"
             >
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-50/50 to-stone-100/50 border border-amber-200/40 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-50/50 to-stone-100/50 border border-amber-200/40 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-sm text-amber-700">
                 {resolveGlass3DIcon(f.title)}
               </div>
               <div>
@@ -275,7 +275,7 @@ export function UseCasesSection() {
               viewport={{ once: true }}
               className="group p-8 rounded-[2rem] bg-white border border-stone-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-amber-400/60 transition-all duration-300 text-left"
             >
-              <div className="w-16 h-16 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-sm text-amber-700">
                 {resolveGlass3DIcon(c.title)}
               </div>
               <h3 className="font-extrabold text-lg text-stone-850 mb-2">{c.title}</h3>
@@ -556,7 +556,7 @@ export function SecuritySection() {
               viewport={{ once: true }}
               className="flex gap-4 p-6 rounded-3xl border border-stone-250/80 bg-gradient-to-br from-white to-stone-50/50 hover:shadow-md hover:border-amber-400/40 hover:-translate-y-1 transition-all duration-300 text-left"
             >
-              <div className="w-14 h-14 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center shrink-0 group hover:scale-105 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center shrink-0 group hover:scale-105 transition-transform text-amber-700">
                 {resolveGlass3DIcon("privacy")}
               </div>
               <div>

@@ -1,119 +1,777 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Edit3, ImagePlus, Lock, MapPin, ShieldCheck, UserRound } from "lucide-react";
-import { albums, memories, people } from "@/data/mockApp";
+import {
+  CalendarDays,
+  Camera,
+  Edit2,
+  Globe,
+  ImagePlus,
+  Lock,
+  MapPin,
+  Save,
+  ShieldCheck,
+  Trash2,
+  User,
+  Users,
+  X,
+  CheckCircle2,
+  Play,
+  FileText,
+  Mic,
+  Camera as CameraIcon,
+  Check,
+  FolderHeart
+} from "lucide-react";
+import {
+  getStoredUserProfile,
+  saveStoredUserProfile,
+  AVATAR_PRESETS,
+  COVER_PRESETS,
+  CATEGORY_PRESETS,
+  seedInitialMemoriesIfNeeded
+} from "@/data/userProfile";
+import { albums as mockAlbums } from "@/data/mockApp";
+import { getBackgroundStyles, getBackgroundOverlay, getBackgroundTextStyles } from "@/data/postBackgrounds";
+import { getFontFamily } from "@/data/postFonts";
+import FeedCard from "@/components/ui/FeedCard";
 
 export default function ProfilePage() {
-  const user = people[0];
-  const privateMemories = memories.filter((memory) => memory.privacy !== "Public");
+  const [userProfile, setUserProfile] = useState(null);
+  const [localMemories, setLocalMemories] = useState([]);
+  const [activeTab, setActiveTab] = useState("memories"); // "memories", "albums"
+  const [followingCount, setFollowingCount] = useState(0);
+  
+  // Inline editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    role: "",
+    location: "",
+    bio: "",
+    birthday: "",
+    categories: []
+  });
+
+  // Avatar/Cover Presets State
+  const [editAvatarOpen, setEditAvatarOpen] = useState(false);
+  const [editCoverOpen, setEditCoverOpen] = useState(false);
+  const [avatarInput, setAvatarInput] = useState("");
+  const [coverInput, setCoverInput] = useState("");
+
+  // Edit memory state
+  const [editMemoryOpen, setEditMemoryOpen] = useState(false);
+  const [editingMemory, setEditingMemory] = useState(null);
+  const [memoryEditData, setMemoryEditData] = useState({ title: "", description: "", privacy: "" });
+
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    seedInitialMemoriesIfNeeded();
+    loadProfileAndMemories();
+    window.addEventListener("profileUpdated", loadProfileAndMemories);
+    return () => window.removeEventListener("profileUpdated", loadProfileAndMemories);
+  }, []);
+
+  function loadProfileAndMemories() {
+    const profile = getStoredUserProfile();
+    setUserProfile(profile);
+    setFormData({
+      name: profile.name,
+      role: profile.role,
+      location: profile.location,
+      bio: profile.bio,
+      birthday: profile.birthday || "1990-06-15",
+      categories: profile.categories || []
+    });
+    setAvatarInput(profile.avatar);
+    setCoverInput(profile.cover);
+
+    // Load following count from followedPeople list
+    const followed = localStorage.getItem("followedPeople");
+    if (followed) {
+      try {
+        setFollowingCount(JSON.parse(followed).length);
+      } catch {
+        setFollowingCount(1);
+      }
+    } else {
+      setFollowingCount(1);
+    }
+
+    const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
+    if (savedMemories) {
+      try {
+        const parsed = JSON.parse(savedMemories);
+        setLocalMemories(parsed.filter(m => m.ownerId === "alexander" || !m.ownerId));
+      } catch {
+        setLocalMemories([]);
+      }
+    }
+  }
+
+  function triggerNotice(msg) {
+    setNotice(msg);
+    setTimeout(() => setNotice(""), 3000);
+  }
+
+  // Toggle category choice
+  function toggleCategory(cat) {
+    setFormData(prev => {
+      const active = prev.categories.includes(cat)
+        ? prev.categories.filter(c => c !== cat)
+        : [...prev.categories, cat];
+      return { ...prev, categories: active };
+    });
+  }
+
+  // Save inline profile info
+  function handleSaveInlineInfo() {
+    const updated = {
+      ...userProfile,
+      name: formData.name.trim() || userProfile.name,
+      role: formData.role.trim() || userProfile.role,
+      location: formData.location.trim() || userProfile.location,
+      bio: formData.bio.trim() || userProfile.bio,
+      birthday: formData.birthday || userProfile.birthday,
+      categories: formData.categories
+    };
+    saveStoredUserProfile(updated);
+    setIsEditing(false);
+    triggerNotice("Profile updated successfully!");
+  }
+
+  // Save Avatar image
+  function handleSaveAvatar(url) {
+    const updated = { ...userProfile, avatar: url };
+    saveStoredUserProfile(updated);
+    setEditAvatarOpen(false);
+    triggerNotice("Profile picture updated!");
+  }
+
+  // Save Cover image
+  function handleSaveCover(url) {
+    const updated = { ...userProfile, cover: url };
+    saveStoredUserProfile(updated);
+    setEditCoverOpen(false);
+    triggerNotice("Cover photo updated!");
+  }
+
+  // Memory Actions: Delete
+  function handleDeleteMemory(id) {
+    if (!confirm("Are you sure you want to delete this memory forever?")) return;
+    
+    const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
+    if (savedMemories) {
+      try {
+        const parsed = JSON.parse(savedMemories);
+        const filtered = parsed.filter(m => m.id !== id);
+        localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(filtered));
+        loadProfileAndMemories();
+        triggerNotice("Memory deleted.");
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+
+  // Memory Actions: Edit
+  function handleStartEditMemory(memory) {
+    setEditingMemory(memory);
+    setMemoryEditData({
+      title: memory.title,
+      description: memory.description,
+      privacy: memory.audiences?.[0] || memory.privacy?.toLowerCase() || "public"
+    });
+    setEditMemoryOpen(true);
+  }
+
+  function handleSaveMemoryEdit(e) {
+    e.preventDefault();
+    if (!editingMemory) return;
+
+    const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
+    if (savedMemories) {
+      try {
+        const parsed = JSON.parse(savedMemories);
+        const updated = parsed.map(m => {
+          if (m.id === editingMemory.id) {
+            return {
+              ...m,
+              title: memoryEditData.title.trim(),
+              description: memoryEditData.description.trim(),
+              privacy: memoryEditData.privacy === "public" ? "Public" : memoryEditData.privacy === "family" ? "Family Circle" : "Private",
+              audiences: [memoryEditData.privacy]
+            };
+          }
+          return m;
+        });
+
+        localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(updated));
+        loadProfileAndMemories();
+        setEditMemoryOpen(false);
+        setEditingMemory(null);
+        triggerNotice("Memory updated successfully!");
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+
+  function formatBirthday(dateStr) {
+    if (!dateStr) return "Not set";
+    try {
+      const options = { month: "long", day: "numeric", year: "numeric" };
+      return new Date(dateStr).toLocaleDateString("en-US", options);
+    } catch {
+      return dateStr;
+    }
+  }
+
+  if (!userProfile) return null;
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-24 animation-fade-in">
-      <header className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <div className="h-52 bg-stone-100 md:h-64">
-          <img src={user.cover} alt="" className="h-full w-full object-cover" />
+    <div className="mx-auto w-full max-w-4xl pb-24 animation-fade-in text-[var(--foreground)]">
+      {/* Notice Banner */}
+      {notice && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-[var(--brand)]/25 bg-[var(--brand)]/95 text-white px-4 py-3 shadow-xl backdrop-blur-md animate-fade-in font-bold">
+          <CheckCircle2 size={16} />
+          <span>{notice}</span>
         </div>
-        <div className="p-5 sm:p-6">
-          <div className="-mt-20 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-end gap-4">
-              <img src={user.avatar} alt={user.name} className="h-28 w-28 rounded-full border-4 border-[var(--surface)] object-cover shadow-sm" />
-              <div className="pb-2">
-                <p className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--brand)]">
-                  <UserRound size={14} />
-                  My Profile
-                </p>
-                <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white">Alexander Mitchell</h1>
-              </div>
+      )}
+
+      {/* Facebook style Header */}
+      <header className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-md">
+        {/* Cover Photo */}
+        <div className="relative h-60 bg-stone-100 sm:h-72 md:h-80 group overflow-hidden">
+          <img src={userProfile.cover} alt="Cover cover photo" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.01]" />
+          <div className="absolute inset-0 bg-black/15 transition group-hover:bg-black/25" />
+          <button 
+            onClick={() => setEditCoverOpen(true)}
+            className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-black/60 hover:bg-black/80 text-white px-4 py-2 text-xs font-black shadow-lg transition duration-200"
+          >
+            <Camera size={14} />
+            Edit Cover Photo
+          </button>
+        </div>
+
+        {/* Profile Avatar & Info Row */}
+        <div className="px-6 pb-6 text-center sm:text-left">
+          <div className="flex flex-col items-center sm:flex-row sm:items-start gap-5 mb-4 w-full">
+            {/* Profile Avatar with Hover camera icon */}
+            <div className="relative group rounded-full border-4 border-[var(--surface)] shadow-xl overflow-hidden h-32 w-32 shrink-0 bg-stone-200 z-10 -mt-16 sm:-mt-20 self-center sm:self-start">
+              <img src={userProfile.avatar} alt={userProfile.name} className="h-full w-full object-cover" />
+              <button
+                onClick={() => setEditAvatarOpen(true)}
+                className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+              >
+                <Camera size={20} className="mb-1" />
+                <span className="text-[9px] font-black uppercase">Edit Photo</span>
+              </button>
             </div>
-            <Link
-              href="/settings/profile"
-              className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 text-sm font-black text-white"
-            >
-              <Edit3 size={16} />
-              Edit Profile
-            </Link>
+            
+            {/* Name, Bio, and Stats Row */}
+            <div className="pb-2 pt-2 sm:pt-0 flex-1 min-w-0 w-full">
+              {/* Name & Edit Button flex header row */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+                {/* Inline Name Editing */}
+                <div className="flex-1 min-w-0">
+                  {isEditing ? (
+                    <div className="mt-1">
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Your Name"
+                        className="text-2xl font-black bg-transparent border-b border-[var(--brand)] outline-none text-[var(--ink)] dark:text-white pb-1 w-full max-w-md focus:border-b-2"
+                      />
+                    </div>
+                  ) : (
+                    <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mt-0.5 leading-tight">{userProfile.name}</h1>
+                  )}
+                </div>
+
+                {/* Edit Button Container */}
+                <div className="flex shrink-0 justify-center md:justify-end">
+                  {isEditing ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveInlineInfo}
+                        className="flex h-11 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-5 text-sm font-black text-white shadow-md transition-all active:scale-95 duration-200 cursor-pointer"
+                      >
+                        <Save size={15} />
+                        Save Details
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditing(false);
+                          setFormData({
+                            name: userProfile.name,
+                            role: userProfile.role,
+                            location: userProfile.location,
+                            bio: userProfile.bio,
+                            birthday: userProfile.birthday || "1990-06-15",
+                            categories: userProfile.categories || []
+                          });
+                        }}
+                        className="flex h-11 items-center justify-center gap-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 px-4 text-sm font-black text-stone-700 transition-all active:scale-95 duration-200 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-hover)] px-5 text-sm font-black text-white shadow-md transition-all active:scale-95 duration-200 cursor-pointer"
+                    >
+                      <Edit2 size={15} />
+                      Edit Profile
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Subtitle / Role & counts */}
+              <div className="mt-1.5 flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs font-bold text-stone-500">
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={formData.role}
+                    onChange={e => setFormData({ ...formData, role: e.target.value })}
+                    placeholder="Role (e.g. Writer, Historian)"
+                    className="text-xs font-bold bg-transparent border-b border-stone-300 outline-none text-stone-600 pb-0.5"
+                  />
+                ) : (
+                  <p className="text-xs font-extrabold text-stone-500">{userProfile.role}</p>
+                )}
+                
+                <span className="text-stone-300">•</span>
+                
+                <Link href="/followers" className="flex items-center gap-1 hover:text-[var(--brand)] transition cursor-pointer">
+                  <Users size={13} className="text-stone-400" />
+                  <span className="text-stone-700 dark:text-stone-200">3</span> Followers
+                </Link>
+                
+                <span className="text-stone-300">•</span>
+                
+                <Link href="/followers" className="flex items-center gap-1 hover:text-[var(--brand)] transition cursor-pointer">
+                  <User size={13} className="text-stone-400" />
+                  <span className="text-stone-700 dark:text-stone-200">{followingCount}</span> Following
+                </Link>
+              </div>
+
+              {/* Display active category chips */}
+              {!isEditing && userProfile.categories && userProfile.categories.length > 0 && (
+                <div className="mt-2.5 flex flex-wrap gap-1.5 justify-center sm:justify-start">
+                  {userProfile.categories.map(cat => (
+                    <span key={cat} className="rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-[10px] font-extrabold px-2.5 py-0.5 border border-stone-200/50">
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div>
-              <p className="max-w-2xl text-sm font-medium leading-7 text-stone-600 dark:text-stone-300">
-                Building a private archive for family memories, voice notes, and milestones worth preserving.
-              </p>
-              <p className="mt-3 flex items-center gap-2 text-xs font-black uppercase tracking-wide text-stone-500">
-                <MapPin size={14} />
-                Seattle, Washington
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Stat label="Memories" value={memories.length} />
-              <Stat label="Albums" value={albums.length} />
-              <Stat label="Private" value={privateMemories.length} />
-            </div>
+          {/* Integrated Intro & Details Card */}
+          <div className="mt-6 pt-5 border-t border-[var(--border)]/55 text-left">
+              <div className="flex items-center justify-between pb-3 mb-4">
+                <h2 className="text-sm font-black tracking-tight text-[var(--ink)] dark:text-white uppercase">Intro & Details</h2>
+                {isEditing && (
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--brand)]">Editing Details...</span>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                {/* Bio Block */}
+                <div className="flex flex-col justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-1">Biography</p>
+                    {isEditing ? (
+                      <textarea
+                        rows={3}
+                        value={formData.bio}
+                        onChange={e => setFormData({ ...formData, bio: e.target.value })}
+                        className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-800 rounded-lg p-2 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                        placeholder="Short bio..."
+                      />
+                    ) : (
+                      <p className="text-xs font-bold leading-relaxed text-stone-600 dark:text-stone-300">
+                        {userProfile.bio || "No biography added yet."}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Info details Block (Location & Birthday) */}
+                <div className="flex flex-col gap-3 justify-center border-t md:border-t-0 md:border-x border-stone-100 dark:border-stone-800 px-0 md:px-6 py-3 md:py-0">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-1 flex items-center gap-1">
+                      <MapPin size={10} /> Location
+                    </p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={e => setFormData({ ...formData, location: e.target.value })}
+                        className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-800 rounded-lg p-2 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
+                        placeholder="Location"
+                      />
+                    ) : (
+                      <p className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                        {userProfile.location}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-1 flex items-center gap-1">
+                      <CalendarDays size={10} /> Birthday
+                    </p>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        value={formData.birthday}
+                        onChange={e => setFormData({ ...formData, birthday: e.target.value })}
+                        className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-800 rounded-lg p-2 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
+                      />
+                    ) : (
+                      <p className="text-xs font-bold text-stone-600 dark:text-stone-300">
+                        {formatBirthday(userProfile.birthday)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Category Tags Selector / Settings Block */}
+                <div className="flex flex-col gap-3 justify-center border-t md:border-t-0 border-stone-100 dark:border-stone-800 pt-3 md:pt-0">
+                  {isEditing ? (
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-2">Category tags</p>
+                      <div className="grid grid-cols-2 gap-1.5 max-h-[110px] overflow-y-auto pr-1">
+                        {CATEGORY_PRESETS.map((cat) => {
+                          const selected = formData.categories.includes(cat);
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => toggleCategory(cat)}
+                              className={`flex items-center justify-between px-2.5 py-1 rounded-lg border text-[9px] font-black transition cursor-pointer ${
+                                selected
+                                  ? "bg-[var(--brand-soft)] border-[var(--brand)] text-[var(--brand)]"
+                                  : "bg-[var(--background)] border-[var(--border)] text-stone-500 hover:bg-stone-50"
+                              }`}
+                            >
+                              <span>{cat}</span>
+                              {selected && <Check size={8} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between text-xs border-b border-stone-100 dark:border-stone-800 pb-2">
+                        <span className="flex items-center gap-1.5 font-bold text-stone-500">
+                          <Lock size={12} /> Default privacy
+                        </span>
+                        <span className="font-extrabold text-stone-700 dark:text-stone-200">Family Circle</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1.5 font-bold text-stone-500">
+                          <ShieldCheck size={12} /> Custodian
+                        </span>
+                        <span className="font-extrabold text-stone-700 dark:text-stone-200">Robert Mitchell</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
           </div>
         </div>
       </header>
 
-      <section className="mt-6 grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="space-y-5">
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-            <h2 className="text-lg font-black">Legacy Status</h2>
-            <div className="mt-4 space-y-3">
-              <StatusRow icon={ShieldCheck} label="Custodian" value="Robert Mitchell" />
-              <StatusRow icon={Lock} label="Default privacy" value="Family Circle" />
-              <StatusRow icon={CalendarDays} label="Memory streak" value="8 weeks" />
+      {/* Navigation Tab buttons (All Memories & Albums) */}
+      <div className="mt-6 flex items-center gap-4 bg-[var(--surface)] p-2.5 rounded-xl border border-[var(--border)] shadow-sm">
+        <button
+          onClick={() => setActiveTab("memories")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-black transition cursor-pointer ${
+            activeTab === "memories"
+              ? "bg-[var(--brand)] text-white shadow-sm"
+              : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-800"
+          }`}
+        >
+          <FileText size={15} />
+          All Memories ({localMemories.length})
+        </button>
+        
+        <button
+          onClick={() => setActiveTab("albums")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-black transition cursor-pointer ${
+            activeTab === "albums"
+              ? "bg-[var(--brand)] text-white shadow-sm"
+              : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-800"
+          }`}
+        >
+          <FolderHeart size={15} />
+          Albums ({mockAlbums.length})
+        </button>
+      </div>
+
+      {/* Main Content Area: Centered, expanding to the full width */}
+      <div className="mt-6">
+        {activeTab === "memories" && (
+          <div className="space-y-6">
+            {/* Quick Compose Box */}
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+              <div className="mb-4 flex gap-3">
+                <img src={userProfile.avatar} alt={userProfile.name} className="h-10 w-10 shrink-0 rounded-lg object-cover border border-stone-200/50 shadow-sm" />
+                <Link
+                  href="/record"
+                  className="flex flex-1 items-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-left text-xs font-semibold text-stone-500 transition hover:border-[var(--brand)]"
+                >
+                  Share a memory with the community...
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
+                {[
+                  ["Text", "text"],
+                  ["Photo", "photo"],
+                  ["Voice", "voice"],
+                ].map(([label, icon]) => (
+                  <Link
+                    key={label}
+                    href={`/record?mode=${label}`}
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-black text-stone-700 transition hover:bg-[var(--background)]"
+                  >
+                    <div className="scale-50 -mx-3 -my-3 shrink-0 text-[var(--brand)]">
+                      {icon === "text" && <FileText size={24} />}
+                      {icon === "photo" && <CameraIcon size={24} />}
+                      {icon === "voice" && <Mic size={24} />}
+                    </div>
+                    {label}
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <Link
-            href="/record"
-            className="flex h-14 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] text-sm font-black text-white shadow-sm"
-          >
-            <ImagePlus size={18} />
-            Add New Memory
-          </Link>
-        </aside>
-
-        <main className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-black tracking-tight">Recent Archive</h2>
-            <Link href="/search" className="text-sm font-black text-[var(--brand)]">Search all</Link>
+            {/* Memories stream */}
+            {localMemories.length > 0 ? (
+              localMemories.map((memory) => (
+                <FeedCard
+                  key={memory.id}
+                  memory={memory}
+                  onEdit={handleStartEditMemory}
+                  onDelete={handleDeleteMemory}
+                />
+              ))
+            ) : (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+                <p className="text-sm font-bold text-stone-500">You haven't preserved any memories yet. Start by capturing one!</p>
+              </div>
+            )}
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {memories.slice(0, 4).map((memory) => (
-              <Link key={memory.id} href={`/memories/${memory.id}`} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 transition hover:border-[var(--brand)]">
-                <img src={memory.image} alt={memory.title} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-[var(--brand)]">{memory.type}</p>
-                  <h3 className="mt-1 truncate text-sm font-black">{memory.title}</h3>
-                  <p className="mt-1 truncate text-xs font-bold text-stone-500">{memory.privacy}</p>
+        )}
+
+        {activeTab === "albums" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+            {mockAlbums.map((album) => (
+              <Link
+                key={album.id}
+                href={`/albums/${album.id}`}
+                className="group relative h-48 rounded-2xl overflow-hidden border border-[var(--border)] shadow-sm cursor-pointer transition active:scale-[0.98]"
+              >
+                <img src={album.cover} alt={album.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5 text-white" />
+                <div className="absolute bottom-4 left-4 text-white">
+                  <h4 className="text-lg font-black leading-tight">{album.title}</h4>
+                  <p className="text-[10px] font-semibold opacity-80 mt-1 uppercase tracking-wider">Open Gallery</p>
                 </div>
               </Link>
             ))}
           </div>
-        </main>
-      </section>
-    </div>
-  );
-}
+        )}
+      </div>
 
-function Stat({ label, value }) {
-  return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-center">
-      <p className="text-xl font-black">{value}</p>
-      <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-stone-500">{label}</p>
-    </div>
-  );
-}
+      {/* Edit Avatar Presets Modal */}
+      {editAvatarOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl animate-scale-up">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-black">Edit Profile Picture</h3>
+              <button onClick={() => setEditAvatarOpen(false)} className="rounded-lg p-1.5 hover:bg-[var(--background)] transition cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="text-left mb-5">
+              <p className="text-xs font-black uppercase text-stone-500 mb-2.5">Choose Preset</p>
+              <div className="grid grid-cols-4 gap-3">
+                {AVATAR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => {
+                      setAvatarInput(preset.url);
+                      handleSaveAvatar(preset.url);
+                    }}
+                    className={`h-16 w-16 rounded-full overflow-hidden border-2 transition cursor-pointer ${
+                      avatarInput === preset.url ? "border-[var(--brand)] shadow-md scale-105" : "border-transparent opacity-85 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={preset.url} alt={preset.name} className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
 
-function StatusRow({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-lg bg-[var(--background)] px-3 py-3">
-      <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wide text-stone-500">
-        <Icon size={13} />
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-black">{value}</p>
+            <div className="text-left">
+              <label className="block text-xs font-black uppercase text-stone-500 mb-1.5">Or Paste Custom Image URL</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="https://example.com/image.jpg"
+                  value={avatarInput}
+                  onChange={e => setAvatarInput(e.target.value)}
+                  className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--ink)] outline-none focus:border-[var(--brand)] dark:text-white"
+                />
+                <button
+                  onClick={() => handleSaveAvatar(avatarInput)}
+                  className="flex h-10 items-center justify-center rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white hover:bg-[var(--brand-hover)] transition cursor-pointer"
+                >
+                  Save URL
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Cover Presets Modal */}
+      {editCoverOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl animate-scale-up">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-black">Edit Cover Photo</h3>
+              <button onClick={() => setEditCoverOpen(false)} className="rounded-lg p-1.5 hover:bg-[var(--background)] transition cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="text-left mb-5">
+              <p className="text-xs font-black uppercase text-stone-500 mb-2.5">Choose Preset</p>
+              <div className="grid grid-cols-2 gap-3">
+                {COVER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => {
+                      setCoverInput(preset.url);
+                      handleSaveCover(preset.url);
+                    }}
+                    className={`h-20 rounded-lg overflow-hidden border-2 transition relative group cursor-pointer ${
+                      coverInput === preset.url ? "border-[var(--brand)] shadow-md scale-[1.02]" : "border-transparent opacity-85 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={preset.url} alt={preset.name} className="h-full w-full object-cover" />
+                    <span className="absolute bottom-1 left-2 text-[9px] font-black bg-black/50 text-white px-1.5 rounded uppercase tracking-wider">{preset.name.split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-left">
+              <label className="block text-xs font-black uppercase text-stone-500 mb-1.5">Or Paste Custom Image URL</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="https://example.com/cover.jpg"
+                  value={coverInput}
+                  onChange={e => setCoverInput(e.target.value)}
+                  className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--ink)] outline-none focus:border-[var(--brand)] dark:text-white"
+                />
+                <button
+                  onClick={() => handleSaveCover(coverInput)}
+                  className="flex h-10 items-center justify-center rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white hover:bg-[var(--brand-hover)] transition cursor-pointer"
+                >
+                  Save URL
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Memory Caption/Title Modal (Kept for card content edits) */}
+      {editMemoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl animate-scale-up">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-black">Edit Memory Post</h3>
+              <button onClick={() => { setEditMemoryOpen(false); setEditingMemory(null); }} className="rounded-lg p-1.5 hover:bg-[var(--background)] transition cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveMemoryEdit} className="space-y-4 text-left">
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5">Title</label>
+                <input
+                  required
+                  type="text"
+                  value={memoryEditData.title}
+                  onChange={e => setMemoryEditData({ ...memoryEditData, title: e.target.value })}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm font-bold text-[var(--ink)] outline-none focus:border-[var(--brand)] dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5">Caption / Description</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={memoryEditData.description}
+                  onChange={e => setMemoryEditData({ ...memoryEditData, description: e.target.value })}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm font-bold text-[var(--ink)] outline-none focus:border-[var(--brand)] dark:text-white resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5">Privacy Audience</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "private", label: "Private", icon: Lock },
+                    { id: "family", label: "Family", icon: Users },
+                    { id: "public", label: "Public", icon: Globe }
+                  ].map((aud) => {
+                    const AudIcon = aud.icon;
+                    const isSelected = memoryEditData.privacy === aud.id;
+                    return (
+                      <button
+                        key={aud.id}
+                        type="button"
+                        onClick={() => setMemoryEditData({ ...memoryEditData, privacy: aud.id })}
+                        className={`flex h-11 items-center justify-center gap-1.5 rounded-lg border text-xs font-black transition cursor-pointer ${
+                          isSelected
+                            ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]"
+                            : "border-[var(--border)] bg-[var(--background)] text-stone-500 hover:bg-stone-50"
+                        }`}
+                      >
+                        <AudIcon size={13} />
+                        {aud.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-sm font-black text-white transition active:scale-[0.98] cursor-pointer"
+              >
+                <Save size={16} />
+                Update Memory
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

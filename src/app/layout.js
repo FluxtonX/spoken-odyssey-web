@@ -2,6 +2,7 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import NavBar from "@/components/navigation/NavBar";
 import LayoutShell from "@/components/layout/LayoutShell";
+import { GOOGLE_FONTS_LINK } from "@/data/postFonts";
 
 const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800", "900"] });
 
@@ -13,6 +14,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href={GOOGLE_FONTS_LINK} rel="stylesheet" />
+      </head>
       <body className={`${outfit.className} antialiased bg-[var(--background)]`}>
         <LayoutShell>
           <NavBar />
