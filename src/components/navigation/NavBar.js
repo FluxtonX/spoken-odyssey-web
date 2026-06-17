@@ -13,7 +13,7 @@ export default function NavBar() {
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    setIsLoggedIn(localStorage.getItem("isLoggedIn") === "true");
+    setIsLoggedIn(sessionStorage.getItem("isLoggedIn") === "true");
     
     function loadProfile() {
       setUserProfile(getStoredUserProfile());
@@ -24,7 +24,7 @@ export default function NavBar() {
   }, [pathname]);
 
   const navItems = [
-    { name: "Home", href: "/", icon: "home" },
+    { name: "Home", href: "/home", icon: "home" },
     { name: "Me", href: "/profile", icon: "me" },
     { name: "Discovery", href: "/feed", icon: "feed", isPrimary: true },
     { name: "Albums", href: "/albums", icon: "album" },

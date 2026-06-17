@@ -11,7 +11,7 @@ export default function LayoutShell({ children }) {
 
   useEffect(() => {
     setMounted(true);
-    const loggedIn = localStorage.getItem("isLoggedIn") === "true";
+    const loggedIn = sessionStorage.getItem("isLoggedIn") === "true";
     setIsLoggedIn(loggedIn);
 
     const isAuth = 
@@ -62,7 +62,7 @@ export default function LayoutShell({ children }) {
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[var(--background)]">
       <main className="flex-1 pb-20 md:pb-0 md:ml-20 lg:ml-64 w-full transition-all duration-300">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:pt-6 md:pb-10">
           {children}
         </div>
       </main>

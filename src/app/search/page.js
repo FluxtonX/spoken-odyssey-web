@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Album, ArrowLeft, CalendarDays, FileText, Search, SlidersHorizontal, UserRound } from "lucide-react";
-import { albums, memories, people } from "@/data/mockApp";
+import { memories, people } from "@/data/mockApp";
+import { getStoredAlbums } from "@/data/userProfile";
 
 const tabs = ["All", "Memories", "Albums", "People"];
 
@@ -11,8 +12,10 @@ export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("All");
   const [followedIds, setFollowedIds] = useState(["sarah"]);
+  const [albumsList, setAlbumsList] = useState([]);
 
   useEffect(() => {
+    setAlbumsList(getStoredAlbums());
     const saved = localStorage.getItem("followedPeople");
     if (saved) {
       setFollowedIds(JSON.parse(saved));
@@ -34,10 +37,10 @@ export default function SearchPage() {
       memories: memories.filter((memory) =>
         match(`${memory.title} ${memory.description} ${memory.tags.join(" ")} ${memory.mood}`)
       ),
-      albums: albums.filter((album) => match(`${album.title} ${album.subtitle} ${album.privacy}`)),
+      albums: albumsList.filter((album) => match(`${album.title} ${album.subtitle} ${album.privacy}`)),
       people: people.filter((person) => match(`${person.name} ${person.role} ${person.location} ${person.bio}`)),
     };
-  }, [normalized]);
+  }, [normalized, albumsList]);
 
   const total = results.memories.length + results.albums.length + results.people.length;
 

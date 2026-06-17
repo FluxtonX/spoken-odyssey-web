@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -15,7 +16,8 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import { albums, getAlbumById, getAlbumMemories } from "@/data/mockApp";
+import { getAlbumMemories } from "@/data/mockApp";
+import { getStoredAlbums, seedInitialMemoriesIfNeeded } from "@/data/userProfile";
 
 const typeIcons = {
   Voice: Mic,
@@ -27,8 +29,40 @@ const typeIcons = {
 export default function AlbumDetailPage() {
   const pathname = usePathname();
   const id = pathname.split("/").filter(Boolean).at(-1);
-  const album = getAlbumById(id) ?? albums[0];
-  const albumMemories = getAlbumMemories(album.id);
+
+  const [album, setAlbum] = useState(null);
+  const [albumMemories, setAlbumMemories] = useState([]);
+
+  useEffect(() => {
+    seedInitialMemoriesIfNeeded();
+    
+    const storedAlbums = getStoredAlbums();
+    const foundAlbum = storedAlbums.find((a) => a.id === id) || storedAlbums[0];
+    setAlbum(foundAlbum);
+
+    const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+    if (saved) {
+      try {
+        const allMemories = JSON.parse(saved);
+        const filtered = allMemories.filter((m) => m.albums && m.albums.includes(foundAlbum.id));
+        const filteredLegacy = allMemories.filter((m) => m.albumId === foundAlbum.id);
+        const merged = [...filtered, ...filteredLegacy.filter(mLegacy => !filtered.some(f => f.id === mLegacy.id))];
+        setAlbumMemories(merged);
+      } catch {
+        setAlbumMemories(getAlbumMemories(foundAlbum.id));
+      }
+    } else {
+      setAlbumMemories(getAlbumMemories(foundAlbum.id));
+    }
+  }, [id]);
+
+  if (!album) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
+        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full pb-24 animation-fade-in">
@@ -85,10 +119,13 @@ export default function AlbumDetailPage() {
               Chronological memory cards from this album.
             </p>
           </div>
-          <button className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 text-sm font-black text-white shadow-sm transition active:scale-[0.98]">
+          <Link 
+            href={`/record?albumId=${album.id}`}
+            className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 text-sm font-black text-white shadow-sm transition active:scale-[0.98]"
+          >
             <Plus size={17} />
             Add Memory
-          </button>
+          </Link>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

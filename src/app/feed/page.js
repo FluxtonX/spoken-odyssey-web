@@ -97,53 +97,57 @@ export default function Feed() {
 
   return (
     <div className="w-full pb-24 animation-fade-in">
-      <header className="sticky top-0 z-30 bg-[var(--background)]/95 py-4 backdrop-blur-md">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <Link href="/" className="flex shrink-0 items-center transition hover:opacity-95">
-            <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-8 w-auto object-contain md:h-9" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/followers"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 hover:text-[var(--brand)]"
-              aria-label="Followers"
-            >
-              <Users size={18} />
-            </Link>
-            <Link
-              href="/search"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 hover:text-[var(--brand)]"
-              aria-label="Search"
-            >
-              <Search size={18} />
-            </Link>
-            <Link
-              href="/notifications"
-              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95"
-              aria-label="Notifications"
-            >
-              <Bell size={18} />
-              {notifications.some((n) => n.unread) && (
-                <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-[var(--surface)]" />
-              )}
-            </Link>
+      <header className="sticky top-0 z-30 bg-[var(--background)]/95 pt-2 pb-3 backdrop-blur-md">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex h-10 items-center justify-start">
+              <Link href="/" className="flex shrink-0 items-center transition hover:opacity-95">
+                <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-8 w-auto object-contain md:h-9 -ml-1.5" />
+              </Link>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/followers"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 hover:text-[var(--brand)]"
+                aria-label="Followers"
+              >
+                <Users size={17} />
+              </Link>
+              <Link
+                href="/search"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 hover:text-[var(--brand)]"
+                aria-label="Search"
+              >
+                <Search size={17} />
+              </Link>
+              <Link
+                href="/notifications"
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95"
+                aria-label="Notifications"
+              >
+                <Bell size={17} />
+                {notifications.some((n) => n.unread) && (
+                  <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-[var(--surface)]" />
+                )}
+              </Link>
+            </div>
           </div>
-        </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {feedTabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${
-                activeTab === tab
-                  ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-                  : "border-[var(--border)] bg-[var(--surface)] text-stone-600 hover:border-[var(--brand)]"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {feedTabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${
+                  activeTab === tab
+                    ? "border-[var(--brand)] bg-[var(--brand)] text-white"
+                    : "border-[var(--border)] bg-[var(--surface)] text-stone-600 hover:border-[var(--brand)]"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 

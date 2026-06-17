@@ -25,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { albums } from "@/data/mockApp";
+import { getStoredAlbums } from "@/data/userProfile";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import {
   postBackgrounds,
@@ -128,6 +128,7 @@ function RecordMemoryContent() {
   const [storyText, setStoryText] = useState("");
   const [mediaDraft, setMediaDraft] = useState(null);
   const [selectedAlbums, setSelectedAlbums] = useState([]);
+  const [albumsList, setAlbumsList] = useState([]);
   const [selectedAudiences, setSelectedAudiences] = useState(["family"]);
   const [notice, setNotice] = useState("");
   const [savedMemories, setSavedMemories] = useState([]);
@@ -143,7 +144,14 @@ function RecordMemoryContent() {
 
   useEffect(() => {
     setSavedMemories(loadLocalMemories());
-  }, []);
+    const list = getStoredAlbums();
+    setAlbumsList(list);
+    
+    const albumParam = searchParams.get("albumId");
+    if (albumParam) {
+      setSelectedAlbums([albumParam]);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const nextFormat = resolveFormat(searchParams.get("mode"));
@@ -178,7 +186,7 @@ function RecordMemoryContent() {
 
   const selectedSummary = useMemo(() => {
     const albumLabels = selectedAlbums
-      .map((albumId) => albums.find((album) => album.id === albumId)?.title)
+      .map((albumId) => albumsList.find((album) => album.id === albumId)?.title)
       .filter(Boolean);
     const audienceLabels = selectedAudiences
       .map((audienceId) => audienceOptions.find((option) => option.id === audienceId)?.label)
@@ -356,6 +364,7 @@ function RecordMemoryContent() {
       displayDate: new Date().toLocaleString(),
       albums: selectedAlbums,
       audiences: selectedAudiences,
+      privacy: selectedAudiences.includes("public") ? "Public" : selectedAudiences.includes("family") ? "Family Circle" : "Private",
       audio: activeFormat === "Voice" ? { url: audioUrl, mimeType: audioMimeType, seconds: capturedVoiceSeconds } : null,
       media: activeFormat === "Photo" || activeFormat === "Video" ? mediaDraft : null,
       backgroundId: activeFormat === "Text" ? backgroundId : "none",
@@ -368,7 +377,7 @@ function RecordMemoryContent() {
     try {
       localStorage.setItem(LOCAL_MEMORIES_KEY, JSON.stringify(nextMemories));
       setSavedMemories(nextMemories);
-      setNotice("Memory saved in local storage for testing.");
+      setNotice("Memory successfully created!");
       clearForm();
     } catch {
       setNotice("This file is too large for local storage. Try a smaller video/photo for testing.");
@@ -477,7 +486,7 @@ function RecordMemoryContent() {
               Add to Album
             </p>
             <div className="flex gap-2 overflow-x-auto pb-2">
-              {albums.slice(0, 5).map((album) => (
+              {albumsList.slice(0, 5).map((album) => (
                 <SelectableChip key={album.id} selected={selectedAlbums.includes(album.id)} onClick={() => toggleAlbum(album.id)}>
                   {album.title}
                 </SelectableChip>

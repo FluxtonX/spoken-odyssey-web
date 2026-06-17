@@ -57,10 +57,10 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
-    window.location.href = "/";
+    sessionStorage.removeItem("isLoggedIn");
+    sessionStorage.removeItem("userEmail");
+    sessionStorage.removeItem("userName");
+    window.location.href = "/auth";
   };
 
   // Custom high-fidelity dynamic toggle switch

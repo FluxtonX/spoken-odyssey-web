@@ -47,12 +47,12 @@ export default function AuthPage() {
     if (!email || !password) return;
     
     // Simulate successful authentication
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userName", email.split("@")[0]);
+    sessionStorage.setItem("isLoggedIn", "true");
+    sessionStorage.setItem("userEmail", email);
+    sessionStorage.setItem("userName", email.split("@")[0]);
     setSuccessMsg("Logged in successfully! Redirecting...");
     setTimeout(() => {
-      window.location.href = "/";
+      window.location.href = "/home";
     }, 1000);
   };
 
@@ -95,12 +95,12 @@ export default function AuthPage() {
     }
 
     // Mock verification check: any 6 digits works
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userName", name || email.split("@")[0]);
+    sessionStorage.setItem("isLoggedIn", "true");
+    sessionStorage.setItem("userEmail", email);
+    sessionStorage.setItem("userName", name || email.split("@")[0]);
     setSuccessMsg("Account verified successfully! Redirecting...");
     setTimeout(() => {
-      window.location.href = "/";
+      window.location.href = "/home";
     }, 1500);
   };
 
@@ -197,10 +197,10 @@ export default function AuthPage() {
 
             <button 
               onClick={() => {
-                localStorage.setItem("isLoggedIn", "true");
-                localStorage.setItem("userEmail", "google-user@example.com");
-                localStorage.setItem("userName", "Alexander");
-                window.location.href = "/";
+                sessionStorage.setItem("isLoggedIn", "true");
+                sessionStorage.setItem("userEmail", "google-user@example.com");
+                sessionStorage.setItem("userName", "Alexander");
+                window.location.href = "/home";
               }} 
               className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-stone-700 hover:border-[var(--brand)] hover:bg-slate-50 transition-all active:scale-95 group shadow-sm text-sm"
             >

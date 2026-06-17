@@ -15,9 +15,9 @@ export default function SignUp() {
     e.preventDefault();
     if (email && name) {
       // Mock Sign Up Flow
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", email);
-      localStorage.setItem("userName", name);
+      sessionStorage.setItem("isLoggedIn", "true");
+      sessionStorage.setItem("userEmail", email);
+      sessionStorage.setItem("userName", name);
       // Route them to Profile Setup Gate for perfect onboarding!
       router.push("/profile-setup");
     }
