@@ -41,7 +41,7 @@ export default function FamilyDashboard() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto pb-24 animation-fade-in relative">
+    <div className="w-full max-w-3xl pb-24 animation-fade-in relative">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in flex items-center gap-2 bg-green-700 text-white px-4 py-3 rounded-xl shadow-2xl">
@@ -147,7 +147,7 @@ export default function FamilyDashboard() {
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-serif text-2xl font-bold text-[var(--ink)]">Shared Memories</h2>
-          <button className="text-xs font-bold text-[var(--brand)] hover:underline">View all</button>
+          <Link href="/family/memories" className="text-xs font-bold text-[var(--brand)] hover:underline">View all</Link>
         </div>
         
         <div className="space-y-4">

@@ -1,64 +1,50 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useAuth } from "@/context/AuthProvider";
+import { isPublicRoute } from "@/lib/routes";
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
+      <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin" />
+    </div>
+  );
+}
 
 export default function LayoutShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
-    setMounted(true);
-    const loggedIn = sessionStorage.getItem("isLoggedIn") === "true";
-    setIsLoggedIn(loggedIn);
+    if (loading) {
+      return;
+    }
 
-    const isAuth = 
-      pathname?.startsWith("/onboarding") || 
-      pathname?.startsWith("/auth") || 
-      pathname?.startsWith("/signup") || 
-      pathname?.startsWith("/profile-setup");
-
-    if (!loggedIn && !isAuth) {
+    // Only redirect unauthenticated users away from protected pages.
+    // Authenticated users are allowed to visit /auth freely (e.g. to log out or switch accounts).
+    if (!isAuthenticated && !isPublicRoute(pathname)) {
       router.replace("/auth");
     }
-  }, [pathname, router]);
+  }, [isAuthenticated, loading, pathname, router]);
 
-  // Prevent flash on mount — use neutral loading wrapper
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
-        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin" />
-      </div>
-    );
+  if (loading) {
+    return <LoadingScreen />;
   }
 
-  const isAuthRoute = 
-    pathname?.startsWith("/onboarding") || 
-    pathname?.startsWith("/auth") || 
-    pathname?.startsWith("/signup") || 
-    pathname?.startsWith("/profile-setup");
+  const publicRoute = isPublicRoute(pathname);
+  const shouldRedirect = !isAuthenticated && !publicRoute;
 
-  // If not logged in and not on an auth route, show loading spinner while redirecting
-  if (!isLoggedIn && !isAuthRoute) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
-        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin" />
-      </div>
-    );
+  if (shouldRedirect) {
+    return <LoadingScreen />;
   }
 
-  // Full-bleed layout — landing page & auth pages control their own bg
-  if (!isLoggedIn || isAuthRoute) {
-    return (
-      <div className="w-full min-h-screen">
-        {children}
-      </div>
-    );
+  if (!isAuthenticated || publicRoute) {
+    return <div className="w-full min-h-screen">{children}</div>;
   }
 
-  // Show authenticated Layout (Sidebar margin + dashboard padding)
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[var(--background)]">
       <main className="flex-1 pb-20 md:pb-0 md:ml-20 lg:ml-64 w-full transition-all duration-300">

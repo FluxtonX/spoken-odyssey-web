@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, ChevronRight, X, Lock, Users, Globe } from "lucide-react";
+import { Plus, Search, ChevronRight, X, Lock, Users, Globe, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { getStoredAlbums, saveStoredAlbums } from "@/data/userProfile";
@@ -22,7 +22,8 @@ export default function AlbumsGallery() {
   const [newAlbumPrivacy, setNewAlbumPrivacy] = useState("Private");
   const [newAlbumCover, setNewAlbumCover] = useState(COVER_PRESETS[0].url);
   const [customCoverUrl, setCustomCoverUrl] = useState("");
-  const [useCustomCover, setUseCustomCover] = useState(false);
+  const [coverMode, setCoverMode] = useState("preset");
+  const [uploadedCoverName, setUploadedCoverName] = useState("");
   const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function AlbumsGallery() {
     e.preventDefault();
     if (!newAlbumTitle.trim()) return;
 
-    const coverUrl = useCustomCover && customCoverUrl.trim() ? customCoverUrl.trim() : newAlbumCover;
+    const coverUrl = coverMode === "custom" && customCoverUrl.trim() ? customCoverUrl.trim() : newAlbumCover;
     
     const newAlbum = {
       id: `album-${Date.now()}`,
@@ -54,12 +55,28 @@ export default function AlbumsGallery() {
     setNewAlbumPrivacy("Private");
     setNewAlbumCover(COVER_PRESETS[0].url);
     setCustomCoverUrl("");
-    setUseCustomCover(false);
+    setCoverMode("preset");
+    setUploadedCoverName("");
     setIsCreateModalOpen(false);
 
     // Show Success Toast
     setToastMessage("Album successfully created!");
     setTimeout(() => setToastMessage(""), 3000);
+  };
+
+  const handleCoverUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setNewAlbumCover(reader.result);
+        setUploadedCoverName(file.name);
+        setCoverMode("upload");
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Search Filter
@@ -213,22 +230,29 @@ export default function AlbumsGallery() {
                 <div className="flex gap-4 mb-3 text-xs font-bold">
                   <button 
                     type="button"
-                    onClick={() => setUseCustomCover(false)}
-                    className={`pb-1 border-b-2 transition-colors cursor-pointer ${!useCustomCover ? "border-[var(--brand)] text-[var(--brand)]" : "border-transparent text-stone-500"}`}
+                    onClick={() => setCoverMode("preset")}
+                    className={`pb-1 border-b-2 transition-colors cursor-pointer ${coverMode === "preset" ? "border-[var(--brand)] text-[var(--brand)]" : "border-transparent text-stone-500"}`}
                   >
                     Presets
                   </button>
                   <button 
                     type="button"
-                    onClick={() => setUseCustomCover(true)}
-                    className={`pb-1 border-b-2 transition-colors cursor-pointer ${useCustomCover ? "border-[var(--brand)] text-[var(--brand)]" : "border-transparent text-stone-500"}`}
+                    onClick={() => setCoverMode("upload")}
+                    className={`pb-1 border-b-2 transition-colors cursor-pointer ${coverMode === "upload" ? "border-[var(--brand)] text-[var(--brand)]" : "border-transparent text-stone-500"}`}
+                  >
+                    Upload
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setCoverMode("custom")}
+                    className={`pb-1 border-b-2 transition-colors cursor-pointer ${coverMode === "custom" ? "border-[var(--brand)] text-[var(--brand)]" : "border-transparent text-stone-500"}`}
                   >
                     Custom URL
                   </button>
                 </div>
 
                 {/* Presets Grid */}
-                {!useCustomCover ? (
+                {coverMode === "preset" ? (
                   <div className="grid grid-cols-5 gap-2">
                     {COVER_PRESETS.map((preset) => {
                       const isSelected = newAlbumCover === preset.url;
@@ -236,7 +260,10 @@ export default function AlbumsGallery() {
                         <button
                           key={preset.name}
                           type="button"
-                          onClick={() => setNewAlbumCover(preset.url)}
+                          onClick={() => {
+                            setNewAlbumCover(preset.url);
+                            setUploadedCoverName("");
+                          }}
                           className={`aspect-video rounded-xl overflow-hidden relative border-2 transition-all cursor-pointer ${
                             isSelected ? "border-[var(--brand)] scale-[1.03]" : "border-transparent opacity-70 hover:opacity-100"
                           }`}
@@ -247,6 +274,21 @@ export default function AlbumsGallery() {
                         </button>
                       );
                     })}
+                  </div>
+                ) : coverMode === "upload" ? (
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 bg-slate-50 p-5 text-center transition hover:border-[var(--brand)] hover:bg-indigo-50/40 dark:border-stone-700 dark:bg-slate-800">
+                      <Upload size={22} className="mb-2 text-[var(--brand)]" />
+                      <span className="text-sm font-black text-[var(--ink)] dark:text-white">Upload cover image</span>
+                      <span className="mt-1 text-xs font-semibold text-stone-500">Choose from desktop, phone, or tablet</span>
+                      <input type="file" accept="image/*" onChange={handleCoverUpload} className="sr-only" />
+                    </label>
+                    {uploadedCoverName && (
+                      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white dark:border-stone-700 dark:bg-slate-800">
+                        <img src={newAlbumCover} alt="Uploaded cover preview" className="h-32 w-full object-cover" />
+                        <p className="truncate px-3 py-2 text-xs font-bold text-stone-500">{uploadedCoverName}</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <input 

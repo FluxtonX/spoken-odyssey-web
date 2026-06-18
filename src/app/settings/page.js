@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthProvider";
 import { 
   User, 
   Lock, 
@@ -20,6 +22,8 @@ import {
 } from "lucide-react";
 
 export default function Settings() {
+  const router = useRouter();
+  const { logout } = useAuth();
   const [pushNotifications, setPushNotifications] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
@@ -56,11 +60,9 @@ export default function Settings() {
     applyTheme(newTheme);
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("isLoggedIn");
-    sessionStorage.removeItem("userEmail");
-    sessionStorage.removeItem("userName");
-    window.location.href = "/auth";
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/auth");
   };
 
   // Custom high-fidelity dynamic toggle switch
@@ -82,7 +84,7 @@ export default function Settings() {
   );
 
   return (
-    <div className="w-full max-w-5xl mx-auto animation-fade-in pb-24">
+    <div className="w-full max-w-5xl animation-fade-in pb-24">
       {/* Header - Clean alignment with baseline */}
       <header className="pb-6 text-left">
         <h1 className="text-3xl font-black text-[var(--ink)] dark:text-white tracking-tight mb-1">Settings</h1>

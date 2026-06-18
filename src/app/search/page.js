@@ -45,7 +45,7 @@ export default function SearchPage() {
   const total = results.memories.length + results.albums.length + results.people.length;
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-24 animation-fade-in">
+    <div className="w-full max-w-5xl pb-24 animation-fade-in">
       <header className="sticky top-0 z-20 -mx-4 border-b border-[var(--border)] bg-[var(--background)]/90 px-4 py-4 backdrop-blur-md sm:mx-0 sm:px-0">
         <div className="mb-4 flex items-center gap-3">
           <Link

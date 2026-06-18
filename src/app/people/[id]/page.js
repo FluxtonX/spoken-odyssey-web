@@ -35,7 +35,7 @@ export default function PersonDetailPage() {
   const [isFollowing, setIsFollowing] = useState(false);
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-24 animation-fade-in">
+    <div className="w-full max-w-5xl pb-24 animation-fade-in">
       <header className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="relative z-0 h-[220px] bg-stone-100 sm:h-[300px] lg:h-[360px]">
           <button onClick={() => setViewer({ type: "Cover photo", src: person.cover })} className="block h-full w-full">

@@ -98,7 +98,7 @@ export default function Feed() {
   return (
     <div className="w-full pb-24 animation-fade-in">
       <header className="sticky top-0 z-30 bg-[var(--background)]/95 pt-2 pb-3 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex h-10 items-center justify-start">
               <Link href="/" className="flex shrink-0 items-center transition hover:opacity-95">
@@ -151,7 +151,7 @@ export default function Feed() {
         </div>
       </header>
 
-      <main className="mt-5 w-full max-w-4xl mx-auto">
+      <main className="mt-5 w-full max-w-4xl">
         <section className="min-w-0">
           {activeTab !== "People" && (
             <>

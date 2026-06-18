@@ -35,7 +35,7 @@ export default function NotificationSettings() {
   );
 
   return (
-    <div className="w-full max-w-2xl mx-auto animation-fade-in pb-24">
+    <div className="w-full max-w-3xl animation-fade-in pb-24">
       {/* Header */}
       <header className="flex items-center gap-4 mb-6">
         <Link 

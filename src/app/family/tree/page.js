@@ -58,7 +58,7 @@ function VerticalConnector() {
 
 export default function FamilyTreePage() {
   return (
-    <div className="mx-auto w-full max-w-5xl pb-24 animation-fade-in relative min-h-screen">
+    <div className="w-full max-w-5xl pb-24 animation-fade-in relative min-h-screen">
       {/* Header */}
       <header className="mb-10 flex items-center justify-between">
         <div>

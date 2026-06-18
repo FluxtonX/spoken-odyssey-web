@@ -49,7 +49,7 @@ export default function NotificationsPage() {
         </button>
       </header>
 
-      <div className="mt-8 w-full max-w-4xl mx-auto">
+      <div className="mt-8 w-full max-w-4xl">
         <section className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
           {items.map((item) => {
             const Icon = iconMap[item.type] ?? Bell;

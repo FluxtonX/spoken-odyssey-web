@@ -232,7 +232,7 @@ export default function ProfilePage() {
   if (!userProfile) return null;
 
   return (
-    <div className="mx-auto w-full max-w-4xl pb-24 animation-fade-in text-[var(--foreground)]">
+    <div className="w-full max-w-5xl pb-24 animation-fade-in text-[var(--foreground)]">
       {/* Notice Banner */}
       {notice && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-[var(--brand)]/25 bg-[var(--brand)]/95 text-white px-4 py-3 shadow-xl backdrop-blur-md animate-fade-in font-bold">

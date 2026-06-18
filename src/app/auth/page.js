@@ -1,22 +1,27 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, KeyRound, Mail, Lock, User, RefreshCw, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, Mail, Lock, User, RefreshCw, CheckCircle2 } from "lucide-react";
 import AuthLayout from "@/components/layout/AuthLayout";
+import { useAuth } from "@/context/AuthProvider";
+import { getAuthErrorMessage } from "@/services/firebase";
+import { getPostAuthRoute } from "@/lib/routes";
 
 export default function AuthPage() {
-  const [view, setView] = useState("login"); // "login" | "signup" | "verify"
+  const router = useRouter();
+  const { login, signup, loginWithGoogle, sendResetEmail, resendVerification } = useAuth();
+
+  const [view, setView] = useState("login"); // "login" | "signup" | "verify" | "reset"
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(59);
   const [isResending, setIsResending] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  
-  const otpRefs = useRef([]);
 
   // Check URL query parameters on mount to check if user clicked "signup"
   useEffect(() => {
@@ -42,77 +47,109 @@ export default function AuthPage() {
     return () => clearInterval(interval);
   }, [view, timer]);
 
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
+  const handleLoginSubmit = async (event) => {
+    event.preventDefault();
     if (!email || !password) return;
-    
-    // Simulate successful authentication
-    sessionStorage.setItem("isLoggedIn", "true");
-    sessionStorage.setItem("userEmail", email);
-    sessionStorage.setItem("userName", email.split("@")[0]);
-    setSuccessMsg("Logged in successfully! Redirecting...");
-    setTimeout(() => {
-      window.location.href = "/home";
-    }, 1000);
+
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      const profile = await login(email, password);
+      setSuccessMsg("Logged in successfully! Redirecting...");
+      setTimeout(() => {
+        router.replace(getPostAuthRoute(profile));
+      }, 800);
+    } catch (error) {
+      if (error?.code === "auth/email-not-verified") {
+        setView("verify");
+      }
+      setErrorMsg(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSignupSubmit = (e) => {
-    e.preventDefault();
+  const handleSignupSubmit = async (event) => {
+    event.preventDefault();
     if (!name || !email || !password) return;
 
-    // Simulate OTP sent
-    setView("verify");
-    setTimer(59);
-    setSuccessMsg("Verification code sent to your email!");
-    setTimeout(() => setSuccessMsg(""), 3500);
-  };
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setSuccessMsg("");
 
-  const handleOtpChange = (index, value) => {
-    if (isNaN(value)) return; // Allow numbers only
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Auto-focus next input
-    if (value !== "" && index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    // Backspace to focus previous input
-    if (e.key === "Backspace" && otp[index] === "" && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerifySubmit = (e) => {
-    e.preventDefault();
-    const enteredCode = otp.join("");
-    if (enteredCode.length < 6) {
-      setErrorMsg("Please enter the complete 6-digit code.");
-      return;
-    }
-
-    // Mock verification check: any 6 digits works
-    sessionStorage.setItem("isLoggedIn", "true");
-    sessionStorage.setItem("userEmail", email);
-    sessionStorage.setItem("userName", name || email.split("@")[0]);
-    setSuccessMsg("Account verified successfully! Redirecting...");
-    setTimeout(() => {
-      window.location.href = "/home";
-    }, 1500);
-  };
-
-  const handleResendOtp = () => {
-    if (timer > 0) return;
-    setIsResending(true);
-    setTimeout(() => {
+    try {
+      await signup({ name, email, password });
+      setView("verify");
       setTimer(59);
-      setIsResending(false);
-      setSuccessMsg("A new verification code has been sent!");
+      setSuccessMsg("Verification link sent to your email!");
       setTimeout(() => setSuccessMsg(""), 3500);
-    }, 1000);
+    } catch (error) {
+      setErrorMsg(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetSubmit = async (event) => {
+    event.preventDefault();
+    if (!email) return;
+
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      await sendResetEmail(email);
+      setSuccessMsg("Password reset instructions have been sent to your email.");
+      setTimeout(() => {
+        setSuccessMsg("");
+        setView("login");
+      }, 1800);
+    } catch (error) {
+      setErrorMsg(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      await loginWithGoogle();
+      setSuccessMsg("Signed in successfully! Redirecting...");
+      // Always go to /home after Google sign-in;
+      // profile-setup will be prompted from /home if the profile is incomplete.
+      setTimeout(() => {
+        router.replace("/home");
+      }, 800);
+    } catch (error) {
+      setErrorMsg(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (timer > 0 || !email || !password) return;
+
+    setIsResending(true);
+    setErrorMsg("");
+
+    try {
+      await resendVerification(email, password);
+      setTimer(59);
+      setSuccessMsg("A new verification link has been sent!");
+      setTimeout(() => setSuccessMsg(""), 3500);
+    } catch (error) {
+      setErrorMsg(getAuthErrorMessage(error));
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (
@@ -166,7 +203,20 @@ export default function AuthPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">Password</label>
+                <div className="mb-2 flex items-center justify-between gap-3 pl-1">
+                  <label className="block text-xs font-black text-stone-500 uppercase tracking-wider">Password</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorMsg("");
+                      setSuccessMsg("");
+                      setView("reset");
+                    }}
+                    className="text-xs font-black text-[var(--brand)] hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <div className="relative">
                   <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
                   <input 
@@ -182,9 +232,10 @@ export default function AuthPage() {
 
               <button 
                 type="submit"
-                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
               >
-                Login
+                {isSubmitting ? "Signing in..." : "Login"}
               </button>
             </form>
 
@@ -196,13 +247,10 @@ export default function AuthPage() {
             </div>
 
             <button 
-              onClick={() => {
-                sessionStorage.setItem("isLoggedIn", "true");
-                sessionStorage.setItem("userEmail", "google-user@example.com");
-                sessionStorage.setItem("userName", "Alexander");
-                window.location.href = "/home";
-              }} 
-              className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-stone-700 hover:border-[var(--brand)] hover:bg-slate-50 transition-all active:scale-95 group shadow-sm text-sm"
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-stone-700 hover:border-[var(--brand)] hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-95 group shadow-sm text-sm"
             >
               <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
               <span className="font-extrabold text-stone-700 dark:text-stone-200">Continue with Google</span>
@@ -211,6 +259,54 @@ export default function AuthPage() {
             <div className="mt-8 text-center text-sm">
               <span className="text-stone-500 dark:text-stone-400 font-semibold">Don't have an account? </span>
               <button onClick={() => setView("signup")} className="text-[var(--brand)] font-black hover:underline cursor-pointer">Sign Up</button>
+            </div>
+          </div>
+        )}
+
+        {/* 1b. RESET PASSWORD VIEW */}
+        {view === "reset" && (
+          <div className="animate-fade-in">
+            <div className="mb-8">
+              <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">Reset Password</h1>
+              <p className="text-sm font-semibold text-stone-500">Enter your email and we'll send reset instructions.</p>
+            </div>
+
+            <form onSubmit={handleResetSubmit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">Email Address</label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                  <input
+                    type="email"
+                    placeholder="name@example.com"
+                    required
+                    className="w-full p-4 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+              >
+                {isSubmitting ? "Sending..." : "Send Reset Link"}
+              </button>
+            </form>
+
+            <div className="mt-8 text-center text-sm">
+              <button
+                onClick={() => {
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                  setView("login");
+                }}
+                className="text-stone-500 dark:text-stone-400 font-bold hover:underline cursor-pointer"
+              >
+                Back to Login
+              </button>
             </div>
           </div>
         )}
@@ -271,9 +367,10 @@ export default function AuthPage() {
 
               <button 
                 type="submit"
-                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
               >
-                Sign Up
+                {isSubmitting ? "Creating account..." : "Sign Up"}
               </button>
             </form>
 
@@ -284,50 +381,33 @@ export default function AuthPage() {
           </div>
         )}
 
-        {/* 3. VERIFICATION (OTP) VIEW */}
+        {/* 3. EMAIL VERIFICATION VIEW */}
         {view === "verify" && (
           <div className="animate-fade-in">
             <div className="mb-8 text-left">
               <div className="w-12 h-12 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center mb-4 border border-[var(--brand)]/20 shadow-sm">
-                <KeyRound size={22} />
+                <Mail size={22} />
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">Verify Your Account</h1>
+              <h1 className="text-2xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">Verify Your Email</h1>
               <p className="text-sm font-semibold text-stone-500">
-                We've sent a 6-digit code to <span className="text-stone-800 dark:text-stone-200 font-extrabold">{email}</span>. Please enter it below.
+                We sent a verification link to{" "}
+                <span className="text-stone-800 dark:text-stone-200 font-extrabold">{email}</span>.
+                Open the link in your inbox to activate your account, then return here to sign in.
               </p>
             </div>
 
-            <form onSubmit={handleVerifySubmit} className="space-y-6">
-              <div className="flex justify-between gap-2.5">
-                {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => (otpRefs.current[index] = el)}
-                    type="text"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    className="w-full aspect-square text-center text-xl font-black rounded-xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none text-[var(--ink)] dark:text-white shadow-sm"
-                  />
-                ))}
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
-              >
-                Verify Code
-              </button>
-            </form>
+            <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-slate-50 dark:bg-slate-800 p-4 text-xs font-semibold text-stone-600 dark:text-stone-300">
+              After verifying, use the same email and password on the login screen.
+            </div>
 
             <div className="mt-8 text-center text-xs">
-              <p className="text-stone-500 font-semibold mb-2">Didn't receive the code?</p>
+              <p className="text-stone-500 font-semibold mb-2">Didn&apos;t receive the email?</p>
               <button 
-                onClick={handleResendOtp}
-                disabled={timer > 0 || isResending}
+                type="button"
+                onClick={handleResendVerification}
+                disabled={timer > 0 || isResending || !password}
                 className={`inline-flex items-center gap-1.5 font-black text-sm cursor-pointer ${
-                  timer > 0 
+                  timer > 0 || !password
                     ? "text-stone-400 dark:text-stone-600" 
                     : "text-[var(--brand)] hover:underline"
                 }`}
@@ -338,16 +418,22 @@ export default function AuthPage() {
                     Resending...
                   </>
                 ) : timer > 0 ? (
-                  `Resend Code in ${timer}s`
+                  `Resend Link in ${timer}s`
+                ) : !password ? (
+                  "Enter password on sign up to enable resend"
                 ) : (
-                  "Resend Code Now"
+                  "Resend Verification Link"
                 )}
               </button>
             </div>
 
             <div className="mt-8 text-center text-sm border-t border-stone-100 dark:border-stone-800 pt-6">
-              <button onClick={() => setView("signup")} className="text-stone-500 dark:text-stone-400 font-bold hover:underline cursor-pointer">
-                Back to Sign Up
+              <button
+                type="button"
+                onClick={() => setView("login")}
+                className="text-[var(--brand)] font-black hover:underline cursor-pointer"
+              >
+                Back to Login
               </button>
             </div>
           </div>

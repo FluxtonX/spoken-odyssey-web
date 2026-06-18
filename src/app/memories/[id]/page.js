@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   ArrowLeft,
@@ -40,6 +40,7 @@ const typeIcons = {
 
 export default function MemoryDetailPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const id = pathname.split("/").filter(Boolean).at(-1);
 
   const [memory, setMemory] = useState(null);
@@ -173,14 +174,22 @@ export default function MemoryDetailPage() {
   }
 
   const Icon = typeIcons[memory.type] ?? Type;
+  const from = searchParams.get("from");
+  const albumIdFromQuery = searchParams.get("albumId");
+  const backHref = from === "family"
+    ? "/family/memories"
+    : from === "album"
+      ? `/albums/${albumIdFromQuery || album.id}`
+      : `/albums/${album.id}`;
+  const backLabel = from === "family" ? "Back to family memories" : "Back to album";
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-24 animation-fade-in">
+    <div className="w-full max-w-5xl pb-24 animation-fade-in">
       <header className="mb-5 flex items-center justify-between gap-3">
         <Link
-          href={`/albums/${album.id}`}
+          href={backHref}
           className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm hover:text-[var(--brand)] transition-colors"
-          aria-label="Back to album"
+          aria-label={backLabel}
         >
           <ArrowLeft size={18} />
         </Link>

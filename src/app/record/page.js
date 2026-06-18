@@ -400,7 +400,7 @@ function RecordMemoryContent() {
         </Link>
       </header>
 
-      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col">
+      <div className="w-full max-w-4xl flex-1 flex flex-col">
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-sm">
         <div className="grid grid-cols-4 gap-1.5">
           {formats.map((format) => {

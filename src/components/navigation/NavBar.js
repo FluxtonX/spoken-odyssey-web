@@ -6,22 +6,22 @@ import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { getStoredUserProfile } from "@/data/userProfile";
+import { useAuth } from "@/context/AuthProvider";
+import { isPublicRoute } from "@/lib/routes";
 
 export default function NavBar() {
   const pathname = usePathname();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, profile } = useAuth();
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    setIsLoggedIn(sessionStorage.getItem("isLoggedIn") === "true");
-    
     function loadProfile() {
       setUserProfile(getStoredUserProfile());
     }
     loadProfile();
     window.addEventListener("profileUpdated", loadProfile);
     return () => window.removeEventListener("profileUpdated", loadProfile);
-  }, [pathname]);
+  }, [pathname, profile]);
 
   const navItems = [
     { name: "Home", href: "/home", icon: "home" },
@@ -32,13 +32,7 @@ export default function NavBar() {
     { name: "Settings", href: "/settings", icon: "settings" },
   ];
 
-  const isAuthRoute =
-    pathname?.startsWith("/onboarding") ||
-    pathname?.startsWith("/auth") ||
-    pathname?.startsWith("/signup") ||
-    pathname?.startsWith("/profile-setup");
-
-  if (isAuthRoute || !isLoggedIn) {
+  if (isPublicRoute(pathname) || !isAuthenticated) {
     return null;
   }
 
@@ -94,20 +88,6 @@ export default function NavBar() {
         <div className="mt-2 flex w-full flex-1 flex-col items-center gap-2.5 px-3 lg:items-start lg:px-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
-
-            if (item.isPrimary) {
-              return (
-                <div key={item.name} className="my-3 w-full">
-                  <Link
-                    href={item.href}
-                    className="flex w-full items-center justify-center gap-3 rounded-lg bg-[var(--brand)] p-2.5 text-white shadow-lg shadow-black/10 transition-all hover:scale-[1.02] active:scale-95 lg:justify-start"
-                  >
-                    <div className="shrink-0 scale-75 -ml-1">{resolveGlass3DIcon(item.icon)}</div>
-                    <span className="hidden text-sm font-black lg:block">{item.name}</span>
-                  </Link>
-                </div>
-              );
-            }
 
             return (
               <Link

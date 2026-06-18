@@ -4,6 +4,7 @@ import { Bell, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import LandingPage from "@/app/landing/page";
+import { useAuth } from "@/context/AuthProvider";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { memories } from "@/data/mockApp";
 import { getStoredAlbums, seedInitialMemoriesIfNeeded } from "@/data/userProfile";
@@ -41,12 +42,11 @@ function AlbumSlideshowCard({ album }) {
 }
 
 export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, loading, profile } = useAuth();
   const [albumsList, setAlbumsList] = useState([]);
   const [memoriesList, setMemoriesList] = useState([]);
 
   useEffect(() => {
-    setIsLoggedIn(sessionStorage.getItem("isLoggedIn") === "true");
     setAlbumsList(getStoredAlbums());
     seedInitialMemoriesIfNeeded();
     
@@ -82,10 +82,19 @@ export default function Home() {
       ],
     };
   });
+  if (loading) {
+    return null;
+  }
+
   // ── LANDING PAGE (Logged-out) ──
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return <LandingPage />;
   }
+
+  const displayName =
+    profile?.displayName?.split(" ")[0] ||
+    profile?.email?.split("@")[0] ||
+    "Explorer";
 
   // ── DASHBOARD (Logged-in) ──
   return (
@@ -94,7 +103,7 @@ export default function Home() {
       <header className="mb-6 md:mb-8 flex justify-between items-end gap-4">
         <div>
           <p className="text-[var(--foreground)] opacity-60 text-sm font-medium mb-1">Good Morning,</p>
-          <h1 className="text-3xl md:text-4xl font-bold text-[var(--foreground)] tracking-tight">Alexander</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-[var(--foreground)] tracking-tight">{displayName}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/search" className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95" aria-label="Search">

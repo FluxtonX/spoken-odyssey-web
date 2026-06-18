@@ -130,7 +130,7 @@ export default function AlbumDetailPage() {
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {albumMemories.map((memory) => (
-            <MemoryCard key={memory.id} memory={memory} />
+            <MemoryCard key={memory.id} memory={memory} albumId={album.id} />
           ))}
         </div>
       </section>
@@ -178,12 +178,13 @@ function StatTile({ label, value }) {
   );
 }
 
-function MemoryCard({ memory }) {
+function MemoryCard({ memory, albumId: currentAlbumId }) {
   const Icon = typeIcons[memory.type] ?? Type;
+  const albumId = (memory.albums && memory.albums[0]) || memory.albumId || currentAlbumId;
 
   return (
     <Link
-      href={`/memories/${memory.id}`}
+      href={`/memories/${memory.id}?from=album&albumId=${albumId}`}
       className="group overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)] shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--brand)]"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
