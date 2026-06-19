@@ -22,7 +22,13 @@ import {
   Mic,
   Camera as CameraIcon,
   Check,
-  FolderHeart
+  FolderHeart,
+  Target,
+  Award,
+  Briefcase,
+  Sparkles,
+  Lightbulb,
+  HeartHandshake
 } from "lucide-react";
 import {
   getStoredUserProfile,
@@ -51,7 +57,15 @@ export default function ProfilePage() {
     location: "",
     bio: "",
     birthday: "",
-    categories: []
+    categories: [],
+    goals: "",
+    projects: "",
+    achievements: "",
+    interests: "",
+    lessons: "",
+    values: "",
+    causes: "",
+    personalityQs: []
   });
 
   // Avatar/Cover Presets State
@@ -78,12 +92,23 @@ export default function ProfilePage() {
     const profile = getStoredUserProfile();
     setUserProfile(profile);
     setFormData({
-      name: profile.name,
-      role: profile.role,
-      location: profile.location,
-      bio: profile.bio,
+      name: profile.name || "",
+      role: profile.role || "",
+      location: profile.location || "",
+      bio: profile.bio || "",
       birthday: profile.birthday || "1990-06-15",
-      categories: profile.categories || []
+      categories: profile.categories || [],
+      goals: profile.goals || "",
+      projects: profile.projects || "",
+      achievements: profile.achievements || "",
+      interests: profile.interests || "",
+      lessons: profile.lessons || "",
+      values: profile.values || "",
+      causes: profile.causes || "",
+      personalityQs: profile.personalityQs || [
+        { q: "What is your happiest memory from childhood?", a: "" },
+        { q: "How would you like to be remembered?", a: "" }
+      ]
     });
     setAvatarInput(profile.avatar);
     setCoverInput(profile.cover);
@@ -135,7 +160,15 @@ export default function ProfilePage() {
       location: formData.location.trim() || userProfile.location,
       bio: formData.bio.trim() || userProfile.bio,
       birthday: formData.birthday || userProfile.birthday,
-      categories: formData.categories
+      categories: formData.categories,
+      goals: formData.goals.trim(),
+      projects: formData.projects.trim(),
+      achievements: formData.achievements.trim(),
+      interests: formData.interests.trim(),
+      lessons: formData.lessons.trim(),
+      values: formData.values.trim(),
+      causes: formData.causes.trim(),
+      personalityQs: formData.personalityQs
     };
     saveStoredUserProfile(updated);
     setIsEditing(false);
@@ -492,6 +525,236 @@ export default function ProfilePage() {
         </div>
       </header>
 
+      {/* Legacy Portrait Section */}
+      <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-md text-left">
+        <div className="flex items-center justify-between pb-4 mb-6 border-b border-[var(--border)]/55">
+          <h2 className="text-base font-black tracking-tight text-[var(--ink)] dark:text-white uppercase flex items-center gap-2">
+            <Sparkles className="text-[var(--brand)] animate-pulse" size={18} />
+            Legacy Portrait & Life Journey
+          </h2>
+          {isEditing && (
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--brand)]">Editing Portrait...</span>
+          )}
+        </div>
+
+        {isEditing ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
+                  <Target size={12} className="text-sky-550" /> Goals & Aspirations
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.goals}
+                  onChange={e => setFormData({ ...formData, goals: e.target.value })}
+                  placeholder="What are you working towards or hoping to achieve?"
+                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
+                  <Award size={12} className="text-amber-550" /> Achievements & Milestones
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.achievements}
+                  onChange={e => setFormData({ ...formData, achievements: e.target.value })}
+                  placeholder="What are your proudest accomplishments?"
+                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
+                  <Briefcase size={12} className="text-purple-555" /> Projects & Ventures
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.projects}
+                  onChange={e => setFormData({ ...formData, projects: e.target.value })}
+                  placeholder="Describe your creative work, startups, or legacy projects..."
+                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
+                  <Sparkles size={12} className="text-rose-550" /> Interests & Passions
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.interests}
+                  onChange={e => setFormData({ ...formData, interests: e.target.value })}
+                  placeholder="What are you passionate about?"
+                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
+                  <Lightbulb size={12} className="text-yellow-550" /> Life Lessons Learned
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.lessons}
+                  onChange={e => setFormData({ ...formData, lessons: e.target.value })}
+                  placeholder="What wisdom would you share with future generations?"
+                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
+                  <Globe size={12} className="text-emerald-550" /> Values & Beliefs
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.values}
+                  onChange={e => setFormData({ ...formData, values: e.target.value })}
+                  placeholder="What core values guide your decisions?"
+                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
+                  <HeartHandshake size={12} className="text-orange-550" /> Causes & Advocacy
+                </label>
+                <input
+                  type="text"
+                  value={formData.causes}
+                  onChange={e => setFormData({ ...formData, causes: e.target.value })}
+                  placeholder="What charity initiatives or issues do you support?"
+                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-[var(--border)]/40">
+              <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-3">Personality Questions</p>
+              <div className="space-y-4">
+                {formData.personalityQs.map((item, idx) => (
+                  <div key={idx} className="bg-stone-50 dark:bg-stone-850 p-4 rounded-2xl border border-[var(--border)]/45">
+                    <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-2">{item.q}</p>
+                    <textarea
+                      rows={2}
+                      value={item.a}
+                      onChange={e => {
+                        const updated = [...formData.personalityQs];
+                        updated[idx] = { ...updated[idx], a: e.target.value };
+                        setFormData({ ...formData, personalityQs: updated });
+                      }}
+                      placeholder="Share your reflection..."
+                      className="w-full text-xs font-bold bg-white dark:bg-stone-800 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {/* Goals Card */}
+              {userProfile.goals && (
+                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-sky-500/5 to-transparent hover:shadow-md transition duration-300">
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 mb-2">
+                    <Target size={14} /> Goals & Aspirations
+                  </span>
+                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.goals}</p>
+                </div>
+              )}
+
+              {/* Achievements Card */}
+              {userProfile.achievements && (
+                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-amber-500/5 to-transparent hover:shadow-md transition duration-300">
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">
+                    <Award size={14} /> Achievements & Milestones
+                  </span>
+                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.achievements}</p>
+                </div>
+              )}
+
+              {/* Projects Card */}
+              {userProfile.projects && (
+                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-purple-500/5 to-transparent hover:shadow-md transition duration-300">
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-2">
+                    <Briefcase size={14} /> Projects & Ventures
+                  </span>
+                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.projects}</p>
+                </div>
+              )}
+
+              {/* Interests Card */}
+              {userProfile.interests && (
+                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-rose-500/5 to-transparent hover:shadow-md transition duration-300">
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-2">
+                    <Sparkles size={14} /> Interests & Passions
+                  </span>
+                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.interests}</p>
+                </div>
+              )}
+
+              {/* Life Lessons Card */}
+              {userProfile.lessons && (
+                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-yellow-500/5 to-transparent hover:shadow-md transition duration-300">
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-yellow-600 dark:text-yellow-400 mb-2">
+                    <Lightbulb size={14} /> Life Lessons Learned
+                  </span>
+                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.lessons}</p>
+                </div>
+              )}
+
+              {/* Values Card */}
+              {userProfile.values && (
+                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-emerald-500/5 to-transparent hover:shadow-md transition duration-300">
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2">
+                    <Globe size={14} /> Values & Beliefs
+                  </span>
+                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.values}</p>
+                </div>
+              )}
+
+              {/* Causes Card */}
+              {userProfile.causes && (
+                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-orange-500/5 to-transparent hover:shadow-md transition duration-300 md:col-span-2 lg:col-span-3">
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-2">
+                    <HeartHandshake size={14} /> Causes I Care About
+                  </span>
+                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.causes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Personality Questions Answers */}
+            {userProfile.personalityQs && userProfile.personalityQs.some(item => item.a) && (
+              <div className="pt-6 border-t border-[var(--border)]/40">
+                <h3 className="text-xs font-black uppercase tracking-wider text-stone-400 mb-4">Reflections & Personality Q&A</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {userProfile.personalityQs.map((item, idx) => {
+                    if (!item.a) return null;
+                    return (
+                      <div key={idx} className="bg-stone-50 dark:bg-stone-800/40 p-5 rounded-2xl border border-[var(--border)]/45 relative overflow-hidden group hover:-translate-y-0.5 transition duration-300 shadow-sm text-left">
+                        <div className="absolute right-0 top-0 w-24 h-24 bg-[var(--brand)] opacity-[0.02] rounded-full blur-xl group-hover:scale-110 transition duration-500" />
+                        <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-2 pb-2 border-b border-[var(--border)]/35 flex items-start gap-1.5">
+                          <span className="text-[var(--brand)] font-serif italic text-lg leading-none">“</span>
+                          {item.q}
+                        </p>
+                        <p className="text-xs font-bold leading-relaxed text-stone-600 dark:text-stone-300 italic">
+                          "{item.a}"
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* Navigation Tab buttons (All Memories & Albums) */}
       <div className="mt-6 flex items-center gap-4 bg-[var(--surface)] p-2.5 rounded-xl border border-[var(--border)] shadow-sm">
         <button
@@ -580,7 +843,7 @@ export default function ProfilePage() {
             {mockAlbums.map((album) => (
               <Link
                 key={album.id}
-                href={`/albums/${album.id}`}
+                href={`/albums/${album.id}?from=profile`}
                 className="group relative h-48 rounded-2xl overflow-hidden border border-[var(--border)] shadow-sm cursor-pointer transition active:scale-[0.98]"
               >
                 <img src={album.cover} alt={album.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />

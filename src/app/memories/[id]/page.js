@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -21,6 +21,7 @@ import {
   Users,
   Video,
   X,
+  Upload,
 } from "lucide-react";
 import { getMemoryById, getPersonById, memories } from "@/data/mockApp";
 import { getStoredAlbums, seedInitialMemoriesIfNeeded } from "@/data/userProfile";
@@ -28,8 +29,14 @@ import {
   getBackgroundStyles,
   getBackgroundTextStyles,
   getBackgroundOverlay,
+  postBackgrounds,
 } from "@/data/postBackgrounds";
-import { getFontFamily } from "@/data/postFonts";
+import { getFontFamily, postFonts } from "@/data/postFonts";
+import CommentsSection from "@/components/ui/CommentsSection";
+import VoicePlayer from "@/components/ui/VoicePlayer";
+import MediaGrid from "@/components/ui/MediaGrid";
+import { useAuth } from "@/context/AuthProvider";
+import { getMemoryDetailsFromBackend, getBackendErrorMessage, updateMemoryOnBackend } from "@/services/backend";
 
 const typeIcons = {
   Voice: Mic,
@@ -38,137 +45,258 @@ const typeIcons = {
   Video,
 };
 
+const reactions = [
+  { id: "heart", label: "Heart", icon: "♥", color: "text-rose-600" },
+  { id: "like", label: "Like", icon: "👍", color: "text-[var(--brand)]" },
+  { id: "wow", label: "Wow", icon: "😮", color: "text-amber-600" },
+  { id: "haha", label: "Haha", icon: "😄", color: "text-yellow-600" },
+  { id: "angry", label: "Angry", icon: "😡", color: "text-red-600" },
+];
+
 export default function MemoryDetailPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const id = pathname.split("/").filter(Boolean).at(-1);
 
   const [memory, setMemory] = useState(null);
   const [album, setAlbum] = useState(null);
   const [owner, setOwner] = useState(null);
-  const [liked, setLiked] = useState(false);
+  const [reaction, setReaction] = useState(null);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  const [shareNotice, setShareNotice] = useState("");
+  const holdTimerRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [commentsList, setCommentsList] = useState([]);
-  const [commentInput, setCommentInput] = useState("");
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [commentsOpen, setCommentsOpen] = useState(true);
   const [showShareToast, setShowShareToast] = useState(false);
 
-  useEffect(() => {
+  const { firebaseUser, isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadMemoryDetails = async () => {
+    setIsLoading(true);
+    if (isAuthenticated && firebaseUser && id && !id.startsWith("local-")) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const backendMemory = await getMemoryDetailsFromBackend(token, id);
+        
+        const mappedMemory = {
+          id: backendMemory.id,
+          title: backendMemory.title,
+          description: backendMemory.description,
+          type: backendMemory.type,
+          mood: backendMemory.mood || "Calm",
+          privacy: backendMemory.privacy || "Private",
+          date: new Date(backendMemory.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
+          image: backendMemory.thumbnailUrl || backendMemory.mediaUrl || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+          mediaUrl: backendMemory.mediaUrl,
+          mediaMimeType: backendMemory.mediaMimeType,
+          mediaList: backendMemory.mediaList || [],
+          backgroundId: backendMemory.backgroundId || "none",
+          fontId: backendMemory.fontId || "default",
+          tags: backendMemory.tags || [],
+          likes: backendMemory.likes || 0,
+          comments: backendMemory.comments || 0,
+          ownerId: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
+          ownerDisplayName: backendMemory.ownerDisplayName,
+          ownerEmail: backendMemory.ownerEmail,
+          ownerProfession: backendMemory.ownerProfession,
+          ownerAvatarUrl: backendMemory.ownerAvatarUrl,
+        };
+        setMemory(mappedMemory);
+
+        if (backendMemory.albumId) {
+          const storedAlbums = getStoredAlbums();
+          const foundAlbum = storedAlbums.find((a) => a.id === backendMemory.albumId);
+          if (foundAlbum) {
+            setAlbum(foundAlbum);
+          } else {
+            setAlbum({ id: backendMemory.albumId, title: backendMemory.albumTitle || "Album" });
+          }
+        } else {
+          setAlbum({ id: "none", title: "No Album" });
+        }
+
+        const foundOwner = {
+          id: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
+          name: backendMemory.ownerDisplayName || "Alexander Mitchell",
+          role: backendMemory.ownerProfession || (backendMemory.ownerFirebaseUid === firebaseUser.uid ? "Family Archivist" : "Family Contributor"),
+          avatar: backendMemory.ownerAvatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(backendMemory.ownerDisplayName || "U")}`
+        };
+        setOwner(foundOwner);
+        setIsLoading(false);
+        return;
+      } catch (error) {
+        console.warn("Failed to load memory details from backend, falling back:", getBackendErrorMessage(error));
+      }
+    }
+
+    // Local Storage Fallback
     seedInitialMemoriesIfNeeded();
-    
-    // Load local memories
     const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
     let foundMemory = null;
     if (savedMemories) {
       try {
         const parsed = JSON.parse(savedMemories);
         foundMemory = parsed.find((m) => m.id === id);
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
     
-    // Fallback to mock memories
+    // Check cached album memories
     if (!foundMemory) {
-      foundMemory = getMemoryById(id) || memories[0];
+      const albumIdFromQuery = searchParams.get("albumId");
+      if (albumIdFromQuery) {
+        const cached = localStorage.getItem(`cached_album_memories_${albumIdFromQuery}`);
+        if (cached) {
+          try {
+            const list = JSON.parse(cached);
+            foundMemory = list.find((m) => m.id === id || m._id === id);
+          } catch {}
+        }
+      }
+    }
+
+    // Check cached feed memories
+    if (!foundMemory) {
+      const cachedFeed = localStorage.getItem("cached_feed_memories");
+      if (cachedFeed) {
+        try {
+          const list = JSON.parse(cachedFeed);
+          foundMemory = list.find((m) => m.id === id || m._id === id);
+        } catch {}
+      }
+    }
+
+    if (!foundMemory) {
+      foundMemory = getMemoryById(id);
+    }
+    
+    if (!foundMemory) {
+      foundMemory = memories.find((m) => m.id === id) || memories[0];
     }
     
     setMemory(foundMemory);
 
-    // Load stored albums to find this memory's album
     const storedAlbums = getStoredAlbums();
-    const albumId = (foundMemory.albums && foundMemory.albums[0]) || foundMemory.albumId || "summer-2023";
-    const foundAlbum = storedAlbums.find((a) => a.id === albumId) || storedAlbums[0];
-    setAlbum(foundAlbum);
+    const albumId = (foundMemory.albums && foundMemory.albums[0]) || foundMemory.albumId || searchParams.get("albumId");
+    const foundAlbum = storedAlbums.find((a) => a.id === albumId);
+    if (foundAlbum) {
+      setAlbum(foundAlbum);
+    } else if (foundMemory.albumTitle) {
+      setAlbum({ id: albumId || "none", title: foundMemory.albumTitle });
+    } else {
+      let cachedAlbumTitle = "";
+      if (albumId) {
+        try {
+          const cachedMemories = localStorage.getItem(`cached_album_memories_${albumId}`);
+          if (cachedMemories) {
+            const list = JSON.parse(cachedMemories);
+            if (list.length > 0 && list[0].albumTitle) {
+              cachedAlbumTitle = list[0].albumTitle;
+            }
+          }
+        } catch {}
+      }
+      setAlbum({ id: albumId || "none", title: cachedAlbumTitle || "Album Details" });
+    }
 
-    // Set owner
-    const foundOwner = getPersonById(foundMemory.ownerId) || {
-      id: "alexander",
-      name: "Alexander Mitchell",
-      role: "Family Archivist",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80"
+    const foundOwner = {
+      id: foundMemory.ownerId || foundMemory.ownerFirebaseUid || "alexander",
+      name: foundMemory.ownerDisplayName || (getPersonById(foundMemory.ownerId || foundMemory.ownerFirebaseUid)?.name) || "Alexander Mitchell",
+      role: foundMemory.ownerProfession || (foundMemory.ownerId === "alexander" || foundMemory.ownerFirebaseUid === firebaseUser?.uid ? "Family Archivist" : "Family Contributor"),
+      avatar: foundMemory.ownerAvatarUrl || getPersonById(foundMemory.ownerId || foundMemory.ownerFirebaseUid)?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(foundMemory.ownerDisplayName || "Alexander Mitchell")}`
     };
     setOwner(foundOwner);
-
-    // Load comments
-    if (foundMemory) {
-      const savedComments = localStorage.getItem(`comments_${foundMemory.id}`);
-      if (savedComments) {
-        setCommentsList(JSON.parse(savedComments));
-      } else {
-        const mockComments = [
-          { author: "Sarah Mitchell", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", text: "This is a beautiful memory! Thanks for sharing.", time: "2 hours ago" },
-          { author: "Robert Mitchell", avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=80&q=80", text: "Wow, brings back so many memories.", time: "1 day ago" }
-        ].slice(0, foundMemory.comments || 2);
-        setCommentsList(mockComments);
-      }
-    }
-  }, [id]);
-
-  const handleLike = () => {
-    const nextLiked = !liked;
-    setLiked(nextLiked);
-    
-    // Persist likes count change in local storage memory
-    const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-    if (saved) {
-      try {
-        const allMemories = JSON.parse(saved);
-        const memIndex = allMemories.findIndex(m => m.id === memory.id);
-        if (memIndex !== -1) {
-          allMemories[memIndex].likes = (allMemories[memIndex].likes || 0) + (nextLiked ? 1 : -1);
-          localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(allMemories));
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    setIsLoading(false);
   };
 
-  const handleAddComment = (e) => {
-    e.preventDefault();
-    if (!commentInput.trim() || !memory) return;
+  useEffect(() => {
+    loadMemoryDetails();
+  }, [id, isAuthenticated, firebaseUser]);
 
-    const newComment = {
-      author: "Alexander Mitchell", // Current User
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&q=80",
-      text: commentInput.trim(),
-      time: "Just now"
+  useEffect(() => {
+    if (!memory) return;
+    const savedComments = localStorage.getItem(`comments_${memory.id}`);
+    let initialCount = 0;
+    if (savedComments) {
+      try {
+        initialCount = JSON.parse(savedComments).length;
+      } catch {
+        initialCount = memory.comments || 0;
+      }
+    } else {
+      initialCount = memory.comments || 0;
+    }
+    setCommentsCount(initialCount);
+
+    const handleCommentsUpdate = (e) => {
+      setCommentsCount(e.detail);
     };
 
-    const updated = [...commentsList, newComment];
-    setCommentsList(updated);
-    localStorage.setItem(`comments_${memory.id}`, JSON.stringify(updated));
-    setCommentInput("");
+    window.addEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
+    return () => {
+      window.removeEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
+    };
+  }, [memory?.id]);
 
-    // Also update comments count in local memories list if it is a local memory
-    const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-    if (saved) {
-      try {
-        const allMemories = JSON.parse(saved);
-        const memIndex = allMemories.findIndex(m => m.id === memory.id);
-        if (memIndex !== -1) {
-          allMemories[memIndex].comments = (allMemories[memIndex].comments || 0) + 1;
-          localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(allMemories));
-        }
-      } catch (err) {
-        console.error(err);
+  const selectedReaction = reactions.find((item) => item.id === reaction);
+  const reactionCount = (memory?.likes || 0) + (reaction ? 1 : 0);
+
+  const clearHoldTimer = () => {
+    if (holdTimerRef.current) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  };
+
+  const startReactionHold = () => {
+    clearHoldTimer();
+    holdTimerRef.current = window.setTimeout(() => {
+      setReactionPickerOpen(true);
+    }, 450);
+  };
+
+  const quickReact = () => {
+    clearHoldTimer();
+    if (reactionPickerOpen) return;
+    setReaction((current) => (current === "heart" ? null : "heart"));
+  };
+
+  const chooseReaction = (nextReaction) => {
+    setReaction(nextReaction);
+    setReactionPickerOpen(false);
+  };
+
+  const handleShare = async () => {
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const shareData = {
+      title: memory?.title,
+      text: memory?.description,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareNotice("Shared");
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareNotice("Link copied");
       }
+    } catch {
+      setShareNotice("Share cancelled");
     }
+
+    window.setTimeout(() => setShareNotice(""), 1800);
   };
 
-  const handleShare = () => {
-    if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
-      setShowShareToast(true);
-      setTimeout(() => setShowShareToast(false), 2500);
-    }
-  };
-
-  if (!memory || !album) {
+  if (isLoading || !memory || !album) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
-        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
+        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin mb-2" />
+        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading memory...</span>
       </div>
     );
   }
@@ -176,23 +304,57 @@ export default function MemoryDetailPage() {
   const Icon = typeIcons[memory.type] ?? Type;
   const from = searchParams.get("from");
   const albumIdFromQuery = searchParams.get("albumId");
+  const personIdFromQuery = searchParams.get("personId");
+
   const backHref = from === "family"
     ? "/family/memories"
     : from === "album"
       ? `/albums/${albumIdFromQuery || album.id}`
-      : `/albums/${album.id}`;
-  const backLabel = from === "family" ? "Back to family memories" : "Back to album";
+      : from === "home"
+        ? "/home"
+        : from === "profile"
+          ? "/profile"
+          : from === "feed"
+            ? "/feed"
+            : from === "search"
+              ? "/search"
+              : from === "people" && personIdFromQuery
+                ? `/people/${personIdFromQuery}`
+                : `/albums/${album.id}`;
+
+  const backLabel = from === "family"
+    ? "Back to family memories"
+    : from === "home"
+      ? "Back to home dashboard"
+      : from === "profile"
+        ? "Back to profile"
+        : from === "feed"
+          ? "Back to discovery feed"
+          : from === "search"
+            ? "Back to search results"
+            : from === "people"
+              ? "Back to profile details"
+              : "Back to album";
+
+  const handleBack = (e) => {
+    e.preventDefault();
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(backHref);
+    }
+  };
 
   return (
     <div className="w-full max-w-5xl pb-24 animation-fade-in">
       <header className="mb-5 flex items-center justify-between gap-3">
-        <Link
-          href={backHref}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm hover:text-[var(--brand)] transition-colors"
+        <button
+          onClick={handleBack}
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm hover:text-[var(--brand)] transition-colors cursor-pointer"
           aria-label={backLabel}
         >
           <ArrowLeft size={18} />
-        </Link>
+        </button>
         <div className="flex gap-2">
           <button
             onClick={() => setEditOpen(true)}
@@ -224,9 +386,11 @@ export default function MemoryDetailPage() {
                       <Icon size={14} />
                       {memory.type}
                     </span>
-                    <span className="rounded-full border border-current/25 bg-current/10 px-3 py-1 text-xs font-black backdrop-blur-sm">
-                      {memory.mood}
-                    </span>
+                    {memory.mood && (
+                      <span className="rounded-full border border-current/25 bg-current/10 px-3 py-1 text-xs font-black backdrop-blur-sm">
+                        {memory.mood}
+                      </span>
+                    )}
                   </div>
                   <h1 
                     className="text-3xl font-black tracking-tight sm:text-4xl mb-4" 
@@ -248,110 +412,115 @@ export default function MemoryDetailPage() {
                   </p>
                 </div>
               </div>
+            ) : memory.type === "Voice" ? (
+              <div className="p-6 bg-[var(--surface)] text-left">
+                <div className="mb-4 flex gap-2">
+                  <span className="flex items-center gap-1.5 rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-black text-[var(--brand)] border border-[var(--brand)]/10">
+                    <Icon size={14} />
+                    {memory.type}
+                  </span>
+                  {memory.mood && (
+                    <span className="rounded-full bg-[var(--background)] px-3 py-1 text-xs font-black text-stone-550 border border-stone-200/50 dark:border-stone-700/50">
+                      {memory.mood}
+                    </span>
+                  )}
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">{memory.title}</h1>
+                <p className="text-xs sm:text-sm font-semibold text-stone-500 mb-6 leading-relaxed">{memory.description}</p>
+                
+                <VoicePlayer memory={memory} />
+              </div>
             ) : (
-              <div className="relative min-h-[360px] bg-stone-100">
-                <img src={memory.image} alt={memory.title} className="h-full min-h-[360px] w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-
-                {(memory.type === "Voice" || memory.type === "Video") && (
-                  <button
-                    onClick={() => setPlaying((current) => !current)}
-                    className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--brand)] shadow-2xl transition active:scale-95 cursor-pointer"
-                    aria-label={playing ? "Pause media preview" : "Play media preview"}
-                  >
-                    {playing ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
-                  </button>
-                )}
-
-                <div className="absolute bottom-0 left-0 right-0 p-5 text-white sm:p-7">
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    <span className="flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black backdrop-blur-md">
+              <div className="space-y-0.5">
+                <MediaGrid memory={memory} />
+                <div className="p-6 bg-[var(--surface)] text-left">
+                  <div className="mb-4 flex gap-2">
+                    <span className="flex items-center gap-1.5 rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-black text-[var(--brand)] border border-[var(--brand)]/10">
                       <Icon size={14} />
                       {memory.type}
                     </span>
-                    <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-black backdrop-blur-md">
-                      {memory.mood}
-                    </span>
+                    {memory.mood && (
+                      <span className="rounded-full bg-[var(--background)] px-3 py-1 text-xs font-black text-stone-550 border border-stone-200/50 dark:border-stone-700/50">
+                        {memory.mood}
+                      </span>
+                    )}
                   </div>
-                  <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{memory.title}</h1>
-                  <p className="mt-3 max-w-2xl text-sm font-bold leading-6 text-white/85 sm:text-base">
-                    {memory.description}
-                  </p>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">{memory.title}</h1>
+                  <p className="text-xs sm:text-sm font-semibold text-stone-550 leading-relaxed">{memory.description}</p>
                 </div>
               </div>
             )}
-
-            {memory.type === "Voice" && (
-              <div className="border-t border-[var(--border)] bg-[var(--background)] p-5">
-                <div className="flex items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-                  <button
-                    onClick={() => setPlaying((current) => !current)}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-white cursor-pointer"
-                  >
-                    {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
-                  </button>
-                  <div className="flex-1">
-                    <div className="flex h-8 items-center gap-1">
-                      {Array.from({ length: 30 }).map((_, index) => (
-                        <span
-                          key={index}
-                          className="flex-1 rounded-full bg-[var(--brand)]/70"
-                          style={{ height: `${24 + (index % 6) * 10}%` }}
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-2 flex justify-between text-[10px] font-black text-stone-500">
-                      <span>{playing ? "0:18" : "0:00"}</span>
-                      <span>{memory.duration || "0:18"}</span>
-                    </div>
-                  </div>
-                </div>
+            {/* Action Buttons & Comments */}
+            <div className="border-t border-stone-100 dark:border-stone-800/60 px-5 py-3.5 bg-[var(--surface)] text-left">
+              <div className="mb-3 flex items-center justify-between px-1 text-[10px] font-bold text-stone-400">
+                <span className="flex items-center gap-1 select-none">
+                  {reaction && <span className={selectedReaction?.color}>{selectedReaction?.icon}</span>}
+                  {reactionCount} reactions
+                </span>
+                <button onClick={() => setCommentsOpen((current) => !current)} className="hover:text-[var(--brand)] cursor-pointer">
+                  {commentsCount} comments
+                </button>
               </div>
-            )}
-          </section>
 
-          {/* Comments Section */}
-          <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm text-left">
-            <h2 className="text-lg font-black tracking-tight mb-4 flex items-center gap-2">
-              <MessageCircle size={18} className="text-[var(--brand)]" />
-              Comments ({commentsList.length})
-            </h2>
-            
-            {/* Comments List */}
-            <div className="space-y-4 mb-5 max-h-[300px] overflow-y-auto pr-2">
-              {commentsList.map((comment, index) => (
-                <div key={index} className="flex gap-3 text-sm animate-fade-in">
-                  <img src={comment.avatar} alt={comment.author} className="w-9 h-9 rounded-full object-cover border border-stone-200" />
-                  <div className="flex-1 bg-stone-50 dark:bg-stone-850 p-3 rounded-2xl">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="font-extrabold text-stone-850 dark:text-stone-200">{comment.author}</span>
-                      <span className="text-[10px] text-stone-400 font-bold">{comment.time}</span>
-                    </div>
-                    <p className="text-stone-600 dark:text-stone-300 font-medium leading-relaxed">{comment.text}</p>
+              <div className="relative flex items-center justify-between gap-1.5 border-t border-stone-100 dark:border-stone-800/60 pt-2 pb-1">
+                {reactionPickerOpen && (
+                  <div className="absolute bottom-full left-0 z-20 mb-2 flex rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-xl animate-scale-up">
+                    {reactions.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => chooseReaction(item.id)}
+                        className="flex h-10 w-10 items-center justify-center rounded-full text-xl transition hover:-translate-y-1 hover:bg-[var(--brand-soft)] cursor-pointer"
+                        aria-label={item.label}
+                      >
+                        {item.icon}
+                      </button>
+                    ))}
                   </div>
-                </div>
-              ))}
-              {commentsList.length === 0 && (
-                <p className="text-xs font-semibold text-stone-400 text-center py-4">No comments yet. Start the conversation!</p>
+                )}
+
+                <button
+                  onMouseDown={startReactionHold}
+                  onMouseUp={quickReact}
+                  onMouseLeave={clearHoldTimer}
+                  onTouchStart={startReactionHold}
+                  onTouchEnd={quickReact}
+                  className={`group flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 font-bold transition hover:bg-stone-50 dark:hover:bg-stone-800/50 cursor-pointer ${
+                    reaction ? selectedReaction?.color : "text-stone-600 hover:text-[var(--brand)]"
+                  }`}
+                >
+                  <span className="text-lg leading-none">{reaction ? selectedReaction?.icon : "♥"}</span>
+                  <span className="text-xs">{reaction ? selectedReaction?.label : "Like"}</span>
+                </button>
+                
+                <button
+                  onClick={() => setCommentsOpen((current) => !current)}
+                  className={`group flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 font-bold transition hover:bg-stone-50 dark:hover:bg-stone-800/50 cursor-pointer ${
+                    commentsOpen ? "text-[var(--brand)]" : "text-stone-600 hover:text-[var(--brand)]"
+                  }`}
+                >
+                  <MessageCircle size={18} className="transition-transform group-active:scale-90" />
+                  <span className="text-xs">Comment</span>
+                </button>
+                
+                <button
+                  onClick={handleShare}
+                  className="group flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 font-bold text-stone-600 transition hover:bg-stone-50 dark:hover:bg-stone-800/50 hover:text-[var(--brand)] cursor-pointer"
+                >
+                  <Share2 size={18} className="transition-transform group-active:scale-90" />
+                  <span className="text-xs">{shareNotice || "Share"}</span>
+                </button>
+              </div>
+
+              {commentsOpen && (
+                <CommentsSection
+                  memoryId={memory.id}
+                  initialComments={[
+                    { author: "Sarah Mitchell", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80", text: "This is a beautiful memory! Thanks for sharing.", time: "2 hours ago" },
+                    { author: "Robert Mitchell", avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=80&q=80", text: "Wow, brings back so many memories.", time: "1 day ago" }
+                  ].slice(0, memory.comments || 2)}
+                />
               )}
             </div>
-
-            {/* Comment Form */}
-            <form onSubmit={handleAddComment} className="flex gap-3 items-end">
-              <input 
-                type="text"
-                placeholder="Write a comment..."
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                className="flex-1 p-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] outline-none font-semibold"
-              />
-              <button 
-                type="submit"
-                className="px-5 py-3 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black rounded-xl text-sm transition active:scale-95 cursor-pointer"
-              >
-                Post
-              </button>
-            </form>
           </section>
         </div>
 
@@ -359,7 +528,7 @@ export default function MemoryDetailPage() {
         <aside className="space-y-5">
           <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm text-left">
             <div className="flex items-center gap-3">
-              <img src={owner?.avatar} alt={owner?.name} className="h-12 w-12 rounded-full object-cover border border-stone-200" />
+              <img src={owner?.avatar} alt="" className="h-12 w-12 rounded-full object-cover border border-stone-200" />
               <div className="min-w-0">
                 <Link href={`/people/${owner?.id}`} className="block truncate text-sm font-black hover:text-[var(--brand)]">
                   {owner?.name}
@@ -390,34 +559,17 @@ export default function MemoryDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={handleLike}
-                className={`flex h-12 items-center justify-center gap-2 rounded-lg text-xs font-black transition cursor-pointer ${
-                  liked ? "bg-rose-50 text-rose-600 border border-rose-200/50" : "bg-[var(--background)] text-stone-600 border border-transparent hover:border-[var(--brand)]/30"
-                }`}
-              >
-                <Heart size={16} fill={liked ? "currentColor" : "none"} />
-                {(memory.likes || 0) + (liked ? 1 : 0)}
-              </button>
-              <button className="flex h-12 items-center justify-center gap-2 rounded-lg bg-[var(--background)] border border-transparent text-xs font-black text-stone-600">
-                <MessageCircle size={16} />
-                {commentsList.length}
-              </button>
-              <button 
-                onClick={handleShare}
-                className="flex h-12 items-center justify-center gap-2 rounded-lg bg-[var(--background)] border border-transparent hover:border-[var(--brand)]/30 text-xs font-black text-stone-600 cursor-pointer"
-              >
-                <Share2 size={16} />
-                Share
-              </button>
-            </div>
-          </section>
+
         </aside>
       </main>
 
-      {editOpen && <EditSheet memory={memory} onClose={() => setEditOpen(false)} />}
+      {editOpen && (
+        <EditSheet 
+          memory={memory} 
+          onClose={() => setEditOpen(false)} 
+          onUpdate={(updated) => setMemory(updated)}
+        />
+      )}
       
       {showShareToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-slate-900 border border-stone-800 text-white p-4 text-xs font-bold shadow-lg animate-fade-in">
@@ -440,32 +592,229 @@ function InfoRow({ icon: Icon, label, value }) {
   );
 }
 
-function EditSheet({ memory, onClose }) {
+function EditSheet({ memory, onClose, onUpdate }) {
+  const { firebaseUser } = useAuth();
+  const [title, setTitle] = useState(memory.title);
+  const [description, setDescription] = useState(memory.description);
+  const [backgroundId, setBackgroundId] = useState(memory.backgroundId || "none");
+  const [fontId, setFontId] = useState(memory.fontId || "default");
+  
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorNotice, setErrorNotice] = useState("");
+
+  const handleFiles = (e) => {
+    const files = Array.from(e.target.files || []);
+    setSelectedFiles(files);
+    setPreviews(files.map(file => ({
+      url: URL.createObjectURL(file),
+      name: file.name
+    })));
+  };
+
+  const handleVoice = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFiles([file]);
+      setPreviews([{
+        url: URL.createObjectURL(file),
+        name: file.name
+      }]);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      setErrorNotice("Title is required.");
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorNotice("");
+
+    try {
+      const token = await firebaseUser.getIdToken();
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      formData.append("description", description.trim());
+
+      if (memory.type === "Text") {
+        formData.append("backgroundId", backgroundId);
+        formData.append("fontId", fontId);
+      } else {
+        selectedFiles.forEach(file => {
+          formData.append("media", file);
+        });
+      }
+
+      const updated = await updateMemoryOnBackend(token, memory.id, formData);
+      onUpdate({
+        ...memory,
+        title: updated.title,
+        description: updated.description,
+        backgroundId: updated.backgroundId,
+        fontId: updated.fontId,
+        mediaUrl: updated.mediaUrl,
+        thumbnailUrl: updated.thumbnailUrl,
+        mediaList: updated.mediaList,
+        image: updated.thumbnailUrl || updated.mediaUrl || memory.image
+      });
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setErrorNotice(getBackendErrorMessage(err) || "Failed to update memory.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl sm:max-w-xl sm:rounded-lg">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black tracking-tight">Edit Memory</h2>
-            <p className="mt-2 text-sm font-medium leading-6 text-stone-500">Frontend draft only for now.</p>
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-0 backdrop-blur-sm sm:items-center sm:p-4 text-left">
+      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl sm:max-w-xl sm:rounded-2xl flex flex-col justify-between">
+        <div>
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-[var(--ink)] dark:text-white">Edit Memory</h2>
+              <p className="mt-1.5 text-xs font-bold text-stone-500">Update memory properties and attachments.</p>
+            </div>
+            <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--background)] border border-[var(--border)] cursor-pointer text-stone-600 dark:text-stone-300">
+              <X size={18} />
+            </button>
           </div>
-          <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--background)] cursor-pointer">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="space-y-4">
-          <label className="block">
-            <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">Title</span>
-            <input defaultValue={memory.title} className="h-12 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-bold outline-none focus:border-[var(--brand)]" />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">Description</span>
-            <textarea defaultValue={memory.description} rows={5} className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-sm font-medium leading-6 outline-none focus:border-[var(--brand)]" />
-          </label>
-          <button onClick={onClose} className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--brand)] text-sm font-black text-white cursor-pointer">
-            <Save size={16} />
-            Save Preview
-          </button>
+
+          {errorNotice && (
+            <div className="mb-4 rounded-xl border border-rose-250 bg-rose-50 p-3 text-xs font-bold text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400">
+              {errorNotice}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-stone-400 pl-0.5 mb-1.5">Title</label>
+              <input 
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-semibold outline-none focus:border-[var(--brand)]" 
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-stone-400 pl-0.5 mb-1.5">Description</label>
+              <textarea 
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+                className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 text-sm font-medium leading-relaxed outline-none focus:border-[var(--brand)]" 
+              />
+            </div>
+
+            {memory.type === "Text" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-stone-400 pl-0.5 mb-2">Background Preset</label>
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none snap-x">
+                    {postBackgrounds.map((bg) => {
+                      const isSelected = backgroundId === bg.id;
+                      return (
+                        <button
+                          key={bg.id}
+                          type="button"
+                          onClick={() => setBackgroundId(bg.id)}
+                          style={bg.previewStyle || bg.containerStyle}
+                          className={`snap-center flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 transition-all relative cursor-pointer ${
+                            isSelected ? "border-[var(--brand)] scale-105" : "border-transparent opacity-70 hover:opacity-100"
+                          }`}
+                        >
+                          <span className="text-[10px] font-black uppercase text-center select-none truncate px-1 drop-shadow-sm text-stone-850 dark:text-white">
+                            {bg.overlayEmoji || bg.name.slice(0, 3)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-stone-400 pl-0.5 mb-2">Font Family</label>
+                  <select 
+                    value={fontId}
+                    onChange={(e) => setFontId(e.target.value)}
+                    className="h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-semibold outline-none focus:border-[var(--brand)]"
+                  >
+                    {postFonts.map((font) => (
+                      <option key={font.id} value={font.id}>
+                        {font.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : (memory.type === "Photo" || memory.type === "Video") ? (
+              <div className="space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wide text-stone-400 pl-0.5 mb-1.5">Replace Attachments</label>
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-stone-200 bg-slate-50 p-6 text-center dark:border-stone-850 dark:bg-slate-900/50 hover:bg-stone-50 transition">
+                  <Upload className="mb-2 text-[var(--brand)]" size={22} />
+                  <span className="text-xs font-black text-[var(--ink)] dark:text-white">Upload new files</span>
+                  <span className="mt-0.5 text-[10px] text-stone-550">Choose {memory.type === "Photo" ? "photos" : "videos"} from your device</span>
+                  <input type="file" multiple accept={memory.type === "Photo" ? "image/*" : "video/*"} onChange={handleFiles} className="sr-only" />
+                </label>
+
+                {previews.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1 max-w-full">
+                    {previews.map((item, index) => (
+                      <div key={index} className="relative h-14 w-14 shrink-0 rounded-lg overflow-hidden border border-stone-200">
+                        {memory.type === "Photo" ? (
+                          <img src={item.url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-black flex items-center justify-center text-[8px] text-white font-bold p-1 truncate">
+                            {item.name}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : memory.type === "Voice" ? (
+              <div className="space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wide text-stone-400 pl-0.5 mb-1.5">Replace Voice Note</label>
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-stone-200 bg-slate-50 p-6 text-center dark:border-stone-850 dark:bg-slate-900/50 hover:bg-stone-50 transition">
+                  <Mic className="mb-2 text-[var(--brand)]" size={22} />
+                  <span className="text-xs font-black text-[var(--ink)] dark:text-white">Choose audio recording file</span>
+                  <span className="mt-0.5 text-[10px] text-stone-550">Replaces current recording (.mp3, .wav, .m4a)</span>
+                  <input type="file" accept="audio/*" onChange={handleVoice} className="sr-only" />
+                </label>
+
+                {previews.length > 0 && (
+                  <div className="text-[10px] font-bold text-stone-500 bg-stone-100 p-2 rounded-lg truncate">
+                    🎵 Selected: {previews[0].name}
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <div className="flex gap-3 pt-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSaving}
+                className="flex-1 py-3.5 border border-stone-200 dark:border-stone-700 rounded-xl text-stone-700 dark:text-stone-300 font-extrabold text-sm hover:bg-stone-50 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="flex-1 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black rounded-xl text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

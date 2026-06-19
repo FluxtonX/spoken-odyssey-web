@@ -1,5 +1,5 @@
 export const postFonts = [
-  { id: "default", name: "Default (Outfit)", fontFamily: "inherit", category: "Sans-Serif" },
+  { id: "default", name: "Default (Public Sans)", fontFamily: "inherit", category: "Sans-Serif" },
   { id: "playfair", name: "Classic Serif (Playfair)", fontFamily: "'Playfair Display', Georgia, serif", category: "Serif" },
   { id: "montserrat", name: "Modern Bold (Montserrat)", fontFamily: "'Montserrat', sans-serif", category: "Sans-Serif" },
   { id: "bebas", name: "Impact Meme (Bebas Neue)", fontFamily: "'Bebas Neue', sans-serif", category: "Display" },

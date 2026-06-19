@@ -57,7 +57,18 @@ const DEFAULT_PROFILE = {
   avatar: AVATAR_PRESETS[0].url,
   cover: COVER_PRESETS[0].url,
   birthday: "1990-06-15",
-  categories: ["Blogger", "Historian"]
+  categories: ["Blogger", "Historian"],
+  goals: "To preserve all of Grandpa Mitchell's audio letters, compile our yearly family recipes, and write my own memoir chapters.",
+  projects: "Spoken Odyssey, Seattle Oral History Archive, Family Genealogy Tree",
+  achievements: "Documented 4 generations of family letters; Restored 45 vintage audio tapes; Curated 12 family albums",
+  interests: "Genealogy, Sound Archiving, Vintage Radios, Hiking, Creative Writing",
+  lessons: "Time moves faster than we think. Capture the voices of the ones you love while they are still here to speak.",
+  values: "Authenticity, Generational Connection, Preservation of Truth, Mindfulness",
+  causes: "Historical Preservation, Digital Rights & Privacy, Audio Archiving Foundations",
+  personalityQs: [
+    { q: "What is your happiest memory from childhood?", a: "Building the wooden birdhouse with my grandfather in his backyard workshop on a warm July afternoon." },
+    { q: "How would you like to be remembered?", a: "As someone who listened deeply, loved completely, and made sure our stories survived the test of time." }
+  ]
 };
 
 const USER_PROFILE_KEY = "spokenOdysseyUserProfile";

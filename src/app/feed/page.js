@@ -28,6 +28,8 @@ import {
   getBackgroundOverlay,
 } from "@/data/postBackgrounds";
 import { getFontFamily } from "@/data/postFonts";
+import { useAuth } from "@/context/AuthProvider";
+import { getFeedFromBackend, interactWithMemoryOnBackend, getBackendErrorMessage } from "@/services/backend";
 
 const feedTabs = ["For You", "Family", "Public", "Themes", "People"];
 const themes = ["Family Heritage", "Travel", "Recipes", "Milestones", "Voice Notes", "Reflection"];
@@ -40,12 +42,14 @@ const reactions = [
 ];
 
 export default function Feed() {
+  const { firebaseUser, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("For You");
   const [activeTheme, setActiveTheme] = useState("Family Heritage");
   const [showThemes, setShowThemes] = useState(true);
   const [showPeople, setShowPeople] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [localMemories, setLocalMemories] = useState([]);
+  const [backendFeed, setBackendFeed] = useState([]);
 
   useEffect(() => {
     seedInitialMemoriesIfNeeded();
@@ -70,10 +74,38 @@ export default function Feed() {
     return () => window.removeEventListener("profileUpdated", loadProfile);
   }, []);
 
+  useEffect(() => {
+    const fetchBackendFeed = async () => {
+      if (isAuthenticated && firebaseUser) {
+        try {
+          const token = await firebaseUser.getIdToken();
+          const feed = await getFeedFromBackend(token);
+          setBackendFeed(feed);
+        } catch (error) {
+          console.warn("Failed to load backend feed, using fallback:", getBackendErrorMessage(error));
+        }
+      }
+    };
+    fetchBackendFeed();
+  }, [isAuthenticated, firebaseUser]);
+
   const combinedMemories = useMemo(() => {
     const sortedLocal = [...localMemories].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (backendFeed && backendFeed.length > 0) {
+      return [...sortedLocal, ...backendFeed];
+    }
     return [...sortedLocal, ...memories];
-  }, [localMemories]);
+  }, [localMemories, backendFeed]);
+
+  useEffect(() => {
+    if (combinedMemories.length > 0) {
+      try {
+        localStorage.setItem("cached_feed_memories", JSON.stringify(combinedMemories));
+      } catch (e) {
+        console.warn("Failed to cache feed memories in localStorage:", e);
+      }
+    }
+  }, [combinedMemories]);
 
   const feedItems = useMemo(() => {
     if (activeTab === "Family") {
@@ -328,7 +360,7 @@ function PeoplePanel({ onClose }) {
           const isFollowing = followedIds.includes(person.id);
           return (
             <div key={person.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 transition hover:border-[var(--brand)]">
-              <Link href={`/people/${person.id}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90">
+              <Link href={`/people/${person.id}?from=feed`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90">
                 <img src={person.avatar} alt={person.name} className="h-10 w-10 rounded-lg object-cover shrink-0" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black text-[var(--ink)]">{person.name}</p>
@@ -363,7 +395,7 @@ function PeopleDiscover() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {people.map((person) => (
-          <Link key={person.id} href={`/people/${person.id}`} className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:border-[var(--brand)]">
+          <Link key={person.id} href={`/people/${person.id}?from=feed`} className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:border-[var(--brand)]">
             <div className="h-32 bg-stone-100">
               <img src={person.cover} alt="" className="h-full w-full object-cover" />
             </div>

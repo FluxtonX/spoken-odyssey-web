@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Camera,
@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { getPersonById, getPersonMemories, people } from "@/data/mockApp";
+import CommentsSection from "@/components/ui/CommentsSection";
 
 const reactions = [
   { id: "heart", label: "Heart", icon: "♥", color: "text-rose-600" },
@@ -28,11 +29,29 @@ const reactions = [
 
 export default function PersonDetailPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const id = pathname.split("/").filter(Boolean).at(-1);
   const person = getPersonById(id) ?? people[0];
   const personMemories = getPersonMemories(person.id);
   const [viewer, setViewer] = useState(null);
   const [isFollowing, setIsFollowing] = useState(false);
+
+  const from = searchParams.get("from");
+  const backHref = from === "feed"
+    ? "/feed"
+    : from === "search"
+      ? "/search"
+      : "/feed";
+
+  const handleBack = (e) => {
+    e.preventDefault();
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(backHref);
+    }
+  };
 
   return (
     <div className="w-full max-w-5xl pb-24 animation-fade-in">
@@ -42,13 +61,13 @@ export default function PersonDetailPage() {
             <img src={person.cover} alt={`${person.name} cover`} className="h-full w-full object-cover" />
           </button>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
-          <Link
-            href="/feed"
-            className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-lg border border-white/25 bg-white/90 text-[var(--ink)] shadow-sm backdrop-blur-md"
-            aria-label="Back to feed"
+          <button
+            onClick={handleBack}
+            className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-lg border border-white/25 bg-white/90 text-[var(--ink)] shadow-sm backdrop-blur-md cursor-pointer transition active:scale-95 z-20"
+            aria-label="Back"
           >
             <ArrowLeft size={18} />
-          </Link>
+          </button>
           <button
             onClick={() => setViewer({ type: "Cover photo", src: person.cover })}
             className="absolute bottom-4 right-4 hidden h-10 items-center gap-2 rounded-lg bg-white/90 px-3 text-xs font-black text-[var(--ink)] shadow-sm backdrop-blur-md sm:flex"
@@ -188,14 +207,32 @@ function ProfileMemoryCard({ memory }) {
   const [reaction, setReaction] = useState(null);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [comments, setComments] = useState([
-    { id: `${memory.id}-profile-c1`, author: "Alexander", text: "This is a beautiful archive piece." },
-  ]);
+  const [commentsCount, setCommentsCount] = useState(0);
   const [shareNotice, setShareNotice] = useState("");
   const holdTimerRef = useRef(null);
   const selectedReaction = reactions.find((item) => item.id === reaction);
   const reactionCount = memory.likes + (reaction ? 1 : 0);
+
+  useEffect(() => {
+    // Load initial count if stored
+    const saved = localStorage.getItem(`comments_${memory.id}`);
+    if (saved) {
+      try {
+        setCommentsCount(JSON.parse(saved).length);
+      } catch {}
+    } else {
+      setCommentsCount((memory.comments || 0) + 1);
+    }
+
+    const handleCommentsUpdate = (e) => {
+      setCommentsCount(e.detail);
+    };
+
+    window.addEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
+    return () => {
+      window.removeEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
+    };
+  }, [memory.id]);
 
   function clearHoldTimer() {
     if (holdTimerRef.current) {
@@ -220,19 +257,6 @@ function ProfileMemoryCard({ memory }) {
   function chooseReaction(nextReaction) {
     setReaction(nextReaction);
     setReactionPickerOpen(false);
-  }
-
-  function addComment(event) {
-    event.preventDefault();
-    const cleanComment = commentText.trim();
-    if (!cleanComment) return;
-
-    setComments((current) => [
-      ...current,
-      { id: `${memory.id}-profile-c${Date.now()}`, author: "Alexander", text: cleanComment },
-    ]);
-    setCommentText("");
-    setCommentsOpen(true);
   }
 
   async function shareMemory() {
@@ -276,7 +300,7 @@ function ProfileMemoryCard({ memory }) {
             {reactionCount} reactions
           </span>
           <button onClick={() => setCommentsOpen((current) => !current)} className="hover:text-[var(--brand)]">
-            {memory.comments + comments.length} comments
+            {commentsCount} comments
           </button>
         </div>
 
@@ -315,24 +339,12 @@ function ProfileMemoryCard({ memory }) {
         </div>
 
         {commentsOpen && (
-          <div className="mt-3 space-y-3 border-t border-[var(--border)] pt-3">
-            {comments.map((comment) => (
-              <div key={comment.id} className="rounded-lg bg-[var(--surface)] px-3 py-2">
-                <p className="text-xs font-black text-[var(--ink)]">{comment.author}</p>
-                <p className="mt-1 text-sm font-medium leading-5 text-stone-600">{comment.text}</p>
-              </div>
-            ))}
-
-            <form onSubmit={addComment} className="flex gap-2">
-              <input
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                placeholder="Write a comment..."
-                className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-bold outline-none focus:border-[var(--brand)]"
-              />
-              <button className="h-10 rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white">Post</button>
-            </form>
-          </div>
+          <CommentsSection
+            memoryId={memory.id}
+            initialComments={[
+              { id: `${memory.id}-c1`, author: "Alexander", text: "This is a beautiful archive piece." }
+            ]}
+          />
         )}
       </div>
     </article>

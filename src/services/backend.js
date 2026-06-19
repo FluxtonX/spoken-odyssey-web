@@ -52,9 +52,100 @@ export async function syncUserWithBackend(token) {
   return response.data;
 }
 
-/** Get current user profile from MongoDB (spokenOdessie_backend auth.controller getMe) */
 export async function getProfileFromBackend(token) {
   const response = await backendFetch("/api/auth/me", { token });
+  return response.data;
+}
+
+/** Get user's albums from MongoDB */
+export async function getAlbumsFromBackend(token) {
+  const response = await backendFetch("/api/albums", { token });
+  return response.data;
+}
+
+/** Get a single album's details by ID */
+export async function getAlbumDetailsFromBackend(token, albumId) {
+  const response = await backendFetch(`/api/albums/${albumId}`, { token });
+  return response.data;
+}
+
+/** Create a new album with cover photo upload using FormData */
+export async function createAlbumOnBackend(token, formData) {
+  const response = await backendFetch("/api/albums", {
+    method: "POST",
+    body: formData,
+    token,
+    isFormData: true,
+  });
+  return response.data;
+}
+
+/** Update an existing album details and cover photo using FormData */
+export async function updateAlbumOnBackend(token, albumId, formData) {
+  const response = await backendFetch(`/api/albums/${albumId}`, {
+    method: "PATCH",
+    body: formData,
+    token,
+    isFormData: true,
+  });
+  return response.data;
+}
+
+/** Get memories from MongoDB */
+export async function getMemoriesFromBackend(token) {
+  const response = await backendFetch("/api/memories", { token });
+  return response.data;
+}
+
+/** Create a new memory with media upload (voice blob or photo/video file) using FormData */
+export async function createMemoryOnBackend(token, formData) {
+  const response = await backendFetch("/api/memories", {
+    method: "POST",
+    body: formData,
+    token,
+    isFormData: true,
+  });
+  return response.data;
+}
+
+/** Delete a memory from backend */
+export async function deleteMemoryOnBackend(token, memoryId) {
+  const response = await backendFetch(`/api/memories/${memoryId}`, {
+    method: "DELETE",
+    token,
+  });
+  return response.data;
+}
+
+/** Update an existing memory details and files using FormData */
+export async function updateMemoryOnBackend(token, memoryId, formData) {
+  const response = await backendFetch(`/api/memories/${memoryId}`, {
+    method: "PATCH",
+    body: formData,
+    token,
+    isFormData: true,
+  });
+  return response.data;
+}
+
+/** Get personalized feed memories from MongoDB */
+export async function getFeedFromBackend(token) {
+  const response = await backendFetch("/api/memories/feed", { token });
+  return response.data;
+}
+
+/** Track memory interaction (view/like/comment) on backend */
+export async function interactWithMemoryOnBackend(token, memoryId, type) {
+  const response = await backendFetch(`/api/memories/${memoryId}/interact`, {
+    method: "POST",
+    body: { type },
+    token,
+  });
+  return response.data;
+}
+
+export async function getMemoryDetailsFromBackend(token, memoryId) {
+  const response = await backendFetch(`/api/memories/${memoryId}`, { token });
   return response.data;
 }
 

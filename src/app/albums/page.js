@@ -1,9 +1,11 @@
 "use client";
 
-import { Plus, Search, ChevronRight, X, Lock, Users, Globe, Upload } from "lucide-react";
+import { Plus, Search, ChevronRight, X, Lock, Users, Globe, Upload, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { getStoredAlbums, saveStoredAlbums } from "@/data/userProfile";
+import { useAuth } from "@/context/AuthProvider";
+import { getAlbumsFromBackend, createAlbumOnBackend, getBackendErrorMessage } from "@/services/backend";
 
 const COVER_PRESETS = [
   { name: "Ocean", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80" },
@@ -14,6 +16,7 @@ const COVER_PRESETS = [
 ];
 
 export default function AlbumsGallery() {
+  const { firebaseUser, isAuthenticated } = useAuth();
   const [albumsList, setAlbumsList] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -24,18 +27,89 @@ export default function AlbumsGallery() {
   const [customCoverUrl, setCustomCoverUrl] = useState("");
   const [coverMode, setCoverMode] = useState("preset");
   const [uploadedCoverName, setUploadedCoverName] = useState("");
+  const [coverFile, setCoverFile] = useState(null);
   const [toastMessage, setToastMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const loadAlbums = async () => {
+    setIsLoading(true);
+    if (isAuthenticated && firebaseUser) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const backendAlbums = await getAlbumsFromBackend(token);
+        const mapped = backendAlbums.map(album => ({
+          id: album.id,
+          title: album.title,
+          subtitle: album.subtitle,
+          privacy: album.privacy || "Private",
+          cover: album.coverImageUrl || album.coverImageKey || COVER_PRESETS[0].url,
+          created: new Date(album.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+        }));
+        setAlbumsList(mapped);
+      } catch (error) {
+        console.warn("Failed to load albums from backend, using local fallback:", getBackendErrorMessage(error));
+        setAlbumsList(getStoredAlbums());
+      }
+    } else {
+      setAlbumsList(getStoredAlbums());
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    setAlbumsList(getStoredAlbums());
-  }, []);
+    loadAlbums();
+  }, [isAuthenticated, firebaseUser]);
 
-  const handleCreateAlbum = (e) => {
+  const handleCreateAlbum = async (e) => {
     e.preventDefault();
     if (!newAlbumTitle.trim()) return;
 
+    setIsSaving(true);
+
     const coverUrl = coverMode === "custom" && customCoverUrl.trim() ? customCoverUrl.trim() : newAlbumCover;
-    
+
+    if (isAuthenticated && firebaseUser) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const formData = new FormData();
+        formData.append("title", newAlbumTitle.trim());
+        formData.append("subtitle", newAlbumSubtitle.trim());
+        formData.append("privacy", newAlbumPrivacy);
+
+        if (coverMode === "upload" && coverFile) {
+          formData.append("coverImage", coverFile);
+        } else {
+          formData.append("coverUrl", coverUrl);
+        }
+
+        await createAlbumOnBackend(token, formData);
+        setToastMessage("Album successfully created on server!");
+        setTimeout(() => setToastMessage(""), 3000);
+        
+        // Reset Form
+        setNewAlbumTitle("");
+        setNewAlbumSubtitle("");
+        setNewAlbumPrivacy("Private");
+        setNewAlbumCover(COVER_PRESETS[0].url);
+        setCustomCoverUrl("");
+        setCoverMode("preset");
+        setUploadedCoverName("");
+        setCoverFile(null);
+        setIsCreateModalOpen(false);
+        
+        // Refresh albums
+        await loadAlbums();
+        setIsSaving(false);
+        return;
+      } catch (error) {
+        console.error("Failed to create album on backend:", error);
+        setToastMessage(`Backend error: ${getBackendErrorMessage(error)}. Creating locally instead.`);
+        setTimeout(() => setToastMessage(""), 4000);
+      }
+    }
+
+    // Local Storage Fallback
     const newAlbum = {
       id: `album-${Date.now()}`,
       title: newAlbumTitle.trim(),
@@ -57,10 +131,11 @@ export default function AlbumsGallery() {
     setCustomCoverUrl("");
     setCoverMode("preset");
     setUploadedCoverName("");
+    setCoverFile(null);
     setIsCreateModalOpen(false);
+    setIsSaving(false);
 
-    // Show Success Toast
-    setToastMessage("Album successfully created!");
+    setToastMessage("Album saved locally!");
     setTimeout(() => setToastMessage(""), 3000);
   };
 
@@ -68,6 +143,7 @@ export default function AlbumsGallery() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setCoverFile(file);
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -127,32 +203,43 @@ export default function AlbumsGallery() {
           <p className="text-xs opacity-60 mt-1">Organize new memories</p>
         </button>
 
-        {filteredAlbums.map((album) => (
-          <Link href={`/albums/${album.id}`} key={album.id} className="group cursor-pointer">
-            <div className="relative w-full aspect-square rounded-[2rem] overflow-hidden mb-3 shadow-md group-hover:shadow-xl transition-all duration-500 group-hover:-translate-y-1">
-              
-              <img 
-                src={album.cover} 
-                alt={album.title} 
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-              />
-              
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
-              <div className="absolute inset-0 bg-[var(--brand)] mix-blend-multiply opacity-25 group-hover:opacity-10 transition-opacity duration-500" />
+        {isLoading ? (
+          <div className="col-span-2 md:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-20">
+            <Loader2 size={36} className="animate-spin text-[var(--brand)] mb-3" />
+            <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading your albums...</p>
+          </div>
+        ) : filteredAlbums.length === 0 ? (
+          <div className="col-span-2 md:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-20 border-2 border-dashed border-[var(--border)] rounded-[2rem] hover:bg-[var(--surface-hover)] transition-colors">
+            <p className="text-sm font-bold text-stone-500">No albums found matching your query.</p>
+          </div>
+        ) : (
+          filteredAlbums.map((album) => (
+            <Link href={`/albums/${album.id}`} key={album.id} className="group cursor-pointer">
+              <div className="relative w-full aspect-square rounded-[2rem] overflow-hidden mb-3 shadow-md group-hover:shadow-xl transition-all duration-500 group-hover:-translate-y-1">
+                
+                <img 
+                  src={album.cover} 
+                  alt={album.title} 
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                />
+                
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
+                <div className="absolute inset-0 bg-[var(--brand)] mix-blend-multiply opacity-25 group-hover:opacity-10 transition-opacity duration-500" />
 
-              <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-[10px] font-bold text-white tracking-wide uppercase">
-                {album.privacy}
-              </div>
+                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-[10px] font-bold text-white tracking-wide uppercase">
+                  {album.privacy}
+                </div>
 
-              <div className="absolute bottom-4 left-4 right-4 text-white">
-                <p className="text-xs font-semibold opacity-80 mb-0.5">{album.created}</p>
-                <h3 className="font-bold text-base md:text-lg leading-tight filter drop-shadow-md group-hover:text-white transition-colors line-clamp-2">
-                  {album.title}
-                </h3>
+                <div className="absolute bottom-4 left-4 right-4 text-white">
+                  <p className="text-xs font-semibold opacity-80 mb-0.5">{album.created}</p>
+                  <h3 className="font-bold text-base md:text-lg leading-tight filter drop-shadow-md group-hover:text-white transition-colors line-clamp-2">
+                    {album.title}
+                  </h3>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))
+        )}
       </div>
 
       {/* Album Creation Modal */}
@@ -312,9 +399,17 @@ export default function AlbumsGallery() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-4 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black rounded-2xl text-sm shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
+                  disabled={isSaving}
+                  className="flex-1 py-4 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black rounded-2xl text-sm shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Create Album
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Album"
+                  )}
                 </button>
               </div>
             </form>

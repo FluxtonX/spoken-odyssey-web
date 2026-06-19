@@ -1,11 +1,11 @@
-import { Outfit } from "next/font/google";
+import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import NavBar from "@/components/navigation/NavBar";
 import LayoutShell from "@/components/layout/LayoutShell";
 import { AuthProvider } from "@/context/AuthProvider";
 import { GOOGLE_FONTS_LINK } from "@/data/postFonts";
 
-const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800", "900"] });
+const publicSans = Public_Sans({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800", "900"] });
 
 export const metadata = {
   title: "Spoken Odyssey — Preserve Your Family's Voice Forever",
@@ -20,7 +20,7 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href={GOOGLE_FONTS_LINK} rel="stylesheet" />
       </head>
-      <body className={`${outfit.className} antialiased bg-[var(--background)]`}>
+      <body className={`${publicSans.className} antialiased bg-[var(--background)]`}>
         <AuthProvider>
           <LayoutShell>
             <NavBar />

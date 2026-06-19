@@ -22,6 +22,8 @@ import {
   resendVerificationEmail,
 } from "@/services/firebase";
 
+import { getStoredUserProfile } from "@/data/userProfile";
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -50,8 +52,24 @@ export function AuthProvider({ children }) {
           await signOutUser();
           setFirebaseUser(null);
           setProfile(null);
+          throw error;
         }
-        throw error;
+        
+        console.warn("Backend sync failed. Falling back to local storage profile:", error);
+        try {
+          const localProfile = getStoredUserProfile();
+          const fallbackProfile = {
+            ...localProfile,
+            email: user.email,
+            uid: user.uid,
+            profileCompleted: !!(localProfile.name && localProfile.name.trim()),
+          };
+          setProfile(fallbackProfile);
+          return fallbackProfile;
+        } catch (fallbackError) {
+          console.error("Local fallback failed:", fallbackError);
+          throw error;
+        }
       } finally {
         setSyncing(false);
         syncInFlight.current = null;

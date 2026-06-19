@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
+import { useAuth } from "@/context/AuthProvider";
+import { interactWithMemoryOnBackend } from "@/services/backend";
 
 const WAVEFORM_BARS = [
   15, 25, 40, 20, 50, 70, 45, 30, 15, 35, 
@@ -11,9 +13,13 @@ const WAVEFORM_BARS = [
 ];
 
 export default function VoicePlayer({ memory }) {
+  const { firebaseUser, isAuthenticated } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [animFrame, setAnimFrame] = useState(0);
+  const [realDuration, setRealDuration] = useState(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState(0);
 
   const audioRef = useRef(null);
   const waveformRef = useRef(null);
@@ -25,8 +31,14 @@ export default function VoicePlayer({ memory }) {
   const animFrameIdRef = useRef(null);
   const timeTrackerIdRef = useRef(null);
 
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
   // Compute duration in seconds
   const duration = useMemo(() => {
+    if (realDuration !== null) return realDuration;
     if (memory.audio?.seconds) return memory.audio.seconds;
     if (memory.duration) {
       const parts = memory.duration.split(":");
@@ -35,7 +47,7 @@ export default function VoicePlayer({ memory }) {
       }
     }
     return 15; // default fallback seconds
-  }, [memory]);
+  }, [memory, realDuration]);
 
   // Format time (e.g. 0:00)
   const formatTime = (secs) => {
@@ -44,16 +56,26 @@ export default function VoicePlayer({ memory }) {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
+  const displayTime = isScrubbing ? scrubTime : currentTime;
+
   const progressPercent = useMemo(() => {
-    return (currentTime / duration) * 100;
-  }, [currentTime, duration]);
+    return (displayTime / duration) * 100;
+  }, [displayTime, duration]);
 
   // Audio setup (using user uploaded clip if available)
   useEffect(() => {
-    const url = memory.audio?.url || "";
+    const url = memory.mediaUrl || memory.media?.url || memory.audio?.url || "";
+    setRealDuration(null);
+
     if (url) {
       const audio = new Audio(url);
       audioRef.current = audio;
+
+      const updateDuration = () => {
+        if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+          setRealDuration(audio.duration);
+        }
+      };
 
       const handleTimeUpdate = () => {
         setCurrentTime(audio.currentTime);
@@ -64,11 +86,19 @@ export default function VoicePlayer({ memory }) {
         setCurrentTime(0);
       };
 
+      audio.addEventListener("loadedmetadata", updateDuration);
+      audio.addEventListener("durationchange", updateDuration);
       audio.addEventListener("timeupdate", handleTimeUpdate);
       audio.addEventListener("ended", handleEnded);
 
+      if (audio.readyState >= 1) {
+        updateDuration();
+      }
+
       return () => {
         audio.pause();
+        audio.removeEventListener("loadedmetadata", updateDuration);
+        audio.removeEventListener("durationchange", updateDuration);
         audio.removeEventListener("timeupdate", handleTimeUpdate);
         audio.removeEventListener("ended", handleEnded);
         audioRef.current = null;
@@ -197,20 +227,92 @@ export default function VoicePlayer({ memory }) {
           console.warn("Audio element play blocked by autoplay policy:", err);
         });
       }
+      if (isAuthenticated && firebaseUser) {
+        firebaseUser.getIdToken().then((token) => {
+          interactWithMemoryOnBackend(token, memory.id, "view").catch(console.error);
+        });
+      }
     }
   };
 
-  const handleSeek = (e) => {
+  const handleSeekStart = (clientX) => {
     if (!waveformRef.current) return;
+    setIsScrubbing(true);
     const rect = waveformRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+    const clickX = clientX - rect.left;
     const percent = Math.max(0, Math.min(1, clickX / rect.width));
     const newTime = percent * duration;
+    setScrubTime(newTime);
     
-    setCurrentTime(newTime);
-    if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
+    if (audioRef.current && isPlayingRef.current) {
+      audioRef.current.pause();
     }
+  };
+
+  const handleSeekMove = (clientX) => {
+    if (!waveformRef.current) return;
+    const rect = waveformRef.current.getBoundingClientRect();
+    const clickX = clientX - rect.left;
+    const percent = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = percent * duration;
+    setScrubTime(newTime);
+  };
+
+  const handleSeekEnd = () => {
+    setIsScrubbing((wasScrubbing) => {
+      if (wasScrubbing) {
+        setScrubTime((finalTime) => {
+          if (audioRef.current) {
+            audioRef.current.currentTime = finalTime;
+            if (isPlayingRef.current) {
+              audioRef.current.play().catch(err => {
+                console.warn("Audio element play blocked:", err);
+              });
+            }
+          }
+          setCurrentTime(finalTime);
+          return 0;
+        });
+      }
+      return false;
+    });
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    handleSeekStart(e.clientX);
+    
+    const handleMouseMove = (moveEvent) => {
+      handleSeekMove(moveEvent.clientX);
+    };
+    
+    const handleMouseUp = () => {
+      handleSeekEnd();
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+    
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 0) return;
+    handleSeekStart(e.touches[0].clientX);
+    
+    const handleTouchMove = (moveEvent) => {
+      if (moveEvent.touches.length === 0) return;
+      handleSeekMove(moveEvent.touches[0].clientX);
+    };
+    
+    const handleTouchEnd = () => {
+      handleSeekEnd();
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+    
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
   };
 
   return (
@@ -232,9 +334,10 @@ export default function VoicePlayer({ memory }) {
       <div className="flex-1 min-w-0">
         <div 
           ref={waveformRef}
-          onClick={handleSeek}
-          className="flex h-8 w-full items-center gap-[1.5px] sm:gap-[3px] cursor-pointer select-none group"
-          title="Click to seek"
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          className="flex h-8 w-full items-center gap-[1.5px] sm:gap-[3px] cursor-ew-resize select-none group"
+          title="Drag to seek"
         >
           {WAVEFORM_BARS.map((baseHeight, idx) => {
             const barProgress = (idx / WAVEFORM_BARS.length) * 100;
@@ -269,7 +372,7 @@ export default function VoicePlayer({ memory }) {
 
         {/* Timestamps */}
         <div className="mt-1 flex items-center justify-between text-[10px] font-black text-[var(--brand)] opacity-85 select-none">
-          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(displayTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
       </div>

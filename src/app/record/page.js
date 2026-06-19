@@ -23,9 +23,12 @@ import {
   Users,
   Video,
   X,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { getStoredAlbums } from "@/data/userProfile";
+import { useAuth } from "@/context/AuthProvider";
+import { getAlbumsFromBackend, createMemoryOnBackend, getBackendErrorMessage } from "@/services/backend";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import {
   postBackgrounds,
@@ -126,10 +129,14 @@ function RecordMemoryContent() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [title, setTitle] = useState("");
   const [storyText, setStoryText] = useState("");
-  const [mediaDraft, setMediaDraft] = useState(null);
-  const [selectedAlbums, setSelectedAlbums] = useState([]);
+  const [photoDrafts, setPhotoDrafts] = useState([]);
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [videoDrafts, setVideoDrafts] = useState([]);
+  const [videoFiles, setVideoFiles] = useState([]);
+  const [selectedAlbumId, setSelectedAlbumId] = useState("");
   const [albumsList, setAlbumsList] = useState([]);
-  const [selectedAudiences, setSelectedAudiences] = useState(["family"]);
+  const [selectedAudience, setSelectedAudience] = useState("family");
+  const [mediaFile, setMediaFile] = useState(null);
   const [notice, setNotice] = useState("");
   const [savedMemories, setSavedMemories] = useState([]);
   const [backgroundId, setBackgroundId] = useState("none");
@@ -137,21 +144,63 @@ function RecordMemoryContent() {
   const [fontId, setFontId] = useState("default");
   const [isFontOpen, setIsFontOpen] = useState(false);
 
+  const [isAlbumDropdownOpen, setIsAlbumDropdownOpen] = useState(false);
+  const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { firebaseUser, isAuthenticated } = useAuth();
+
+  const albumDropdownRef = useRef(null);
+  const audienceDropdownRef = useRef(null);
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
   const audioRef = useRef(null);
 
   useEffect(() => {
+    function handleClickOutside(event) {
+      if (albumDropdownRef.current && !albumDropdownRef.current.contains(event.target)) {
+        setIsAlbumDropdownOpen(false);
+      }
+      if (audienceDropdownRef.current && !audienceDropdownRef.current.contains(event.target)) {
+        setIsAudienceDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     setSavedMemories(loadLocalMemories());
-    const list = getStoredAlbums();
-    setAlbumsList(list);
     
     const albumParam = searchParams.get("albumId");
     if (albumParam) {
-      setSelectedAlbums([albumParam]);
+      setSelectedAlbumId(albumParam);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const fetchAlbums = async () => {
+      if (isAuthenticated && firebaseUser) {
+        try {
+          const token = await firebaseUser.getIdToken();
+          const backendAlbums = await getAlbumsFromBackend(token);
+          const mapped = backendAlbums.map(album => ({
+            id: album.id,
+            title: album.title,
+            privacy: album.privacy || "Private",
+          }));
+          setAlbumsList(mapped);
+        } catch (error) {
+          console.warn("Failed to load albums for record page, using local fallback:", getBackendErrorMessage(error));
+          setAlbumsList(getStoredAlbums());
+        }
+      } else {
+        setAlbumsList(getStoredAlbums());
+      }
+    };
+    fetchAlbums();
+  }, [isAuthenticated, firebaseUser]);
 
   useEffect(() => {
     const nextFormat = resolveFormat(searchParams.get("mode"));
@@ -185,20 +234,19 @@ function RecordMemoryContent() {
   }, [activeFormat, audioUrl, capturedVoiceSeconds, isRecording]);
 
   const selectedSummary = useMemo(() => {
-    const albumLabels = selectedAlbums
-      .map((albumId) => albumsList.find((album) => album.id === albumId)?.title)
-      .filter(Boolean);
-    const audienceLabels = selectedAudiences
-      .map((audienceId) => audienceOptions.find((option) => option.id === audienceId)?.label)
-      .filter(Boolean);
-
-    return [...albumLabels, ...audienceLabels];
-  }, [selectedAlbums, selectedAudiences]);
+    const summary = [];
+    if (selectedAlbumId) {
+      const albumTitle = albumsList.find((album) => album.id === selectedAlbumId)?.title;
+      if (albumTitle) summary.push(albumTitle);
+    }
+    const audOpt = audienceOptions.find((opt) => opt.id === selectedAudience);
+    if (audOpt) summary.push(audOpt.label);
+    return summary;
+  }, [selectedAlbumId, selectedAudience, albumsList]);
 
   function selectFormat(format) {
     setActiveFormat(format);
     setNotice("");
-    setMediaDraft(null);
     if (format !== "Voice") {
       stopRecordingTracks();
       setIsRecording(false);
@@ -274,45 +322,51 @@ function RecordMemoryContent() {
     setIsAudioPlaying(false);
   }
 
-  async function handleMediaFile(file) {
-    if (!file) return;
+  async function handleMultipleMediaFiles(files) {
+    if (!files || files.length === 0) return;
 
     const expectedType = activeFormat === "Video" ? "video/" : "image/";
-    if (!file.type.startsWith(expectedType)) {
-      setNotice(`Please choose a valid ${activeFormat.toLowerCase()} file.`);
-      return;
+    const validFiles = [];
+    const validDrafts = [];
+
+    for (const file of files) {
+      if (!file.type.startsWith(expectedType)) {
+        setNotice(`Please choose only valid ${activeFormat.toLowerCase()} files.`);
+        continue;
+      }
+      validFiles.push(file);
+
+      try {
+        const dataUrl = await fileToDataUrl(file);
+        validDrafts.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: dataUrl,
+        });
+      } catch {
+        setNotice("Could not read one or more files. Please try again.");
+      }
     }
 
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      setMediaDraft({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: dataUrl,
-      });
-      setNotice(`${activeFormat} uploaded for preview.`);
-    } catch {
-      setNotice("Could not read this file. Please try another one.");
+    if (activeFormat === "Photo") {
+      setPhotoFiles(prev => [...prev, ...validFiles]);
+      setPhotoDrafts(prev => [...prev, ...validDrafts]);
+      setNotice(`${validFiles.length} photo(s) added.`);
+    } else {
+      setVideoFiles(prev => [...prev, ...validFiles]);
+      setVideoDrafts(prev => [...prev, ...validDrafts]);
+      setNotice(`${validFiles.length} video(s) added.`);
     }
-  }
-
-  function toggleAlbum(albumId) {
-    setSelectedAlbums((current) =>
-      current.includes(albumId) ? current.filter((id) => id !== albumId) : [...current, albumId]
-    );
-  }
-
-  function toggleAudience(audienceId) {
-    setSelectedAudiences((current) =>
-      current.includes(audienceId) ? current.filter((id) => id !== audienceId) : [...current, audienceId]
-    );
   }
 
   function clearForm() {
     setTitle("");
     setStoryText("");
-    setMediaDraft(null);
+    setPhotoDrafts([]);
+    setPhotoFiles([]);
+    setVideoDrafts([]);
+    setVideoFiles([]);
     setAudioUrl("");
     setAudioMimeType("");
     setCapturedVoiceSeconds(0);
@@ -320,9 +374,12 @@ function RecordMemoryContent() {
     setIsAudioPlaying(false);
     setBackgroundId("none");
     setFontId("default");
+    setSelectedAlbumId("");
+    setSelectedAudience("family");
+    setIsSaving(false);
   }
 
-  function saveMemory() {
+  async function saveMemory() {
     const cleanTitle = title.trim();
 
     if (!cleanTitle) {
@@ -345,14 +402,72 @@ function RecordMemoryContent() {
       return;
     }
 
-    if ((activeFormat === "Photo" || activeFormat === "Video") && !mediaDraft) {
-      setNotice(`Upload a ${activeFormat.toLowerCase()} before saving.`);
+    if (activeFormat === "Photo" && photoFiles.length === 0) {
+      setNotice("Upload a photo before saving.");
       return;
     }
 
-    if (!selectedAlbums.length && !selectedAudiences.length) {
-      setNotice("Choose at least one album or audience option.");
+    if (activeFormat === "Video" && videoFiles.length === 0) {
+      setNotice("Upload a video before saving.");
       return;
+    }
+
+    if (!selectedAlbumId && !selectedAudience) {
+      setNotice("Choose an album or audience option.");
+      return;
+    }
+
+    setIsSaving(true);
+    setNotice("Saving memory...");
+
+    const privacyMap = {
+      private: "Private",
+      family: "Family Circle",
+      public: "Public"
+    };
+    const mappedPrivacy = privacyMap[selectedAudience] || "Private";
+
+    if (isAuthenticated && firebaseUser) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const formData = new FormData();
+        formData.append("title", cleanTitle);
+        formData.append("description", storyText.trim());
+        formData.append("privacy", mappedPrivacy);
+        formData.append("type", activeFormat);
+        formData.append("status", "published");
+        if (selectedAlbumId) {
+          formData.append("albumId", selectedAlbumId);
+        }
+        formData.append("occurredAt", new Date().toISOString());
+        
+        if (activeFormat === "Text") {
+          formData.append("backgroundId", backgroundId);
+          formData.append("fontId", fontId);
+        }
+
+        if (activeFormat === "Voice" && audioUrl) {
+          const audioFile = dataURLtoFile(audioUrl, `recording-${Date.now()}.webm`);
+          formData.append("media", audioFile);
+        } else if (activeFormat === "Photo" && photoFiles.length > 0) {
+          photoFiles.forEach(file => {
+            formData.append("media", file);
+          });
+        } else if (activeFormat === "Video" && videoFiles.length > 0) {
+          videoFiles.forEach(file => {
+            formData.append("media", file);
+          });
+        }
+
+        await createMemoryOnBackend(token, formData);
+        setNotice("Memory successfully saved to cloud!");
+        clearForm();
+        setIsSaving(false);
+        return;
+      } catch (error) {
+        console.error("Failed to save memory to backend:", error);
+        setNotice(`Cloud save failed: ${getBackendErrorMessage(error)}. Attempting local fallback.`);
+      }
     }
 
     const localMemory = {
@@ -362,11 +477,12 @@ function RecordMemoryContent() {
       description: storyText.trim(),
       createdAt: new Date().toISOString(),
       displayDate: new Date().toLocaleString(),
-      albums: selectedAlbums,
-      audiences: selectedAudiences,
-      privacy: selectedAudiences.includes("public") ? "Public" : selectedAudiences.includes("family") ? "Family Circle" : "Private",
+      albums: selectedAlbumId ? [selectedAlbumId] : [],
+      albumId: selectedAlbumId || null,
+      audiences: [selectedAudience],
+      privacy: mappedPrivacy,
       audio: activeFormat === "Voice" ? { url: audioUrl, mimeType: audioMimeType, seconds: capturedVoiceSeconds } : null,
-      media: activeFormat === "Photo" || activeFormat === "Video" ? mediaDraft : null,
+      media: activeFormat === "Photo" ? photoDrafts : activeFormat === "Video" ? videoDrafts : null,
       backgroundId: activeFormat === "Text" ? backgroundId : "none",
       fontId: activeFormat === "Text" ? fontId : "default",
       ownerId: "alexander",
@@ -377,16 +493,17 @@ function RecordMemoryContent() {
     try {
       localStorage.setItem(LOCAL_MEMORIES_KEY, JSON.stringify(nextMemories));
       setSavedMemories(nextMemories);
-      setNotice("Memory successfully created!");
+      setNotice("Memory saved locally!");
       clearForm();
     } catch {
       setNotice("This file is too large for local storage. Try a smaller video/photo for testing.");
     }
+    setIsSaving(false);
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[var(--background)] pb-28 animation-fade-in">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/90 py-5 backdrop-blur-md">
+    <div className="flex min-h-screen w-full flex-col bg-[var(--background)] pb-28 px-4 sm:px-6 md:px-8 animation-fade-in">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/90 py-5 px-4 sm:px-6 backdrop-blur-md">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-[var(--brand)]">Create</p>
           <h1 className="text-2xl font-black tracking-tight text-[var(--ink)] dark:text-white">Record Memory</h1>
@@ -400,7 +517,7 @@ function RecordMemoryContent() {
         </Link>
       </header>
 
-      <div className="w-full max-w-4xl flex-1 flex flex-col">
+      <div className="w-full max-w-4xl flex-1 flex flex-col px-4 sm:px-6 mx-auto">
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-sm">
         <div className="grid grid-cols-4 gap-1.5">
           {formats.map((format) => {
@@ -424,7 +541,11 @@ function RecordMemoryContent() {
       </div>
 
       {notice && (
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-[var(--brand)]/25 bg-[var(--brand)]/10 px-4 py-3 text-sm font-bold text-[var(--brand)]">
+        <div className={`mt-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-bold ${
+          notice.toLowerCase().includes("success") || notice.toLowerCase().includes("saved locally")
+            ? "border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/30 dark:text-emerald-400"
+            : "border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--brand)]"
+        }`}>
           <CheckCircle2 size={17} />
           <span>{notice}</span>
         </div>
@@ -464,7 +585,29 @@ function RecordMemoryContent() {
           )}
 
           {(activeFormat === "Photo" || activeFormat === "Video") && (
-            <MediaComposer activeFormat={activeFormat} mediaDraft={mediaDraft} onFile={handleMediaFile} onRemove={() => setMediaDraft(null)} />
+            <MediaComposer
+              activeFormat={activeFormat}
+              mediaDrafts={activeFormat === "Photo" ? photoDrafts : videoDrafts}
+              onFiles={handleMultipleMediaFiles}
+              onRemoveItem={(index) => {
+                if (activeFormat === "Photo") {
+                  setPhotoDrafts(prev => prev.filter((_, i) => i !== index));
+                  setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+                } else {
+                  setVideoDrafts(prev => prev.filter((_, i) => i !== index));
+                  setVideoFiles(prev => prev.filter((_, i) => i !== index));
+                }
+              }}
+              onClearAll={() => {
+                if (activeFormat === "Photo") {
+                  setPhotoDrafts([]);
+                  setPhotoFiles([]);
+                } else {
+                  setVideoDrafts([]);
+                  setVideoFiles([]);
+                }
+              }}
+            />
           )}
         </section>
 
@@ -480,35 +623,115 @@ function RecordMemoryContent() {
             />
           </label>
 
-          <div className="mt-4">
+          <div className="mt-4 text-left relative" ref={albumDropdownRef}>
             <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wide text-stone-500">
               <Library size={14} />
               Add to Album
             </p>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {albumsList.slice(0, 5).map((album) => (
-                <SelectableChip key={album.id} selected={selectedAlbums.includes(album.id)} onClick={() => toggleAlbum(album.id)}>
-                  {album.title}
-                </SelectableChip>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsAlbumDropdownOpen(!isAlbumDropdownOpen)}
+              className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 hover:border-[var(--brand)] transition-all text-sm font-semibold text-stone-700 dark:text-stone-300"
+            >
+              <span>
+                {selectedAlbumId
+                  ? albumsList.find((a) => a.id === selectedAlbumId)?.title || "Selected Album"
+                  : "No Album Selected (Optional)"}
+              </span>
+              <span className="opacity-50">▼</span>
+            </button>
+            
+            {isAlbumDropdownOpen && (
+              <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-white dark:bg-[#162033] border border-stone-200 dark:border-stone-850 p-2 shadow-xl z-50 max-h-60 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAlbumId("");
+                    setIsAlbumDropdownOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm font-bold text-stone-500 hover:bg-stone-50 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                >
+                  ❌ None (Don't add to album)
+                </button>
+                {albumsList.map((alb) => (
+                  <button
+                    key={alb.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAlbumId(alb.id);
+                      setIsAlbumDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 text-sm font-bold rounded-xl transition cursor-pointer flex items-center justify-between ${
+                      selectedAlbumId === alb.id
+                        ? "bg-[var(--brand-soft)] text-[var(--brand)]"
+                        : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <span>{alb.title}</span>
+                    {selectedAlbumId === alb.id && <span className="text-xs">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="mt-4">
-            <p className="mb-2 text-xs font-black uppercase tracking-wide text-stone-500">Audience</p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {audienceOptions.map((option) => (
-                <AudienceCard
-                  key={option.id}
-                  option={option}
-                  selected={selectedAudiences.includes(option.id)}
-                  onClick={() => toggleAudience(option.id)}
-                />
-              ))}
-            </div>
+          <div className="mt-4 text-left relative" ref={audienceDropdownRef}>
+            <p className="mb-2 text-xs font-black uppercase tracking-wide text-stone-500">Audience & Privacy</p>
+            <button
+              type="button"
+              onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
+              className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 hover:border-[var(--brand)] transition-all text-sm font-semibold text-stone-700 dark:text-stone-300"
+            >
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const opt = audienceOptions.find((o) => o.id === selectedAudience);
+                  const Icon = opt?.icon || Lock;
+                  return (
+                    <>
+                      <Icon size={16} className="text-[var(--brand)]" />
+                      <span className="font-extrabold">{opt?.label || "Private"}</span>
+                      <span className="text-xs opacity-60">({opt?.helper})</span>
+                    </>
+                  );
+                })()}
+              </div>
+              <span className="opacity-50">▼</span>
+            </button>
+            
+            {isAudienceDropdownOpen && (
+              <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-white dark:bg-[#162033] border border-stone-200 dark:border-stone-850 p-2 shadow-xl z-50">
+                {audienceOptions.map((opt) => {
+                  const Icon = opt.icon;
+                  const isSel = selectedAudience === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAudience(opt.id);
+                        setIsAudienceDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-xl transition cursor-pointer flex items-center gap-3 ${
+                        isSel
+                          ? "bg-[var(--brand-soft)] text-[var(--brand)] font-bold"
+                          : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isSel ? "bg-[var(--brand)]/10 text-[var(--brand)]" : "bg-slate-100 dark:bg-slate-800 text-stone-500"}`}>
+                        <Icon size={14} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black truncate">{opt.label}</p>
+                        <p className="text-xs opacity-60 truncate">{opt.helper}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          <div className="mt-4 rounded-lg bg-[var(--background)] p-3">
+          <div className="mt-4 rounded-lg bg-[var(--background)] p-3 text-left">
             <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-stone-500">Selected</p>
             {selectedSummary.length ? (
               <div className="flex flex-wrap gap-2">
@@ -526,10 +749,20 @@ function RecordMemoryContent() {
 
         <button
           onClick={saveMemory}
-          className="flex h-13 w-full items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-4 text-base font-black text-white shadow-lg shadow-black/10 transition active:scale-[0.98]"
+          disabled={isSaving}
+          className="flex h-13 w-full items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-4 text-base font-black text-white shadow-lg shadow-black/10 transition active:scale-[0.98] disabled:opacity-50"
         >
-          <Save size={18} />
-          Save Memory
+          {isSaving ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              Saving memory...
+            </>
+          ) : (
+            <>
+              <Save size={18} />
+              Save Memory
+            </>
+          )}
         </button>
 
         <SavedPreview memories={savedMemories} />
@@ -872,62 +1105,97 @@ function BackgroundCustomizerModal({ isOpen, onClose, selectedId, onSelect }) {
   );
 }
 
-function MediaComposer({ activeFormat, mediaDraft, onFile, onRemove }) {
+function MediaComposer({ activeFormat, mediaDrafts, onFiles, onRemoveItem, onClearAll }) {
   const isVideo = activeFormat === "Video";
+  const fileInputRef = useRef(null);
 
   return (
     <div className="p-4">
-      <label
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          onFile(event.dataTransfer.files?.[0]);
-        }}
-        className="flex min-h-[328px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--background)] p-5 text-center transition hover:border-[var(--brand)] hover:bg-[var(--brand)]/5"
-      >
-        {mediaDraft ? (
-          <div className="w-full">
-            <div className="mx-auto mb-4 max-h-[280px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--ink)]">
-              {isVideo ? (
-                <video src={mediaDraft.url} controls className="max-h-[280px] w-full object-contain" />
-              ) : (
-                <img src={mediaDraft.url} alt={mediaDraft.name} className="max-h-[280px] w-full object-contain" />
-              )}
-            </div>
-            <p className="truncate text-sm font-black text-[var(--ink)] dark:text-white">{mediaDraft.name}</p>
-            <p className="mt-1 text-xs font-bold text-stone-500">{Math.max(1, Math.round(mediaDraft.size / 1024))} KB</p>
+      {mediaDrafts && mediaDrafts.length > 0 ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {mediaDrafts.map((draft, idx) => (
+              <div key={idx} className="relative group rounded-xl border border-[var(--border)] bg-[var(--background)] overflow-hidden shadow-sm aspect-[4/3] sm:aspect-square flex flex-col justify-between">
+                <div className="flex-1 w-full bg-[var(--ink)] flex items-center justify-center overflow-hidden relative">
+                  {isVideo ? (
+                    <video src={draft.url} className="h-full w-full object-cover" />
+                  ) : (
+                    <img src={draft.url} alt={draft.name} className="h-full w-full object-cover" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onRemoveItem(idx);
+                    }}
+                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 hover:bg-rose-600 text-white transition z-10"
+                    aria-label="Remove item"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="p-2 border-t border-[var(--border)] bg-[var(--surface)] text-left">
+                  <p className="truncate text-xs font-bold text-[var(--ink)] dark:text-white">{draft.name}</p>
+                  <p className="text-[10px] font-medium text-stone-500">{Math.max(1, Math.round(draft.size / 1024))} KB</p>
+                </div>
+              </div>
+            ))}
+
             <button
               type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                onRemove();
-              }}
-              className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 text-xs font-black text-rose-600"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex aspect-[4/3] sm:aspect-square flex-col items-center justify-center rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)] hover:bg-[var(--brand)]/5 transition cursor-pointer"
             >
-              <Trash2 size={15} />
-              Remove
+              <div className="w-10 h-10 rounded-full bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mb-2">
+                <ImagePlus size={20} />
+              </div>
+              <span className="text-xs font-bold text-stone-550">Add More</span>
             </button>
           </div>
-        ) : (
-          <>
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-              {isVideo ? <Video size={32} className="text-[var(--brand)]" /> : <ImagePlus size={32} className="text-[var(--brand)]" />}
-            </div>
-            <h3 className="text-lg font-black text-[var(--ink)] dark:text-white">Upload {activeFormat}</h3>
-            <p className="mt-1 text-xs font-bold text-stone-500">Tap to browse or drop a file here</p>
-            <span className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white">
-              <Upload size={15} />
-              Choose File
-            </span>
-          </>
-        )}
-        <input
-          type="file"
-          accept={isVideo ? "video/*" : "image/*"}
-          className="hidden"
-          onChange={(event) => onFile(event.target.files?.[0])}
-        />
-      </label>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-stone-250 bg-white dark:bg-stone-850 px-3.5 text-xs font-black text-stone-600 dark:text-stone-300 hover:bg-stone-50 transition active:scale-95"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      ) : (
+        <label
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            const files = Array.from(event.dataTransfer.files || []);
+            onFiles(files);
+          }}
+          className="flex min-h-[328px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--background)] p-5 text-center transition hover:border-[var(--brand)] hover:bg-[var(--brand)]/5"
+        >
+          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+            {isVideo ? <Video size={32} className="text-[var(--brand)]" /> : <ImagePlus size={32} className="text-[var(--brand)]" />}
+          </div>
+          <h3 className="text-lg font-black text-[var(--ink)] dark:text-white">Upload {activeFormat}s</h3>
+          <p className="mt-1 text-xs font-bold text-stone-550">Tap to browse or drop files here (multiple supported)</p>
+          <span className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white">
+            <Upload size={15} />
+            Choose Files
+          </span>
+        </label>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={isVideo ? "video/*" : "image/*"}
+        className="hidden"
+        multiple
+        onChange={(event) => {
+          const files = Array.from(event.target.files || []);
+          onFiles(files);
+        }}
+      />
     </div>
   );
 }
@@ -1017,4 +1285,13 @@ function SavedPreview({ memories }) {
       </div>
     </section>
   );
+}
+
+function dataURLtoFile(dataurl, filename) {
+  let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, {type:mime});
 }

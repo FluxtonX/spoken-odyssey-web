@@ -24,6 +24,10 @@ import {
 } from "@/data/postBackgrounds";
 import { getFontFamily } from "@/data/postFonts";
 import VoicePlayer from "./VoicePlayer";
+import CommentsSection from "./CommentsSection";
+import MediaGrid from "./MediaGrid";
+import { useAuth } from "@/context/AuthProvider";
+import { interactWithMemoryOnBackend } from "@/services/backend";
 
 const reactions = [
   { id: "heart", label: "Heart", icon: "♥", color: "text-rose-600" },
@@ -34,25 +38,51 @@ const reactions = [
 ];
 
 export default function FeedCard({ memory, onEdit, onDelete }) {
+  const { firebaseUser, isAuthenticated } = useAuth();
   const [userProfile, setUserProfile] = useState(null);
   const [reaction, setReaction] = useState(null);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [comments, setComments] = useState([
-    { id: `${memory.id}-c1`, author: "Alexander", text: "Beautiful memory. This feels worth preserving." },
-  ]);
+  const [commentsCount, setCommentsCount] = useState((memory.comments || 0) + 1);
   const [shareNotice, setShareNotice] = useState("");
   const holdTimerRef = useRef(null);
+
+  const toggleComments = () => {
+    const nextOpen = !commentsOpen;
+    setCommentsOpen(nextOpen);
+    if (nextOpen && isAuthenticated && firebaseUser) {
+      firebaseUser.getIdToken().then((token) => {
+        interactWithMemoryOnBackend(token, memory.id, "view").catch(console.error);
+      });
+    }
+  };
 
   useEffect(() => {
     setUserProfile(getStoredUserProfile());
     const loadProfile = () => {
       setUserProfile(getStoredUserProfile());
     };
+    
+    // Load initial count if stored
+    const saved = localStorage.getItem(`comments_${memory.id}`);
+    if (saved) {
+      try {
+        setCommentsCount(JSON.parse(saved).length);
+      } catch {}
+    }
+    
+    const handleCommentsUpdate = (e) => {
+      setCommentsCount(e.detail);
+    };
+
     window.addEventListener("profileUpdated", loadProfile);
-    return () => window.removeEventListener("profileUpdated", loadProfile);
-  }, []);
+    window.addEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
+    
+    return () => {
+      window.removeEventListener("profileUpdated", loadProfile);
+      window.removeEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
+    };
+  }, [memory.id]);
 
   const getCommentAuthorDetails = (authorName) => {
     if (
@@ -106,12 +136,23 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
   const quickReact = () => {
     clearHoldTimer();
     if (reactionPickerOpen) return;
-    setReaction((current) => (current === "heart" ? null : "heart"));
+    const nextReaction = reaction === "heart" ? null : "heart";
+    setReaction(nextReaction);
+    if (isAuthenticated && firebaseUser && nextReaction) {
+      firebaseUser.getIdToken().then((token) => {
+        interactWithMemoryOnBackend(token, memory.id, "like").catch(console.error);
+      });
+    }
   };
 
   const chooseReaction = (nextReaction) => {
     setReaction(nextReaction);
     setReactionPickerOpen(false);
+    if (isAuthenticated && firebaseUser && nextReaction) {
+      firebaseUser.getIdToken().then((token) => {
+        interactWithMemoryOnBackend(token, memory.id, "like").catch(console.error);
+      });
+    }
   };
 
   const addComment = (event) => {
@@ -217,27 +258,9 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
 
       {/* Card Media Content */}
       <div className="px-5 pb-5">
-        {/* Photo Display */}
-        {memory.type === "Photo" && (memory.media?.url || memory.image) && (
-          <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--background)]">
-            <img src={memory.media?.url || memory.image} alt={memory.title} className="max-h-[380px] w-full object-cover" />
-          </div>
-        )}
-
-        {/* Video Display */}
-        {memory.type === "Video" && (memory.media?.url || memory.image) && (
-          <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--ink)] relative flex items-center justify-center">
-            {memory.media?.url ? (
-              <video src={memory.media.url} controls className="max-h-[380px] w-full object-contain" />
-            ) : (
-              <>
-                <img src={memory.image} alt={memory.title} className="max-h-[380px] w-full object-cover opacity-80" />
-                <span className="absolute flex h-14 w-14 items-center justify-center rounded-full bg-white text-[var(--brand)] shadow-lg cursor-pointer hover:scale-105 transition">
-                  <Play fill="currentColor" size={20} className="ml-1" />
-                </span>
-              </>
-            )}
-          </div>
+        {/* Photo or Video Display using MediaGrid */}
+        {(memory.type === "Photo" || memory.type === "Video") && (
+          <MediaGrid memory={memory} />
         )}
 
         {/* Text Template Background Display */}
@@ -272,8 +295,8 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
             {reaction && <span className={selectedReaction?.color}>{selectedReaction?.icon}</span>}
             {reactionCount} reactions
           </span>
-          <button onClick={() => setCommentsOpen((current) => !current)} className="hover:text-[var(--brand)] cursor-pointer">
-            {((memory.comments || 0) + comments.length)} comments
+          <button onClick={toggleComments} className="hover:text-[var(--brand)] cursor-pointer">
+            {commentsCount} comments
           </button>
         </div>
 
@@ -308,7 +331,7 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
           </button>
           
           <button
-            onClick={() => setCommentsOpen((current) => !current)}
+            onClick={toggleComments}
             className="group flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 font-bold text-stone-600 transition hover:bg-stone-50 dark:hover:bg-stone-800/50 hover:text-[var(--brand)] cursor-pointer"
           >
             <MessageCircle size={18} className="transition-transform group-active:scale-90" />
@@ -325,51 +348,12 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
         </div>
 
         {commentsOpen && (
-          <div className="mt-4 space-y-4 border-t border-stone-100 dark:border-stone-800/60 pt-4">
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-              {comments.map((comment) => {
-                const authorDetails = getCommentAuthorDetails(comment.author);
-                return (
-                  <div key={comment.id} className="flex gap-2.5 items-start text-left animate-fade-in">
-                    <img
-                      src={authorDetails.avatar}
-                      alt={authorDetails.name}
-                      className="h-8 w-8 rounded-full object-cover shrink-0 border border-stone-200 shadow-sm"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="inline-block rounded-2xl bg-stone-100 dark:bg-slate-800/70 px-3.5 py-2 shadow-sm max-w-[85%] break-words">
-                        <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-0.5">{authorDetails.name}</p>
-                        <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300">{comment.text}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <form onSubmit={addComment} className="flex gap-2 items-center">
-              {userProfile?.avatar ? (
-                <img
-                  src={userProfile.avatar}
-                  alt={userProfile.name}
-                  className="h-8 w-8 rounded-full object-cover shrink-0 border border-stone-200 hidden sm:block"
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-full bg-[var(--brand)] text-white text-xs font-bold flex items-center justify-center shrink-0 hidden sm:flex">
-                  A
-                </div>
-              )}
-              <input
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                placeholder="Write a comment..."
-                className="h-10 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm font-bold outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
-              />
-              <button className="h-10 rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white hover:bg-[var(--brand-hover)] transition cursor-pointer">
-                Post
-              </button>
-            </form>
-          </div>
+          <CommentsSection
+            memoryId={memory.id}
+            initialComments={[
+              { id: `${memory.id}-c1`, author: "Alexander", text: "Beautiful memory. This feels worth preserving." }
+            ]}
+          />
         )}
       </div>
     </article>

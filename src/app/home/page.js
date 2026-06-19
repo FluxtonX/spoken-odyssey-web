@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import LandingPage from "@/app/landing/page";
 import { useAuth } from "@/context/AuthProvider";
+import { getAlbumsFromBackend, getMemoriesFromBackend } from "@/services/backend";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { memories } from "@/data/mockApp";
-import { getStoredAlbums, seedInitialMemoriesIfNeeded } from "@/data/userProfile";
+import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COVER_PRESETS } from "@/data/userProfile";
 
 // Sliding Album Card Component
 function AlbumSlideshowCard({ album }) {
@@ -21,7 +22,7 @@ function AlbumSlideshowCard({ album }) {
   }, []);
 
   return (
-    <Link href={`/albums/${album.id}`} className="shrink-0 w-40 md:w-52 h-52 md:h-64 rounded-3xl snap-center relative overflow-hidden shadow-lg cursor-pointer group active:scale-95 transition-transform block">
+    <Link href={`/albums/${album.id}?from=home`} className="shrink-0 w-40 md:w-52 h-52 md:h-64 rounded-3xl snap-center relative overflow-hidden shadow-lg cursor-pointer group active:scale-95 transition-transform block">
       {album.images.map((img, index) => (
         <img key={index} src={img} alt={album.title}
           className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${index === currentIndex ? "opacity-100 scale-100" : "opacity-0 scale-110"}`}
@@ -42,25 +43,72 @@ function AlbumSlideshowCard({ album }) {
 }
 
 export default function Home() {
-  const { isAuthenticated, loading, profile } = useAuth();
+  const { isAuthenticated, loading, profile, firebaseUser } = useAuth();
   const [albumsList, setAlbumsList] = useState([]);
   const [memoriesList, setMemoriesList] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    setAlbumsList(getStoredAlbums());
-    seedInitialMemoriesIfNeeded();
-    
-    const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-    if (saved) {
-      try {
-        setMemoriesList(JSON.parse(saved));
-      } catch {
+    function loadProfile() {
+      setUserProfile(getStoredUserProfile());
+    }
+    loadProfile();
+    window.addEventListener("profileUpdated", loadProfile);
+
+    const loadHomeData = async () => {
+      if (isAuthenticated && firebaseUser) {
+        try {
+          const token = await firebaseUser.getIdToken();
+          const [backendAlbums, backendMemories] = await Promise.all([
+            getAlbumsFromBackend(token),
+            getMemoriesFromBackend(token)
+          ]);
+
+          const mappedAlbums = backendAlbums.map(album => ({
+            id: album.id,
+            title: album.title,
+            privacy: album.privacy || "Private",
+            cover: album.coverImageUrl || album.coverImageKey || COVER_PRESETS[0].url,
+            created: new Date(album.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+          }));
+
+          const mappedMemories = backendMemories.map(m => ({
+            id: m.id,
+            title: m.title,
+            type: m.type,
+            description: m.description,
+            date: new Date(m.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
+            privacy: m.privacy || "Private",
+            image: m.thumbnailUrl || m.mediaUrl || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+          }));
+
+          setAlbumsList(mappedAlbums);
+          setMemoriesList(mappedMemories);
+          return;
+        } catch (error) {
+          console.warn("Failed to load backend home data, using local fallback:", error);
+        }
+      }
+
+      // Local storage fallback
+      setAlbumsList(getStoredAlbums());
+      seedInitialMemoriesIfNeeded();
+      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+      if (saved) {
+        try {
+          setMemoriesList(JSON.parse(saved));
+        } catch {
+          setMemoriesList(memories);
+        }
+      } else {
         setMemoriesList(memories);
       }
-    } else {
-      setMemoriesList(memories);
-    }
-  }, []);
+    };
+
+    loadHomeData();
+
+    return () => window.removeEventListener("profileUpdated", loadProfile);
+  }, [isAuthenticated, firebaseUser]);
 
   const quickActions = [
     { name: "Voice", label: "Quick Audio", href: "/record?mode=Voice" },
@@ -92,6 +140,7 @@ export default function Home() {
   }
 
   const displayName =
+    userProfile?.name?.split(" ")[0] ||
     profile?.displayName?.split(" ")[0] ||
     profile?.email?.split("@")[0] ||
     "Explorer";
@@ -113,8 +162,12 @@ export default function Home() {
             <Bell size={18} />
             <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-rose-500" />
           </Link>
-          <Link href="/profile" className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--brand)] text-sm font-black text-white shadow-sm lg:hidden" aria-label="Profile">
-            A
+          <Link href="/profile" className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]/50 text-sm font-black text-[var(--brand)] shadow-sm lg:hidden overflow-hidden transition active:scale-95 shrink-0" aria-label="Profile">
+            {userProfile?.avatar ? (
+              <img src={userProfile.avatar} alt={userProfile.name} className="h-full w-full object-cover animate-fade-in" />
+            ) : (
+              <span>{userProfile?.name?.charAt(0) || "A"}</span>
+            )}
           </Link>
           <span className="hidden" aria-hidden="true" />
         </div>
@@ -166,7 +219,7 @@ export default function Home() {
             <h2 className="text-xl font-bold mb-5">Recent Archives</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {recentMemories.map((memory) => (
-                <Link href={`/memories/${memory.id}`} key={memory.id} className="block p-5 glass-card group cursor-pointer hover:-translate-y-1 transition-all duration-300">
+                <Link href={`/memories/${memory.id}?from=home`} key={memory.id} className="block p-5 glass-card group cursor-pointer hover:-translate-y-1 transition-all duration-300">
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm text-[var(--brand)]">
                       {resolveGlass3DIcon(memory.title)}

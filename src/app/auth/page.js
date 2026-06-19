@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Mail, Lock, User, RefreshCw, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Mail, Lock, User, RefreshCw, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "@/components/layout/AuthLayout";
 import { useAuth } from "@/context/AuthProvider";
 import { getAuthErrorMessage } from "@/services/firebase";
@@ -17,6 +17,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [timer, setTimer] = useState(59);
   const [isResending, setIsResending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -220,13 +221,21 @@ export default function AuthPage() {
                 <div className="relative">
                   <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
                   <input 
-                    type="password" 
+                    type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
                     required
-                    className="w-full p-4 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
+                    className="w-full p-4 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
 
@@ -355,13 +364,21 @@ export default function AuthPage() {
                 <div className="relative">
                   <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
                   <input 
-                    type="password" 
+                    type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
                     required
-                    className="w-full p-4 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
+                    className="w-full p-4 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
 
@@ -373,6 +390,23 @@ export default function AuthPage() {
                 {isSubmitting ? "Creating account..." : "Sign Up"}
               </button>
             </form>
+
+            <div className="relative my-6 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-stone-200 dark:border-stone-800" />
+              </div>
+              <span className="relative px-3 bg-white dark:bg-[#0f172a] text-xs font-bold text-stone-400">OR</span>
+            </div>
+
+            <button 
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-stone-700 hover:border-[var(--brand)] hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-95 group shadow-sm text-sm"
+            >
+              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span className="font-extrabold text-stone-700 dark:text-stone-200">Continue with Google</span>
+            </button>
 
             <div className="mt-8 text-center text-sm">
               <span className="text-stone-500 dark:text-stone-400 font-semibold">Already have an account? </span>

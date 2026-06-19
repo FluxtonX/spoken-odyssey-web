@@ -99,7 +99,7 @@ export default function SearchPage() {
           <ResultSection title="Memories" count={results.memories.length} icon={FileText}>
             <div className="grid gap-3 md:grid-cols-2">
               {results.memories.map((memory) => (
-                <Link key={memory.id} href={`/memories/${memory.id}`} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm transition hover:border-[var(--brand)]">
+                <Link key={memory.id} href={`/memories/${memory.id}?from=search`} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm transition hover:border-[var(--brand)]">
                   <img src={memory.image} alt={memory.title} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wide text-[var(--brand)]">
@@ -119,7 +119,7 @@ export default function SearchPage() {
           <ResultSection title="Albums" count={results.albums.length} icon={Album}>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {results.albums.map((album) => (
-                <Link key={album.id} href={`/albums/${album.id}`} className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:border-[var(--brand)]">
+                <Link key={album.id} href={`/albums/${album.id}?from=search`} className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:border-[var(--brand)]">
                   <img src={album.cover} alt={album.title} className="h-36 w-full object-cover" />
                   <div className="p-4">
                     <h3 className="text-sm font-black">{album.title}</h3>
@@ -138,7 +138,7 @@ export default function SearchPage() {
                 const isFollowing = followedIds.includes(person.id);
                 return (
                   <div key={person.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-                    <Link href={`/people/${person.id}`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90">
+                    <Link href={`/people/${person.id}?from=search`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90">
                       <img src={person.avatar} alt={person.name} className="h-14 w-14 rounded-full object-cover shrink-0" />
                       <div className="min-w-0">
                         <h3 className="truncate text-sm font-black">{person.name}</h3>
