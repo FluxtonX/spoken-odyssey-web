@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Camera,
   Check,
@@ -120,6 +120,7 @@ export default function RecordMemory() {
 
 function RecordMemoryContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeFormat, setActiveFormat] = useState(getInitialFormat);
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -138,6 +139,20 @@ function RecordMemoryContent() {
   const [selectedAudience, setSelectedAudience] = useState("family");
   const [mediaFile, setMediaFile] = useState(null);
   const [notice, setNotice] = useState("");
+  
+  const handleClose = (e) => {
+    e.preventDefault();
+    const albumParam = searchParams.get("albumId");
+    if (albumParam) {
+      router.push(`/albums/${albumParam}`);
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/feed");
+    }
+  };
   const [savedMemories, setSavedMemories] = useState([]);
   const [backgroundId, setBackgroundId] = useState("none");
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
@@ -508,13 +523,13 @@ function RecordMemoryContent() {
           <p className="text-xs font-black uppercase tracking-wide text-[var(--brand)]">Create</p>
           <h1 className="text-2xl font-black tracking-tight text-[var(--ink)] dark:text-white">Record Memory</h1>
         </div>
-        <Link
-          href="/"
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95"
+        <button
+          onClick={handleClose}
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 cursor-pointer"
           aria-label="Close record screen"
         >
           <X size={18} className="text-stone-600 dark:text-stone-300" />
-        </Link>
+        </button>
       </header>
 
       <div className="w-full max-w-4xl flex-1 flex flex-col px-4 sm:px-6 mx-auto">
@@ -1165,6 +1180,7 @@ function MediaComposer({ activeFormat, mediaDrafts, onFiles, onRemoveItem, onCle
         </div>
       ) : (
         <label
+          onClick={() => fileInputRef.current?.click()}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault();
