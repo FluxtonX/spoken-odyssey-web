@@ -15,7 +15,7 @@ export class BackendError extends Error {
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://localhost:5001";
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:5001");
 
 async function backendFetch(path, { method = "GET", body, token, isFormData = false } = {}) {
   const headers = {};
