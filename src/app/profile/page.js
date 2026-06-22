@@ -28,26 +28,42 @@ import {
   Briefcase,
   Sparkles,
   Lightbulb,
-  HeartHandshake
+  HeartHandshake,
+  Loader2
 } from "lucide-react";
 import {
-  getStoredUserProfile,
-  saveStoredUserProfile,
   AVATAR_PRESETS,
   COVER_PRESETS,
-  CATEGORY_PRESETS,
-  seedInitialMemoriesIfNeeded
+  CATEGORY_PRESETS
 } from "@/data/userProfile";
 import { albums as mockAlbums } from "@/data/mockApp";
 import { getBackgroundStyles, getBackgroundOverlay, getBackgroundTextStyles } from "@/data/postBackgrounds";
 import { getFontFamily } from "@/data/postFonts";
 import FeedCard from "@/components/ui/FeedCard";
+import UserAvatar from "@/components/ui/UserAvatar";
+import { useAuth } from "@/context/AuthProvider";
+import {
+  getProfileFromBackend,
+  updateProfileOnBackend,
+  getMemoriesFromBackend,
+  getFollowers,
+  getFollowing,
+  getFamilyMembers,
+  deleteMemoryOnBackend,
+  updateMemoryOnBackend,
+  getBackendErrorMessage
+} from "@/services/backend";
 
 export default function ProfilePage() {
+  const { firebaseUser, loading: authLoading } = useAuth();
   const [userProfile, setUserProfile] = useState(null);
   const [localMemories, setLocalMemories] = useState([]);
   const [activeTab, setActiveTab] = useState("memories"); // "memories", "albums"
   const [followingCount, setFollowingCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [custodianName, setCustodianName] = useState("None assigned");
+  const [loadingData, setLoadingData] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
   
   // Inline editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -56,7 +72,7 @@ export default function ProfilePage() {
     role: "",
     location: "",
     bio: "",
-    birthday: "",
+    birthDate: "",
     categories: [],
     goals: "",
     projects: "",
@@ -82,57 +98,73 @@ export default function ProfilePage() {
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    seedInitialMemoriesIfNeeded();
-    loadProfileAndMemories();
-    window.addEventListener("profileUpdated", loadProfileAndMemories);
-    return () => window.removeEventListener("profileUpdated", loadProfileAndMemories);
-  }, []);
-
-  function loadProfileAndMemories() {
-    const profile = getStoredUserProfile();
-    setUserProfile(profile);
-    setFormData({
-      name: profile.name || "",
-      role: profile.role || "",
-      location: profile.location || "",
-      bio: profile.bio || "",
-      birthday: profile.birthday || "1990-06-15",
-      categories: profile.categories || [],
-      goals: profile.goals || "",
-      projects: profile.projects || "",
-      achievements: profile.achievements || "",
-      interests: profile.interests || "",
-      lessons: profile.lessons || "",
-      values: profile.values || "",
-      causes: profile.causes || "",
-      personalityQs: profile.personalityQs || [
-        { q: "What is your happiest memory from childhood?", a: "" },
-        { q: "How would you like to be remembered?", a: "" }
-      ]
-    });
-    setAvatarInput(profile.avatar);
-    setCoverInput(profile.cover);
-
-    // Load following count from followedPeople list
-    const followed = localStorage.getItem("followedPeople");
-    if (followed) {
-      try {
-        setFollowingCount(JSON.parse(followed).length);
-      } catch {
-        setFollowingCount(1);
-      }
-    } else {
-      setFollowingCount(1);
+    if (firebaseUser) {
+      loadProfileAndMemories();
+    } else if (!authLoading) {
+      setLoadingData(false);
     }
+  }, [firebaseUser, authLoading]);
 
-    const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
-    if (savedMemories) {
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      if (firebaseUser) loadProfileAndMemories();
+    };
+    window.addEventListener("profileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("profileUpdated", handleProfileUpdate);
+  }, [firebaseUser]);
+
+  async function loadProfileAndMemories() {
+    if (!firebaseUser) return;
+    setLoadingData(true);
+    setErrorMsg("");
+    try {
+      const token = await firebaseUser.getIdToken();
+      const profile = await getProfileFromBackend(token);
+      setUserProfile(profile);
+      setFormData({
+        name: profile.displayName || "",
+        role: profile.profession || "",
+        location: profile.location || "",
+        bio: profile.bio || "",
+        birthDate: profile.birthDate ? profile.birthDate.split("T")[0] : "",
+        categories: profile.expertise || [],
+        goals: profile.goals || "",
+        projects: profile.projects || "",
+        achievements: profile.achievements || "",
+        interests: profile.interests || "",
+        lessons: profile.lessons || "",
+        values: profile.values || "",
+        causes: profile.causes || "",
+        personalityQs: profile.personalityQs || [
+          { q: "What is your happiest memory from childhood?", a: "" },
+          { q: "How would you like to be remembered?", a: "" }
+        ]
+      });
+      setAvatarInput(profile.photoURL || "");
+      setCoverInput(profile.coverURL || "");
+      setFollowingCount(profile.followingCount || 0);
+      setFollowersCount(profile.followersCount || 0);
+
+      // Fetch family members to resolve custodian name
       try {
-        const parsed = JSON.parse(savedMemories);
-        setLocalMemories(parsed.filter(m => m.ownerId === "alexander" || !m.ownerId));
-      } catch {
-        setLocalMemories([]);
+        const family = await getFamilyMembers(token);
+        if (family && family.length > 0) {
+          setCustodianName(family[0].name);
+        } else {
+          setCustodianName("None assigned");
+        }
+      } catch (err) {
+        console.warn("Failed to load family members for custodian name:", err);
+        setCustodianName("None assigned");
       }
+
+      const memories = await getMemoriesFromBackend(token, profile.firebaseUid);
+      setLocalMemories(memories || []);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Failed to load profile details: " + getBackendErrorMessage(err));
+    } finally {
+      setLoadingData(false);
     }
   }
 
@@ -152,60 +184,150 @@ export default function ProfilePage() {
   }
 
   // Save inline profile info
-  function handleSaveInlineInfo() {
-    const updated = {
-      ...userProfile,
-      name: formData.name.trim() || userProfile.name,
-      role: formData.role.trim() || userProfile.role,
-      location: formData.location.trim() || userProfile.location,
-      bio: formData.bio.trim() || userProfile.bio,
-      birthday: formData.birthday || userProfile.birthday,
-      categories: formData.categories,
-      goals: formData.goals.trim(),
-      projects: formData.projects.trim(),
-      achievements: formData.achievements.trim(),
-      interests: formData.interests.trim(),
-      lessons: formData.lessons.trim(),
-      values: formData.values.trim(),
-      causes: formData.causes.trim(),
-      personalityQs: formData.personalityQs
-    };
-    saveStoredUserProfile(updated);
-    setIsEditing(false);
-    triggerNotice("Profile updated successfully!");
+  async function handleSaveInlineInfo() {
+    try {
+      const token = await firebaseUser.getIdToken();
+      const sendData = new FormData();
+      sendData.append("displayName", formData.name.trim());
+      sendData.append("profession", formData.role.trim());
+      sendData.append("location", formData.location.trim());
+      sendData.append("bio", formData.bio.trim());
+      sendData.append("birthDate", formData.birthDate);
+      sendData.append("expertise", JSON.stringify(formData.categories));
+      sendData.append("goals", formData.goals.trim());
+      sendData.append("projects", formData.projects.trim());
+      sendData.append("achievements", formData.achievements.trim());
+      sendData.append("interests", formData.interests.trim());
+      sendData.append("lessons", formData.lessons.trim());
+      sendData.append("values", formData.values.trim());
+      sendData.append("causes", formData.causes.trim());
+      sendData.append("personalityQs", JSON.stringify(formData.personalityQs));
+
+      const updatedProfile = await updateProfileOnBackend(token, sendData);
+      setUserProfile(updatedProfile);
+      
+      setFormData({
+        name: updatedProfile.displayName || "",
+        role: updatedProfile.profession || "",
+        location: updatedProfile.location || "",
+        bio: updatedProfile.bio || "",
+        birthDate: updatedProfile.birthDate ? updatedProfile.birthDate.split("T")[0] : "",
+        categories: updatedProfile.expertise || [],
+        goals: updatedProfile.goals || "",
+        projects: updatedProfile.projects || "",
+        achievements: updatedProfile.achievements || "",
+        interests: updatedProfile.interests || "",
+        lessons: updatedProfile.lessons || "",
+        values: updatedProfile.values || "",
+        causes: updatedProfile.causes || "",
+        personalityQs: updatedProfile.personalityQs || []
+      });
+
+      setAvatarInput(updatedProfile.photoURL || "");
+      setCoverInput(updatedProfile.coverURL || "");
+
+      setIsEditing(false);
+      triggerNotice("Profile updated successfully!");
+      window.dispatchEvent(new Event("profileUpdated"));
+    } catch (err) {
+      console.error(err);
+      triggerNotice("Error saving profile: " + getBackendErrorMessage(err));
+    }
   }
 
-  // Save Avatar image
-  function handleSaveAvatar(url) {
-    const updated = { ...userProfile, avatar: url };
-    saveStoredUserProfile(updated);
-    setEditAvatarOpen(false);
-    triggerNotice("Profile picture updated!");
+  // Save Avatar preset/URL
+  async function handleSaveAvatar(url) {
+    if (!url || !url.trim()) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const formDataToSend = new FormData();
+      formDataToSend.append("photoURL", url.trim());
+
+      const updatedProfile = await updateProfileOnBackend(token, formDataToSend);
+      setUserProfile(updatedProfile);
+      setAvatarInput(updatedProfile.photoURL || "");
+      setEditAvatarOpen(false);
+      triggerNotice("Profile picture updated!");
+      window.dispatchEvent(new Event("profileUpdated"));
+    } catch (err) {
+      console.error(err);
+      triggerNotice("Error saving profile picture: " + getBackendErrorMessage(err));
+    }
   }
 
-  // Save Cover image
-  function handleSaveCover(url) {
-    const updated = { ...userProfile, cover: url };
-    saveStoredUserProfile(updated);
-    setEditCoverOpen(false);
-    triggerNotice("Cover photo updated!");
+  // Save Cover preset/URL
+  async function handleSaveCover(url) {
+    if (!url || !url.trim()) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const formDataToSend = new FormData();
+      formDataToSend.append("coverURL", url.trim());
+
+      const updatedProfile = await updateProfileOnBackend(token, formDataToSend);
+      setUserProfile(updatedProfile);
+      setCoverInput(updatedProfile.coverURL || "");
+      setEditCoverOpen(false);
+      triggerNotice("Cover photo updated!");
+      window.dispatchEvent(new Event("profileUpdated"));
+    } catch (err) {
+      console.error(err);
+      triggerNotice("Error saving cover photo: " + getBackendErrorMessage(err));
+    }
+  }
+
+  // Avatar file upload handler
+  async function handleAvatarFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const formDataToSend = new FormData();
+      formDataToSend.append("profileImage", file);
+
+      const updatedProfile = await updateProfileOnBackend(token, formDataToSend);
+      setUserProfile(updatedProfile);
+      setAvatarInput(updatedProfile.photoURL || "");
+      setEditAvatarOpen(false);
+      triggerNotice("Profile picture uploaded successfully!");
+      window.dispatchEvent(new Event("profileUpdated"));
+    } catch (err) {
+      console.error(err);
+      triggerNotice("Error uploading avatar: " + getBackendErrorMessage(err));
+    }
+  }
+
+  // Cover file upload handler
+  async function handleCoverFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const formDataToSend = new FormData();
+      formDataToSend.append("coverImage", file);
+
+      const updatedProfile = await updateProfileOnBackend(token, formDataToSend);
+      setUserProfile(updatedProfile);
+      setCoverInput(updatedProfile.coverURL || "");
+      setEditCoverOpen(false);
+      triggerNotice("Cover photo uploaded successfully!");
+      window.dispatchEvent(new Event("profileUpdated"));
+    } catch (err) {
+      console.error(err);
+      triggerNotice("Error uploading cover: " + getBackendErrorMessage(err));
+    }
   }
 
   // Memory Actions: Delete
-  function handleDeleteMemory(id) {
+  async function handleDeleteMemory(id) {
     if (!confirm("Are you sure you want to delete this memory forever?")) return;
-    
-    const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
-    if (savedMemories) {
-      try {
-        const parsed = JSON.parse(savedMemories);
-        const filtered = parsed.filter(m => m.id !== id);
-        localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(filtered));
-        loadProfileAndMemories();
-        triggerNotice("Memory deleted.");
-      } catch (err) {
-        console.error(err);
-      }
+    try {
+      const token = await firebaseUser.getIdToken();
+      await deleteMemoryOnBackend(token, id);
+      await loadProfileAndMemories();
+      triggerNotice("Memory deleted.");
+    } catch (err) {
+      console.error(err);
+      triggerNotice("Error deleting memory: " + getBackendErrorMessage(err));
     }
   }
 
@@ -220,49 +342,78 @@ export default function ProfilePage() {
     setEditMemoryOpen(true);
   }
 
-  function handleSaveMemoryEdit(e) {
+  async function handleSaveMemoryEdit(e) {
     e.preventDefault();
     if (!editingMemory) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const formDataToSend = new FormData();
+      formDataToSend.append("title", memoryEditData.title.trim());
+      formDataToSend.append("description", memoryEditData.description.trim());
+      formDataToSend.append("privacy", memoryEditData.privacy === "public" ? "Public" : memoryEditData.privacy === "family" ? "Family Circle" : "Private");
 
-    const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
-    if (savedMemories) {
-      try {
-        const parsed = JSON.parse(savedMemories);
-        const updated = parsed.map(m => {
-          if (m.id === editingMemory.id) {
-            return {
-              ...m,
-              title: memoryEditData.title.trim(),
-              description: memoryEditData.description.trim(),
-              privacy: memoryEditData.privacy === "public" ? "Public" : memoryEditData.privacy === "family" ? "Family Circle" : "Private",
-              audiences: [memoryEditData.privacy]
-            };
-          }
-          return m;
-        });
-
-        localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(updated));
-        loadProfileAndMemories();
-        setEditMemoryOpen(false);
-        setEditingMemory(null);
-        triggerNotice("Memory updated successfully!");
-      } catch (err) {
-        console.error(err);
-      }
+      await updateMemoryOnBackend(token, editingMemory.id, formDataToSend);
+      await loadProfileAndMemories();
+      setEditMemoryOpen(false);
+      setEditingMemory(null);
+      triggerNotice("Memory updated successfully!");
+    } catch (err) {
+      console.error(err);
+      triggerNotice("Error updating memory: " + getBackendErrorMessage(err));
     }
   }
 
   function formatBirthday(dateStr) {
     if (!dateStr) return "Not set";
     try {
-      const options = { month: "long", day: "numeric", year: "numeric" };
+      const options = { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" };
       return new Date(dateStr).toLocaleDateString("en-US", options);
     } catch {
       return dateStr;
     }
   }
 
-  if (!userProfile) return null;
+  if (authLoading || loadingData) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-stone-400">
+        <Loader2 className="animate-spin text-[var(--brand)]" size={32} />
+        <p className="text-xs font-black uppercase tracking-widest">Loading Profile...</p>
+      </div>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-rose-500 border border-rose-100 rounded-2xl bg-rose-50/20 max-w-lg mx-auto p-8 text-center">
+        <Loader2 className="text-rose-500 animate-pulse" size={32} />
+        <h2 className="text-lg font-black">Something went wrong</h2>
+        <p className="text-sm font-bold">{errorMsg}</p>
+        <button onClick={loadProfileAndMemories} className="mt-3 px-6 py-2 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black text-xs transition">Retry</button>
+      </div>
+    );
+  }
+
+  if (!firebaseUser || !userProfile) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-stone-400">
+        <User size={40} className="text-stone-300" />
+        <h2 className="text-lg font-bold">Access Denied</h2>
+        <p className="text-xs font-semibold text-center max-w-xs">Please sign in to view your profile and legacy details.</p>
+        <Link href="/login" className="mt-3 px-6 py-2.5 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-black text-xs transition active:scale-95">Sign In</Link>
+      </div>
+    );
+  }
+
+  const hasLegacyDetails = !!(
+    userProfile.goals ||
+    userProfile.achievements ||
+    userProfile.projects ||
+    userProfile.interests ||
+    userProfile.lessons ||
+    userProfile.values ||
+    userProfile.causes ||
+    (userProfile.personalityQs && userProfile.personalityQs.some(item => item.a))
+  );
 
   return (
     <div className="w-full max-w-5xl pb-24 animation-fade-in text-[var(--foreground)]">
@@ -278,7 +429,7 @@ export default function ProfilePage() {
       <header className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-md">
         {/* Cover Photo */}
         <div className="relative h-60 bg-stone-100 sm:h-72 md:h-80 group overflow-hidden">
-          <img src={userProfile.cover} alt="Cover cover photo" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.01]" />
+          <img src={userProfile.coverURL || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80"} alt="Cover cover photo" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.01]" />
           <div className="absolute inset-0 bg-black/15 transition group-hover:bg-black/25" />
           <button 
             onClick={() => setEditCoverOpen(true)}
@@ -293,19 +444,24 @@ export default function ProfilePage() {
         <div className="px-6 pb-6 text-center sm:text-left">
           <div className="flex flex-col items-center sm:flex-row sm:items-start gap-5 mb-4 w-full">
             {/* Profile Avatar with Hover camera icon */}
-            <div className="relative group rounded-full border-4 border-[var(--surface)] shadow-xl overflow-hidden h-32 w-32 shrink-0 bg-stone-200 z-10 -mt-16 sm:-mt-20 self-center sm:self-start">
-              <img src={userProfile.avatar} alt={userProfile.name} className="h-full w-full object-cover" />
+            <UserAvatar
+              src={userProfile.photoURL}
+              alt={userProfile.displayName || "Alexander Mitchell"}
+              isActive={true}
+              size="xl"
+              className="z-10 -mt-16 sm:-mt-20 self-center sm:self-start border-4 border-[var(--surface)] shadow-xl bg-stone-200 rounded-full group"
+            >
               <button
                 onClick={() => setEditAvatarOpen(true)}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                className="absolute inset-0 rounded-full flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
               >
                 <Camera size={20} className="mb-1" />
                 <span className="text-[9px] font-black uppercase">Edit Photo</span>
               </button>
-            </div>
+            </UserAvatar>
             
             {/* Name, Bio, and Stats Row */}
-            <div className="pb-2 pt-2 sm:pt-0 flex-1 min-w-0 w-full">
+            <div className="pb-2 pt-2 sm:pt-6 flex-1 min-w-0 w-full">
               {/* Name & Edit Button flex header row */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
                 {/* Inline Name Editing */}
@@ -321,7 +477,7 @@ export default function ProfilePage() {
                       />
                     </div>
                   ) : (
-                    <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mt-0.5 leading-tight">{userProfile.name}</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mt-0.5 leading-tight">{userProfile.displayName || "Alexander Mitchell"}</h1>
                   )}
                 </div>
 
@@ -340,12 +496,20 @@ export default function ProfilePage() {
                         onClick={() => {
                           setIsEditing(false);
                           setFormData({
-                            name: userProfile.name,
-                            role: userProfile.role,
-                            location: userProfile.location,
-                            bio: userProfile.bio,
-                            birthday: userProfile.birthday || "1990-06-15",
-                            categories: userProfile.categories || []
+                            name: userProfile.displayName || "",
+                            role: userProfile.profession || "",
+                            location: userProfile.location || "",
+                            bio: userProfile.bio || "",
+                            birthDate: userProfile.birthDate ? userProfile.birthDate.split("T")[0] : "",
+                            categories: userProfile.expertise || [],
+                            goals: userProfile.goals || "",
+                            projects: userProfile.projects || "",
+                            achievements: userProfile.achievements || "",
+                            interests: userProfile.interests || "",
+                            lessons: userProfile.lessons || "",
+                            values: userProfile.values || "",
+                            causes: userProfile.causes || "",
+                            personalityQs: userProfile.personalityQs || []
                           });
                         }}
                         className="flex h-11 items-center justify-center gap-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 px-4 text-sm font-black text-stone-700 transition-all active:scale-95 duration-200 cursor-pointer"
@@ -355,7 +519,25 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => {
+                        setFormData({
+                          name: userProfile.displayName || "",
+                          role: userProfile.profession || "",
+                          location: userProfile.location || "",
+                          bio: userProfile.bio || "",
+                          birthDate: userProfile.birthDate ? userProfile.birthDate.split("T")[0] : "",
+                          categories: userProfile.expertise || [],
+                          goals: userProfile.goals || "",
+                          projects: userProfile.projects || "",
+                          achievements: userProfile.achievements || "",
+                          interests: userProfile.interests || "",
+                          lessons: userProfile.lessons || "",
+                          values: userProfile.values || "",
+                          causes: userProfile.causes || "",
+                          personalityQs: userProfile.personalityQs || []
+                        });
+                        setIsEditing(true);
+                      }}
                       className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-hover)] px-5 text-sm font-black text-white shadow-md transition-all active:scale-95 duration-200 cursor-pointer"
                     >
                       <Edit2 size={15} />
@@ -376,14 +558,14 @@ export default function ProfilePage() {
                     className="text-xs font-bold bg-transparent border-b border-stone-300 outline-none text-stone-600 pb-0.5"
                   />
                 ) : (
-                  <p className="text-xs font-extrabold text-stone-500">{userProfile.role}</p>
+                  <p className="text-xs font-extrabold text-stone-500">{userProfile.profession || "Family Contributor"}</p>
                 )}
                 
                 <span className="text-stone-300">•</span>
                 
                 <Link href="/followers" className="flex items-center gap-1 hover:text-[var(--brand)] transition cursor-pointer">
                   <Users size={13} className="text-stone-400" />
-                  <span className="text-stone-700 dark:text-stone-200">3</span> Followers
+                  <span className="text-stone-700 dark:text-stone-200">{followersCount}</span> Followers
                 </Link>
                 
                 <span className="text-stone-300">•</span>
@@ -395,9 +577,9 @@ export default function ProfilePage() {
               </div>
 
               {/* Display active category chips */}
-              {!isEditing && userProfile.categories && userProfile.categories.length > 0 && (
+              {!isEditing && userProfile.expertise && userProfile.expertise.length > 0 && (
                 <div className="mt-2.5 flex flex-wrap gap-1.5 justify-center sm:justify-start">
-                  {userProfile.categories.map(cat => (
+                  {userProfile.expertise.map(cat => (
                     <span key={cat} className="rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-[10px] font-extrabold px-2.5 py-0.5 border border-stone-200/50">
                       {cat}
                     </span>
@@ -465,13 +647,13 @@ export default function ProfilePage() {
                     {isEditing ? (
                       <input
                         type="date"
-                        value={formData.birthday}
-                        onChange={e => setFormData({ ...formData, birthday: e.target.value })}
+                        value={formData.birthDate}
+                        onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
                         className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-800 rounded-lg p-2 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
                       />
                     ) : (
                       <p className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                        {formatBirthday(userProfile.birthday)}
+                        {formatBirthday(userProfile.birthDate)}
                       </p>
                     )}
                   </div>
@@ -515,7 +697,7 @@ export default function ProfilePage() {
                         <span className="flex items-center gap-1.5 font-bold text-stone-500">
                           <ShieldCheck size={12} /> Custodian
                         </span>
-                        <span className="font-extrabold text-stone-700 dark:text-stone-200">Robert Mitchell</span>
+                        <span className="font-extrabold text-stone-700 dark:text-stone-200">{custodianName}</span>
                       </div>
                     </div>
                   )}
@@ -656,100 +838,112 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {/* Goals Card */}
-              {userProfile.goals && (
-                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-sky-500/5 to-transparent hover:shadow-md transition duration-300">
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 mb-2">
-                    <Target size={14} /> Goals & Aspirations
-                  </span>
-                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.goals}</p>
-                </div>
-              )}
-
-              {/* Achievements Card */}
-              {userProfile.achievements && (
-                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-amber-500/5 to-transparent hover:shadow-md transition duration-300">
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">
-                    <Award size={14} /> Achievements & Milestones
-                  </span>
-                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.achievements}</p>
-                </div>
-              )}
-
-              {/* Projects Card */}
-              {userProfile.projects && (
-                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-purple-500/5 to-transparent hover:shadow-md transition duration-300">
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-2">
-                    <Briefcase size={14} /> Projects & Ventures
-                  </span>
-                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.projects}</p>
-                </div>
-              )}
-
-              {/* Interests Card */}
-              {userProfile.interests && (
-                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-rose-500/5 to-transparent hover:shadow-md transition duration-300">
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-2">
-                    <Sparkles size={14} /> Interests & Passions
-                  </span>
-                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.interests}</p>
-                </div>
-              )}
-
-              {/* Life Lessons Card */}
-              {userProfile.lessons && (
-                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-yellow-500/5 to-transparent hover:shadow-md transition duration-300">
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-yellow-600 dark:text-yellow-400 mb-2">
-                    <Lightbulb size={14} /> Life Lessons Learned
-                  </span>
-                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.lessons}</p>
-                </div>
-              )}
-
-              {/* Values Card */}
-              {userProfile.values && (
-                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-emerald-500/5 to-transparent hover:shadow-md transition duration-300">
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2">
-                    <Globe size={14} /> Values & Beliefs
-                  </span>
-                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.values}</p>
-                </div>
-              )}
-
-              {/* Causes Card */}
-              {userProfile.causes && (
-                <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-orange-500/5 to-transparent hover:shadow-md transition duration-300 md:col-span-2 lg:col-span-3">
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-2">
-                    <HeartHandshake size={14} /> Causes I Care About
-                  </span>
-                  <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.causes}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Personality Questions Answers */}
-            {userProfile.personalityQs && userProfile.personalityQs.some(item => item.a) && (
-              <div className="pt-6 border-t border-[var(--border)]/40">
-                <h3 className="text-xs font-black uppercase tracking-wider text-stone-400 mb-4">Reflections & Personality Q&A</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {userProfile.personalityQs.map((item, idx) => {
-                    if (!item.a) return null;
-                    return (
-                      <div key={idx} className="bg-stone-50 dark:bg-stone-800/40 p-5 rounded-2xl border border-[var(--border)]/45 relative overflow-hidden group hover:-translate-y-0.5 transition duration-300 shadow-sm text-left">
-                        <div className="absolute right-0 top-0 w-24 h-24 bg-[var(--brand)] opacity-[0.02] rounded-full blur-xl group-hover:scale-110 transition duration-500" />
-                        <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-2 pb-2 border-b border-[var(--border)]/35 flex items-start gap-1.5">
-                          <span className="text-[var(--brand)] font-serif italic text-lg leading-none">“</span>
-                          {item.q}
-                        </p>
-                        <p className="text-xs font-bold leading-relaxed text-stone-600 dark:text-stone-300 italic">
-                          "{item.a}"
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
+            {!hasLegacyDetails ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center border border-dashed border-[var(--border)] rounded-2xl bg-stone-50/30 dark:bg-stone-900/10">
+                <Sparkles className="text-[var(--brand)] mb-3 animate-pulse" size={24} />
+                <h3 className="text-xs font-black uppercase text-[var(--ink)] dark:text-white tracking-wider">Your Legacy Portrait & Life Journey is Empty</h3>
+                <p className="text-xs font-semibold text-stone-500 max-w-sm mt-1.5 leading-relaxed">
+                  Share your life lessons, proud achievements, goals, and reflections with your family. Click the <strong>Edit Profile</strong> button above to start your story.
+                </p>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {/* Goals Card */}
+                  {userProfile.goals && (
+                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-sky-500/5 to-transparent hover:shadow-md transition duration-300">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 mb-2">
+                        <Target size={14} /> Goals & Aspirations
+                      </span>
+                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.goals}</p>
+                    </div>
+                  )}
+
+                  {/* Achievements Card */}
+                  {userProfile.achievements && (
+                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-amber-500/5 to-transparent hover:shadow-md transition duration-300">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">
+                        <Award size={14} /> Achievements & Milestones
+                      </span>
+                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.achievements}</p>
+                    </div>
+                  )}
+
+                  {/* Projects Card */}
+                  {userProfile.projects && (
+                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-purple-500/5 to-transparent hover:shadow-md transition duration-300">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-2">
+                        <Briefcase size={14} /> Projects & Ventures
+                      </span>
+                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.projects}</p>
+                    </div>
+                  )}
+
+                  {/* Interests Card */}
+                  {userProfile.interests && (
+                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-rose-500/5 to-transparent hover:shadow-md transition duration-300">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-2">
+                        <Sparkles size={14} /> Interests & Passions
+                      </span>
+                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.interests}</p>
+                    </div>
+                  )}
+
+                  {/* Life Lessons Card */}
+                  {userProfile.lessons && (
+                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-yellow-500/5 to-transparent hover:shadow-md transition duration-300">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-yellow-600 dark:text-yellow-400 mb-2">
+                        <Lightbulb size={14} /> Life Lessons Learned
+                      </span>
+                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.lessons}</p>
+                    </div>
+                  )}
+
+                  {/* Values Card */}
+                  {userProfile.values && (
+                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-emerald-500/5 to-transparent hover:shadow-md transition duration-300">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2">
+                        <Globe size={14} /> Values & Beliefs
+                      </span>
+                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.values}</p>
+                    </div>
+                  )}
+
+                  {/* Causes Card */}
+                  {userProfile.causes && (
+                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-orange-500/5 to-transparent hover:shadow-md transition duration-300 md:col-span-2 lg:col-span-3">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-2">
+                        <HeartHandshake size={14} /> Causes I Care About
+                      </span>
+                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.causes}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Personality Questions Answers */}
+                {userProfile.personalityQs && userProfile.personalityQs.some(item => item.a) && (
+                  <div className="pt-6 border-t border-[var(--border)]/40">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-stone-400 mb-4">Reflections & Personality Q&A</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {userProfile.personalityQs.map((item, idx) => {
+                        if (!item.a) return null;
+                        return (
+                          <div key={idx} className="bg-stone-50 dark:bg-stone-800/40 p-5 rounded-2xl border border-[var(--border)]/45 relative overflow-hidden group hover:-translate-y-0.5 transition duration-300 shadow-sm text-left">
+                            <div className="absolute right-0 top-0 w-24 h-24 bg-[var(--brand)] opacity-[0.02] rounded-full blur-xl group-hover:scale-110 transition duration-500" />
+                            <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-2 pb-2 border-b border-[var(--border)]/35 flex items-start gap-1.5">
+                              <span className="text-[var(--brand)] font-serif italic text-lg leading-none">“</span>
+                              {item.q}
+                            </p>
+                            <p className="text-xs font-bold leading-relaxed text-stone-600 dark:text-stone-300 italic">
+                              "{item.a}"
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -789,7 +983,12 @@ export default function ProfilePage() {
             {/* Quick Compose Box */}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
               <div className="mb-4 flex gap-3">
-                <img src={userProfile.avatar} alt={userProfile.name} className="h-10 w-10 shrink-0 rounded-lg object-cover border border-stone-200/50 shadow-sm" />
+                <UserAvatar
+                  src={userProfile.photoURL}
+                  alt={userProfile.displayName || "Alexander Mitchell"}
+                  isActive={true}
+                  size="md"
+                />
                 <Link
                   href="/record"
                   className="flex flex-1 items-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-left text-xs font-semibold text-stone-500 transition hover:border-[var(--brand)]"
@@ -907,6 +1106,16 @@ export default function ProfilePage() {
                 </button>
               </div>
             </div>
+
+            <div className="text-left mt-4 border-t border-[var(--border)] pt-4">
+              <label className="block text-xs font-black uppercase text-stone-500 mb-1.5">Or Upload Image File</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                className="w-full text-xs font-bold text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-[var(--brand-soft)] file:text-[var(--brand)] hover:file:bg-[var(--brand-soft)]/80 file:cursor-pointer"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -960,6 +1169,16 @@ export default function ProfilePage() {
                   Save URL
                 </button>
               </div>
+            </div>
+
+            <div className="text-left mt-4 border-t border-[var(--border)] pt-4">
+              <label className="block text-xs font-black uppercase text-stone-500 mb-1.5">Or Upload Cover File</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleCoverFileChange}
+                className="w-full text-xs font-bold text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-[var(--brand-soft)] file:text-[var(--brand)] hover:file:bg-[var(--brand-soft)]/80 file:cursor-pointer"
+              />
             </div>
           </div>
         </div>

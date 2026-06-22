@@ -29,7 +29,15 @@ import {
 } from "@/data/postBackgrounds";
 import { getFontFamily } from "@/data/postFonts";
 import { useAuth } from "@/context/AuthProvider";
-import { getFeedFromBackend, interactWithMemoryOnBackend, getBackendErrorMessage } from "@/services/backend";
+import {
+  getFeedFromBackend,
+  interactWithMemoryOnBackend,
+  getBackendErrorMessage,
+  getSuggestedPeople,
+  followUser,
+  unfollowUser,
+  getFollowing
+} from "@/services/backend";
 
 const feedTabs = ["For You", "Family", "Public", "Themes", "People"];
 const themes = ["Family Heritage", "Travel", "Recipes", "Milestones", "Voice Notes", "Reflection"];
@@ -42,7 +50,7 @@ const reactions = [
 ];
 
 export default function Feed() {
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, profile } = useAuth();
   const [activeTab, setActiveTab] = useState("For You");
   const [activeTheme, setActiveTheme] = useState("Family Heritage");
   const [showThemes, setShowThemes] = useState(true);
@@ -50,6 +58,10 @@ export default function Feed() {
   const [userProfile, setUserProfile] = useState(null);
   const [localMemories, setLocalMemories] = useState([]);
   const [backendFeed, setBackendFeed] = useState([]);
+
+  // Suggested people dynamic states
+  const [suggestedPeople, setSuggestedPeople] = useState([]);
+  const [followingIds, setFollowingIds] = useState([]);
 
   useEffect(() => {
     seedInitialMemoriesIfNeeded();
@@ -73,6 +85,60 @@ export default function Feed() {
     window.addEventListener("profileUpdated", loadProfile);
     return () => window.removeEventListener("profileUpdated", loadProfile);
   }, []);
+
+  const loadPeopleData = async () => {
+    if (isAuthenticated && firebaseUser) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const [suggestions, followingList] = await Promise.all([
+          getSuggestedPeople(token),
+          getFollowing(token)
+        ]);
+        setSuggestedPeople(suggestions);
+        setFollowingIds(followingList.map(f => f.id || f.firebaseUid));
+      } catch (err) {
+        console.warn("Failed to load suggested/following people:", err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadPeopleData();
+  }, [isAuthenticated, firebaseUser]);
+
+  const handleFollowToggle = async (targetUid) => {
+    if (!isAuthenticated || !firebaseUser) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const isFollowing = followingIds.includes(targetUid);
+      if (isFollowing) {
+        await unfollowUser(token, targetUid);
+        setFollowingIds(prev => prev.filter(id => id !== targetUid));
+      } else {
+        await followUser(token, targetUid);
+        setFollowingIds(prev => [...prev, targetUid]);
+      }
+      
+      // Refresh suggestions
+      const suggestions = await getSuggestedPeople(token);
+      setSuggestedPeople(suggestions);
+      
+      // Dispatch follow update events
+      window.dispatchEvent(new Event("followStatusUpdated"));
+    } catch (err) {
+      console.error("Failed to toggle follow status:", err);
+    }
+  };
+
+  const resolvedProfile = useMemo(() => {
+    if (profile) {
+      return {
+        name: profile.displayName || profile.name || "Alexander Mitchell",
+        avatar: profile.photoURL || profile.avatar || ""
+      };
+    }
+    return userProfile;
+  }, [profile, userProfile]);
 
   useEffect(() => {
     const fetchBackendFeed = async () => {
@@ -100,9 +166,24 @@ export default function Feed() {
   useEffect(() => {
     if (combinedMemories.length > 0) {
       try {
-        localStorage.setItem("cached_feed_memories", JSON.stringify(combinedMemories));
+        // Only store lightweight metadata — full objects are too large for localStorage quota
+        const lightweight = combinedMemories.map(m => ({
+          id: m.id || m._id,
+          title: m.title,
+          type: m.type,
+          date: m.date || m.createdAt,
+          ownerId: m.ownerId || m.ownerFirebaseUid,
+          ownerDisplayName: m.ownerDisplayName,
+          ownerAvatarUrl: m.ownerAvatarUrl,
+          albumId: m.albumId,
+          albumTitle: m.albumTitle,
+          privacy: m.privacy,
+          audiences: m.audiences,
+        }));
+        localStorage.setItem("cached_feed_memories", JSON.stringify(lightweight));
       } catch (e) {
-        console.warn("Failed to cache feed memories in localStorage:", e);
+        // Quota exceeded — skip caching silently
+        localStorage.removeItem("cached_feed_memories");
       }
     }
   }, [combinedMemories]);
@@ -146,7 +227,7 @@ export default function Feed() {
                 <Users size={17} />
               </Link>
               <Link
-                href="/search"
+                href="/search?from=feed"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 hover:text-[var(--brand)]"
                 aria-label="Search"
               >
@@ -187,7 +268,7 @@ export default function Feed() {
         <section className="min-w-0">
           {activeTab !== "People" && (
             <>
-              <CreatePostBox userProfile={userProfile} />
+              <CreatePostBox userProfile={resolvedProfile} />
 
               {activeTab === "Themes" && (
                 <div className="mb-5 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
@@ -231,7 +312,12 @@ export default function Feed() {
                       {/* Inline Suggested People after 4th post */}
                       {index === 3 && showPeople && (
                         <div className="my-6 animate-fade-in">
-                          <PeoplePanel onClose={() => setShowPeople(false)} />
+                          <PeoplePanel 
+                            suggestedPeople={suggestedPeople}
+                            followingIds={followingIds}
+                            onFollowToggle={handleFollowToggle}
+                            onClose={() => setShowPeople(false)} 
+                          />
                         </div>
                       )}
                     </div>
@@ -245,7 +331,13 @@ export default function Feed() {
             </>
           )}
 
-          {activeTab === "People" && <PeopleDiscover />}
+          {activeTab === "People" && (
+            <PeopleDiscover 
+              suggestedPeople={suggestedPeople}
+              followingIds={followingIds}
+              onFollowToggle={handleFollowToggle}
+            />
+          )}
         </section>
       </main>
     </div>
@@ -327,23 +419,10 @@ function ThemePanel({ activeTheme, onChange, onClose }) {
   );
 }
 
-function PeoplePanel({ onClose }) {
-  const [followedIds, setFollowedIds] = useState(["sarah"]);
+function PeoplePanel({ suggestedPeople = [], followingIds = [], onFollowToggle, onClose }) {
+  const displayPeople = suggestedPeople.length > 0 ? suggestedPeople : [];
 
-  useEffect(() => {
-    const saved = localStorage.getItem("followedPeople");
-    if (saved) {
-      setFollowedIds(JSON.parse(saved));
-    }
-  }, []);
-
-  const toggleFollow = (id) => {
-    setFollowedIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
-      localStorage.setItem("followedPeople", JSON.stringify(next));
-      return next;
-    });
-  };
+  if (displayPeople.length === 0) return null;
 
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm relative text-left">
@@ -354,22 +433,22 @@ function PeoplePanel({ onClose }) {
       >
         <X size={14} />
       </button>
-      <h2 className="mb-4 text-lg font-black text-[var(--ink)] pr-6">Suggested People</h2>
+      <h2 className="mb-4 text-lg font-black text-[var(--ink)] dark:text-white pr-6">Suggested People</h2>
       <div className="grid gap-3 sm:grid-cols-2">
-        {people.map((person) => {
-          const isFollowing = followedIds.includes(person.id);
+        {displayPeople.map((person) => {
+          const isFollowing = followingIds.includes(person.id);
           return (
             <div key={person.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 transition hover:border-[var(--brand)]">
               <Link href={`/people/${person.id}?from=feed`} className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90">
-                <img src={person.avatar} alt={person.name} className="h-10 w-10 rounded-lg object-cover shrink-0" />
+                <img src={person.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(person.name)}`} alt={person.name} className="h-10 w-10 rounded-lg object-cover shrink-0 border border-stone-200/50" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-[var(--ink)]">{person.name}</p>
-                  <p className="truncate text-xs font-bold text-stone-500">{person.role}</p>
+                  <p className="truncate text-sm font-black text-[var(--ink)] dark:text-white">{person.name}</p>
+                  <p className="truncate text-xs font-bold text-stone-500">{person.role || "Family Contributor"}</p>
                 </div>
               </Link>
               <button
-                onClick={() => toggleFollow(person.id)}
-                className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-black transition active:scale-95 ${
+                onClick={() => onFollowToggle(person.id)}
+                className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-black transition active:scale-95 cursor-pointer ${
                   isFollowing
                     ? "bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200"
                     : "bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white"
@@ -385,37 +464,56 @@ function PeoplePanel({ onClose }) {
   );
 }
 
-function PeopleDiscover() {
+function PeopleDiscover({ suggestedPeople = [], followingIds = [], onFollowToggle }) {
+  const displayPeople = suggestedPeople.length > 0 ? suggestedPeople : [];
+
   return (
     <section>
-      <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-        <h2 className="text-xl font-black text-[var(--ink)]">People to Follow</h2>
+      <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm text-left">
+        <h2 className="text-xl font-black text-[var(--ink)] dark:text-white">People to Follow</h2>
         <p className="mt-1 text-sm font-semibold text-stone-500">Discover public profiles and their memory archives.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {people.map((person) => (
-          <Link key={person.id} href={`/people/${person.id}?from=feed`} className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:border-[var(--brand)]">
-            <div className="h-32 bg-stone-100">
-              <img src={person.cover} alt="" className="h-full w-full object-cover" />
-            </div>
-            <div className="p-4">
-              <div className="-mt-12 mb-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
-                <img src={person.avatar} alt={person.name} className="h-16 w-16 shrink-0 rounded-lg border-4 border-[var(--surface)] object-cover" />
-                <div className="min-w-0 pt-11">
-                  <h3 className="truncate text-base font-black text-[var(--ink)]">{person.name}</h3>
-                  <p className="mt-1 truncate text-xs font-bold text-stone-500">{person.role}</p>
+      {displayPeople.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 text-left">
+          {displayPeople.map((person) => {
+            const isFollowing = followingIds.includes(person.id);
+            return (
+              <div key={person.id} className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition hover:border-[var(--brand)] flex flex-col justify-between">
+                <div className="h-32 bg-stone-150 relative">
+                  <img src={person.cover || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80"} alt="" className="h-full w-full object-cover" />
                 </div>
-                <span className="mt-10 flex h-9 items-center gap-2 rounded-lg bg-[var(--brand)] px-3 text-xs font-black text-white">
-                  <UserPlus size={14} />
-                  Follow
-                </span>
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <div className="-mt-12 mb-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+                    <img src={person.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(person.name)}`} alt={person.name} className="h-16 w-16 shrink-0 rounded-lg border-4 border-[var(--surface)] object-cover bg-stone-200" />
+                    <div className="min-w-0 pt-11">
+                      <h3 className="truncate text-base font-black text-[var(--ink)] dark:text-white">{person.name}</h3>
+                      <p className="mt-1 truncate text-xs font-bold text-stone-500">{person.role || "Family Contributor"}</p>
+                    </div>
+                    <button
+                      onClick={() => onFollowToggle(person.id)}
+                      className={`mt-10 flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-black transition active:scale-95 cursor-pointer ${
+                        isFollowing
+                          ? "bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-250"
+                          : "bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white"
+                      }`}
+                    >
+                      <UserPlus size={14} />
+                      {isFollowing ? "Following" : "Follow"}
+                    </button>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm font-medium leading-6 text-stone-605 dark:text-stone-300">{person.bio || "No bio added yet."}</p>
+                </div>
               </div>
-              <p className="mt-3 line-clamp-2 text-sm font-medium leading-6 text-stone-600">{person.bio}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-[var(--border)] p-12 text-center text-stone-400 bg-[var(--surface)] shadow-sm">
+          <Sparkles className="mx-auto mb-2 text-stone-300" size={24} />
+          <p className="text-xs font-bold">No suggested people found in the system right now.</p>
+        </div>
+      )}
     </section>
   );
 }

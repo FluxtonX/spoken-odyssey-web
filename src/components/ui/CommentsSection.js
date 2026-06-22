@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { Reply, Send, CornerDownRight } from "lucide-react";
 import { getStoredUserProfile } from "@/data/userProfile";
 import { people } from "@/data/mockApp";
+import { useAuth } from "@/context/AuthProvider";
+import { getComments, addComment, reactToComment } from "@/services/backend";
+
 
 const REACTIONS = [
   { id: "like", label: "Like", icon: "👍", color: "text-blue-500 dark:text-blue-400 font-extrabold" },
@@ -13,8 +16,14 @@ const REACTIONS = [
   { id: "sad", label: "Sad", icon: "😢", color: "text-blue-400 font-extrabold" }
 ];
 
+const isMockId = (id) => {
+  if (!id) return true;
+  const idStr = String(id);
+  return !/^[0-9a-fA-F]{24}$/.test(idStr);
+};
+
 export default function CommentsSection({ memoryId, initialComments = [] }) {
-  const [userProfile, setUserProfile] = useState(null);
+  const { firebaseUser, isAuthenticated, profile: authProfile } = useAuth();
   const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState("");
   const [replyInputMap, setReplyInputMap] = useState({}); // { [commentId]: string }
@@ -27,10 +36,18 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
 
   const hoverTimeout = useRef(null);
 
-  useEffect(() => {
-    setUserProfile(getStoredUserProfile());
-    const loadProfile = () => setUserProfile(getStoredUserProfile());
-    window.addEventListener("profileUpdated", loadProfile);
+  const loadComments = async () => {
+    const isMock = isMockId(memoryId);
+    if (isAuthenticated && firebaseUser && memoryId && !isMock) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const backendComments = await getComments(token, memoryId);
+        setComments(backendComments);
+        return;
+      } catch (err) {
+        console.warn("Failed to load comments from backend, using fallback:", err.message);
+      }
+    }
 
     // Load comments from localStorage
     const saved = localStorage.getItem(`comments_${memoryId}`);
@@ -43,12 +60,15 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     } else {
       setComments(seedDefaultComments());
     }
+  };
+
+  useEffect(() => {
+    loadComments();
 
     return () => {
-      window.removeEventListener("profileUpdated", loadProfile);
       if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
     };
-  }, [memoryId]);
+  }, [memoryId, isAuthenticated, firebaseUser]);
 
   const seedDefaultComments = () => {
     const formatted = initialComments.map((c, idx) => {
@@ -92,20 +112,31 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     if (!authorName) return "https://api.dicebear.com/7.x/initials/svg?seed=A";
     if (
       authorName.toLowerCase().includes("alexander") || 
-      (userProfile && authorName.toLowerCase().includes(userProfile.name.toLowerCase()))
+      (authProfile && authorName.toLowerCase().includes((authProfile.displayName || "").toLowerCase()))
     ) {
-      return userProfile?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80";
+      return authProfile?.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80";
     }
     const matched = people.find(p => p.name.toLowerCase().includes(authorName.toLowerCase()));
     return matched ? matched.avatar : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authorName)}`;
+  };
+
+  const getTotalCommentsCount = (commentsList) => {
+    let count = 0;
+    commentsList.forEach(c => {
+      count += 1;
+      if (c.replies) count += c.replies.length;
+    });
+    return count;
   };
 
   const saveComments = (updatedComments) => {
     setComments(updatedComments);
     localStorage.setItem(`comments_${memoryId}`, JSON.stringify(updatedComments));
     
+    const totalCount = getTotalCommentsCount(updatedComments);
+    
     // Fire a custom event to notify parent components to update their comments counters
-    window.dispatchEvent(new CustomEvent(`commentsUpdated_${memoryId}`, { detail: updatedComments.length }));
+    window.dispatchEvent(new CustomEvent(`commentsUpdated_${memoryId}`, { detail: totalCount }));
 
     // Also update comments count in local memories list if it exists
     const saved = localStorage.getItem("spokenOdysseyLocalMemories");
@@ -114,7 +145,7 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
         const allMemories = JSON.parse(saved);
         const memIndex = allMemories.findIndex(m => m.id === memoryId);
         if (memIndex !== -1) {
-          allMemories[memIndex].comments = updatedComments.length;
+          allMemories[memIndex].comments = totalCount;
           localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(allMemories));
           window.dispatchEvent(new CustomEvent("memoriesUpdated"));
         }
@@ -124,15 +155,31 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     }
   };
 
-  const handleAddComment = (e) => {
+  const handleAddComment = async (e) => {
     e.preventDefault();
     const cleanText = commentInput.trim();
     if (!cleanText) return;
 
+    const isMock = isMockId(memoryId);
+    if (isAuthenticated && firebaseUser && memoryId && !isMock) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        await addComment(token, memoryId, cleanText);
+        setCommentInput("");
+        const backendComments = await getComments(token, memoryId);
+        setComments(backendComments);
+        const total = getTotalCommentsCount(backendComments);
+        window.dispatchEvent(new CustomEvent(`commentsUpdated_${memoryId}`, { detail: total }));
+        return;
+      } catch (err) {
+        console.error("Failed to post comment to backend:", err);
+      }
+    }
+
     const newComment = {
       id: `comment-${Date.now()}`,
-      author: userProfile?.name || "Alexander Mitchell",
-      avatar: userProfile?.avatar || getAuthorAvatar("Alexander Mitchell"),
+      author: authProfile?.displayName || "Alexander Mitchell",
+      avatar: authProfile?.photoURL || getAuthorAvatar("Alexander Mitchell"),
       text: cleanText,
       time: "Just now",
       reactions: { like: 0, love: 0, haha: 0, wow: 0, sad: 0 },
@@ -145,14 +192,32 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     setCommentInput("");
   };
 
-  const handleAddReply = (commentId) => {
+  const handleAddReply = async (commentId) => {
     const text = replyInputMap[commentId]?.trim();
     if (!text) return;
 
+    const isMock = isMockId(memoryId);
+    if (isAuthenticated && firebaseUser && memoryId && !isMock) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        await addComment(token, memoryId, text, commentId);
+        setReplyInputMap(prev => ({ ...prev, [commentId]: "" }));
+        setActiveReplyId(null);
+        setExpandedComments(prev => ({ ...prev, [commentId]: true }));
+        const backendComments = await getComments(token, memoryId);
+        setComments(backendComments);
+        const total = getTotalCommentsCount(backendComments);
+        window.dispatchEvent(new CustomEvent(`commentsUpdated_${memoryId}`, { detail: total }));
+        return;
+      } catch (err) {
+        console.error("Failed to post reply to backend:", err);
+      }
+    }
+
     const newReply = {
       id: `reply-${Date.now()}`,
-      author: userProfile?.name || "Alexander Mitchell",
-      avatar: userProfile?.avatar || getAuthorAvatar("Alexander Mitchell"),
+      author: authProfile?.displayName || "Alexander Mitchell",
+      avatar: authProfile?.photoURL || getAuthorAvatar("Alexander Mitchell"),
       text: text,
       time: "Just now",
       reactions: { like: 0, love: 0, haha: 0, wow: 0, sad: 0 },
@@ -172,11 +237,26 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     saveComments(updated);
     setReplyInputMap(prev => ({ ...prev, [commentId]: "" }));
     setActiveReplyId(null);
-    // Auto expand the thread when adding a reply so they see it
     setExpandedComments(prev => ({ ...prev, [commentId]: true }));
   };
 
-  const handleReact = (commentId, replyId = null, reactionId) => {
+  const handleReact = async (commentId, replyId = null, reactionId) => {
+    const targetCommentId = replyId || commentId;
+
+    const isMock = isMockId(memoryId);
+    if (isAuthenticated && firebaseUser && memoryId && !isMock) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        await reactToComment(token, memoryId, targetCommentId, reactionId);
+        setHoveredItemId(null);
+        const backendComments = await getComments(token, memoryId);
+        setComments(backendComments);
+        return;
+      } catch (err) {
+        console.error("Failed to react to comment on backend:", err);
+      }
+    }
+
     const updated = comments.map(c => {
       if (c.id === commentId) {
         if (replyId) {
@@ -547,21 +627,21 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
 
       {/* Main Comment Input Box */}
       <form onSubmit={handleAddComment} className="flex gap-2.5 items-center border-t border-stone-100 dark:border-stone-800/60 pt-4">
-        {userProfile?.avatar ? (
+        {authProfile?.photoURL ? (
           <img
-            src={userProfile.avatar}
-            alt={userProfile.name}
+            src={authProfile.photoURL}
+            alt={authProfile.displayName}
             className="h-8.5 w-8.5 rounded-full object-cover shrink-0 border border-stone-200 hidden sm:block"
           />
         ) : (
           <div className="h-8.5 w-8.5 rounded-full bg-[var(--brand)] text-white text-xs font-bold flex items-center justify-center shrink-0 hidden sm:flex">
-            {userProfile?.name?.charAt(0) || "A"}
+            {authProfile?.displayName?.charAt(0) || "A"}
           </div>
         )}
         <input
           value={commentInput}
           onChange={(e) => setCommentInput(e.target.value)}
-          placeholder={`Comment as ${userProfile?.name || "Alexander Mitchell"}...`}
+          placeholder={`Comment as ${authProfile?.displayName || "Alexander Mitchell"}...`}
           className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 text-xs font-bold outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
         />
         <button 

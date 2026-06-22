@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { syncUserWithBackend } from "@/services/backend";
+import { syncUserWithBackend, sendHeartbeat } from "@/services/backend";
 import { BackendError } from "@/services/backend";
 import {
   getFirebaseAuth,
@@ -103,6 +103,24 @@ export function AuthProvider({ children }) {
       }
     });
   }, [syncProfile]);
+
+  useEffect(() => {
+    if (!firebaseUser) return undefined;
+
+    const pingHeartbeat = async () => {
+      try {
+        const token = await firebaseUser.getIdToken();
+        await sendHeartbeat(token);
+      } catch (err) {
+        console.warn("Heartbeat ping failed:", err.message);
+      }
+    };
+
+    pingHeartbeat();
+    const intervalId = setInterval(pingHeartbeat, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [firebaseUser]);
 
   const login = useCallback(
     async (email, password) => {

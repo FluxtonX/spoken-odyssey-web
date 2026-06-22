@@ -27,7 +27,7 @@ import VoicePlayer from "./VoicePlayer";
 import CommentsSection from "./CommentsSection";
 import MediaGrid from "./MediaGrid";
 import { useAuth } from "@/context/AuthProvider";
-import { interactWithMemoryOnBackend } from "@/services/backend";
+import { interactWithMemoryOnBackend, reactToMemory, shareMemoryOnBackend } from "@/services/backend";
 
 const reactions = [
   { id: "heart", label: "Heart", icon: "♥", color: "text-rose-600" },
@@ -37,20 +37,45 @@ const reactions = [
   { id: "angry", label: "Angry", icon: "😡", color: "text-red-600" },
 ];
 
+const isMockId = (id) => {
+  if (!id) return true;
+  const idStr = String(id);
+  return !/^[0-9a-fA-F]{24}$/.test(idStr);
+};
+
+/**
+ * Converts any date value (ISO string, Date object, or already-formatted string)
+ * into a friendly relative time label:
+ *   - < 1 min  → "Just now"
+ *   - < 1 hr   → "X min ago"
+ *   - < 24 hrs → "X hrs ago" (or "1 hr ago")
+ *   - yesterday→ "Yesterday"
+ *   - ≤ 6 days → "X days ago"
+ *   - older    → locale date string (e.g. "Jun 19, 2026")
+ */
+const formatMemoryDate = (rawDate) => {
+  if (!rawDate) return "Just now";
+  const date = new Date(rawDate);
+  if (isNaN(date.getTime())) return String(rawDate);
+  return date.toLocaleString("en-US");
+};
+
 export default function FeedCard({ memory, onEdit, onDelete }) {
-  const { firebaseUser, isAuthenticated } = useAuth();
-  const [userProfile, setUserProfile] = useState(null);
-  const [reaction, setReaction] = useState(null);
+  const { firebaseUser, isAuthenticated, profile: authProfile } = useAuth();
+  const [reaction, setReaction] = useState(memory.userReaction || null);
+  const [likesCount, setLikesCount] = useState(memory.likes || 0);
+  const [sharesCount, setSharesCount] = useState(memory.shares || 0);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentsCount, setCommentsCount] = useState((memory.comments || 0) + 1);
+  const [commentsCount, setCommentsCount] = useState(memory.comments || 0);
   const [shareNotice, setShareNotice] = useState("");
   const holdTimerRef = useRef(null);
 
   const toggleComments = () => {
     const nextOpen = !commentsOpen;
     setCommentsOpen(nextOpen);
-    if (nextOpen && isAuthenticated && firebaseUser) {
+    const isMock = isMockId(memory.id);
+    if (nextOpen && isAuthenticated && firebaseUser && !isMock) {
       firebaseUser.getIdToken().then((token) => {
         interactWithMemoryOnBackend(token, memory.id, "view").catch(console.error);
       });
@@ -58,16 +83,17 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
   };
 
   useEffect(() => {
-    setUserProfile(getStoredUserProfile());
-    const loadProfile = () => {
-      setUserProfile(getStoredUserProfile());
-    };
-    
     // Load initial count if stored
     const saved = localStorage.getItem(`comments_${memory.id}`);
     if (saved) {
       try {
-        setCommentsCount(JSON.parse(saved).length);
+        const parsedComments = JSON.parse(saved);
+        let count = 0;
+        parsedComments.forEach(c => {
+          count += 1;
+          if (c.replies) count += c.replies.length;
+        });
+        setCommentsCount(count);
       } catch {}
     }
     
@@ -75,24 +101,43 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
       setCommentsCount(e.detail);
     };
 
-    window.addEventListener("profileUpdated", loadProfile);
     window.addEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
     
     return () => {
-      window.removeEventListener("profileUpdated", loadProfile);
       window.removeEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
     };
   }, [memory.id]);
+
+  useEffect(() => {
+    const isMock = isMockId(memory.id);
+    if (isMock) {
+      const saved = localStorage.getItem(`reactions_${memory.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setReaction(parsed.userReaction || null);
+          setLikesCount(parsed.likes || 0);
+          setSharesCount(memory.shares || 0);
+          setCommentsCount(memory.comments || 0);
+          return;
+        } catch {}
+      }
+    }
+    setReaction(memory.userReaction || null);
+    setLikesCount(memory.likes || 0);
+    setSharesCount(memory.shares || 0);
+    setCommentsCount(memory.comments || 0);
+  }, [memory]);
 
   const getCommentAuthorDetails = (authorName) => {
     if (
       authorName === "Alexander" || 
       authorName === "Alexander Mitchell" ||
-      (userProfile && authorName === userProfile.name)
+      (authProfile && authorName === authProfile.displayName)
     ) {
       return {
-        name: userProfile?.name || "Alexander Mitchell",
-        avatar: userProfile?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80"
+        name: authProfile?.displayName || "Alexander Mitchell",
+        avatar: authProfile?.photoURL || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80"
       };
     }
     const matchedPerson = people.find(p => p.name.toLowerCase().includes(authorName.toLowerCase()) || authorName.toLowerCase().includes(p.id.toLowerCase()));
@@ -108,16 +153,20 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
     };
   };
 
-  const owner = memory.ownerId === "alexander"
+  const owner = memory.ownerId === "alexander" || memory.ownerFirebaseUid === firebaseUser?.uid
     ? {
-        name: userProfile?.name || "Alexander Mitchell",
-        avatar: userProfile?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80",
+        name: authProfile?.displayName || memory.ownerDisplayName || "Alexander Mitchell",
+        avatar: authProfile?.photoURL || memory.ownerAvatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80",
         id: "alexander"
       }
-    : (people.find((person) => person.id === memory.ownerId) ?? people[0]);
+    : {
+        name: memory.ownerDisplayName || "Family Contributor",
+        avatar: memory.ownerAvatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(memory.ownerDisplayName || "U")}`,
+        id: memory.ownerFirebaseUid || memory.ownerId
+      };
 
   const selectedReaction = reactions.find((item) => item.id === reaction);
-  const reactionCount = (memory.likes || 0) + (reaction ? 1 : 0);
+  const reactionCount = likesCount;
 
   const clearHoldTimer = () => {
     if (holdTimerRef.current) {
@@ -128,6 +177,7 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
 
   const startReactionHold = () => {
     clearHoldTimer();
+    if (holdTimerRef.current) return; // avoid duplicate
     holdTimerRef.current = window.setTimeout(() => {
       setReactionPickerOpen(true);
     }, 450);
@@ -137,20 +187,69 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
     clearHoldTimer();
     if (reactionPickerOpen) return;
     const nextReaction = reaction === "heart" ? null : "heart";
+    const prevReaction = reaction;
     setReaction(nextReaction);
-    if (isAuthenticated && firebaseUser && nextReaction) {
-      firebaseUser.getIdToken().then((token) => {
-        interactWithMemoryOnBackend(token, memory.id, "like").catch(console.error);
+    
+    setLikesCount(prev => {
+      let diff = 0;
+      if (prevReaction && !nextReaction) diff = -1;
+      else if (!prevReaction && nextReaction) diff = 1;
+      return Math.max(0, prev + diff);
+    });
+    
+    const isMock = isMockId(memory.id);
+    if (isAuthenticated && firebaseUser && memory.id && !isMock) {
+      firebaseUser.getIdToken().then(async (token) => {
+        try {
+          const res = await reactToMemory(token, memory.id, nextReaction);
+          setLikesCount(res.likes);
+          setReaction(res.userReaction);
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    } else {
+      setLikesCount(currentLikes => {
+        try {
+          const reactionsObj = { userReaction: nextReaction, likes: currentLikes };
+          localStorage.setItem(`reactions_${memory.id}`, JSON.stringify(reactionsObj));
+        } catch {}
+        return currentLikes;
       });
     }
   };
 
   const chooseReaction = (nextReaction) => {
+    const prevReaction = reaction;
     setReaction(nextReaction);
+    
+    setLikesCount(prev => {
+      let diff = 0;
+      if (!prevReaction && nextReaction) diff = 1;
+      else if (prevReaction && !nextReaction) diff = -1;
+      return Math.max(0, prev + diff);
+    });
+    
     setReactionPickerOpen(false);
-    if (isAuthenticated && firebaseUser && nextReaction) {
-      firebaseUser.getIdToken().then((token) => {
-        interactWithMemoryOnBackend(token, memory.id, "like").catch(console.error);
+    
+    const isMock = isMockId(memory.id);
+    if (isAuthenticated && firebaseUser && memory.id && !isMock) {
+      firebaseUser.getIdToken().then(async (token) => {
+        try {
+          const res = await reactToMemory(token, memory.id, nextReaction);
+          setLikesCount(res.likes);
+          setReaction(res.userReaction);
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    } else {
+      setLikesCount(currentLikes => {
+        try {
+          const reactionsObj = { userReaction: nextReaction, likes: currentLikes };
+          localStorage.setItem(`reactions_${memory.id}`, JSON.stringify(reactionsObj));
+        } catch {}
+        return currentLikes;
       });
     }
   };
@@ -162,7 +261,7 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
 
     setComments((current) => [
       ...current,
-      { id: `${memory.id}-c${Date.now()}`, author: userProfile?.name || "Alexander", text: cleanComment },
+      { id: `${memory.id}-c${Date.now()}`, author: authProfile?.displayName || "Alexander", text: cleanComment },
     ]);
     setCommentText("");
     setCommentsOpen(true);
@@ -175,6 +274,19 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
       text: memory.description,
       url: shareUrl,
     };
+
+    const isMock = isMockId(memory.id);
+    if (isAuthenticated && firebaseUser && memory.id && !isMock) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const res = await shareMemoryOnBackend(token, memory.id);
+        setSharesCount(res.shares);
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      setSharesCount(prev => prev + 1);
+    }
 
     try {
       if (navigator.share) {
@@ -194,7 +306,7 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
   const isTextPreset = memory.type === "Text" && memory.backgroundId && memory.backgroundId !== "none";
   const audienceLabel = memory.audiences?.[0] || memory.privacy;
   const displayAudience = audienceLabel === "public" ? "Public" : audienceLabel === "family" ? "Family Circle" : "Private";
-  const displayDateStr = memory.displayDate || memory.date || "Just now";
+  const displayDateStr = formatMemoryDate(memory.displayDate || memory.date || memory.createdAt);
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
@@ -293,7 +405,7 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
         <div className="mb-3 flex items-center justify-between px-1 text-[10px] font-bold text-stone-400">
           <span className="flex items-center gap-1 select-none">
             {reaction && <span className={selectedReaction?.color}>{selectedReaction?.icon}</span>}
-            {reactionCount} reactions
+            {reactionCount} reactions &nbsp;·&nbsp; {sharesCount} shares
           </span>
           <button onClick={toggleComments} className="hover:text-[var(--brand)] cursor-pointer">
             {commentsCount} comments

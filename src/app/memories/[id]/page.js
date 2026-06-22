@@ -36,7 +36,13 @@ import CommentsSection from "@/components/ui/CommentsSection";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import MediaGrid from "@/components/ui/MediaGrid";
 import { useAuth } from "@/context/AuthProvider";
-import { getMemoryDetailsFromBackend, getBackendErrorMessage, updateMemoryOnBackend } from "@/services/backend";
+import {
+  getMemoryDetailsFromBackend,
+  getBackendErrorMessage,
+  updateMemoryOnBackend,
+  reactToMemory,
+  shareMemoryOnBackend
+} from "@/services/backend";
 
 const typeIcons = {
   Voice: Mic,
@@ -53,6 +59,12 @@ const reactions = [
   { id: "angry", label: "Angry", icon: "😡", color: "text-red-600" },
 ];
 
+const isMockId = (id) => {
+  if (!id) return true;
+  const idStr = String(id);
+  return !/^[0-9a-fA-F]{24}$/.test(idStr);
+};
+
 export default function MemoryDetailPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -63,6 +75,8 @@ export default function MemoryDetailPage() {
   const [album, setAlbum] = useState(null);
   const [owner, setOwner] = useState(null);
   const [reaction, setReaction] = useState(null);
+  const [likesCount, setLikesCount] = useState(0);
+  const [sharesCount, setSharesCount] = useState(0);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
   const holdTimerRef = useRef(null);
@@ -77,7 +91,8 @@ export default function MemoryDetailPage() {
 
   const loadMemoryDetails = async () => {
     setIsLoading(true);
-    if (isAuthenticated && firebaseUser && id && !id.startsWith("local-")) {
+    const isMock = isMockId(id);
+    if (isAuthenticated && firebaseUser && id && !isMock) {
       try {
         const token = await firebaseUser.getIdToken();
         const backendMemory = await getMemoryDetailsFromBackend(token, id);
@@ -106,6 +121,10 @@ export default function MemoryDetailPage() {
           ownerAvatarUrl: backendMemory.ownerAvatarUrl,
         };
         setMemory(mappedMemory);
+        setReaction(backendMemory.userReaction || null);
+        setLikesCount(backendMemory.likes || 0);
+        setSharesCount(backendMemory.shares || 0);
+        setCommentsCount(backendMemory.comments || 0);
 
         if (backendMemory.albumId) {
           const storedAlbums = getStoredAlbums();
@@ -209,6 +228,26 @@ export default function MemoryDetailPage() {
       avatar: foundMemory.ownerAvatarUrl || getPersonById(foundMemory.ownerId || foundMemory.ownerFirebaseUid)?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(foundMemory.ownerDisplayName || "Alexander Mitchell")}`
     };
     setOwner(foundOwner);
+    
+    // Set reaction and likes count for local fallback
+    const isMockLocal = isMockId(foundMemory.id);
+    let currentReaction = foundMemory.userReaction || null;
+    let currentLikes = foundMemory.likes || 0;
+    let currentShares = foundMemory.shares || 0;
+    if (isMockLocal) {
+      const savedReaction = localStorage.getItem(`reactions_${foundMemory.id}`);
+      if (savedReaction) {
+        try {
+          const parsed = JSON.parse(savedReaction);
+          currentReaction = parsed.userReaction || null;
+          currentLikes = parsed.likes || 0;
+        } catch {}
+      }
+    }
+    setReaction(currentReaction);
+    setLikesCount(currentLikes);
+    setSharesCount(currentShares);
+
     setIsLoading(false);
   };
 
@@ -222,7 +261,11 @@ export default function MemoryDetailPage() {
     let initialCount = 0;
     if (savedComments) {
       try {
-        initialCount = JSON.parse(savedComments).length;
+        const parsedComments = JSON.parse(savedComments);
+        parsedComments.forEach(c => {
+          initialCount += 1;
+          if (c.replies) initialCount += c.replies.length;
+        });
       } catch {
         initialCount = memory.comments || 0;
       }
@@ -242,7 +285,7 @@ export default function MemoryDetailPage() {
   }, [memory?.id]);
 
   const selectedReaction = reactions.find((item) => item.id === reaction);
-  const reactionCount = (memory?.likes || 0) + (reaction ? 1 : 0);
+  const reactionCount = likesCount;
 
   const clearHoldTimer = () => {
     if (holdTimerRef.current) {
@@ -261,12 +304,76 @@ export default function MemoryDetailPage() {
   const quickReact = () => {
     clearHoldTimer();
     if (reactionPickerOpen) return;
-    setReaction((current) => (current === "heart" ? null : "heart"));
+    const nextReaction = reaction === "heart" ? null : "heart";
+    const prevReaction = reaction;
+    setReaction(nextReaction);
+
+    setLikesCount(prev => {
+      let diff = 0;
+      if (prevReaction && !nextReaction) diff = -1;
+      else if (!prevReaction && nextReaction) diff = 1;
+      return Math.max(0, prev + diff);
+    });
+
+    const isMock = isMockId(id);
+    if (isAuthenticated && firebaseUser && id && !isMock) {
+      firebaseUser.getIdToken().then(async (token) => {
+        try {
+          const res = await reactToMemory(token, id, nextReaction);
+          setLikesCount(res.likes);
+          setReaction(res.userReaction);
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    } else {
+      setLikesCount(currentLikes => {
+        try {
+          const reactionsObj = {};
+          reactionsObj.userReaction = nextReaction;
+          reactionsObj.likes = currentLikes;
+          localStorage.setItem(`reactions_${id}`, JSON.stringify(reactionsObj));
+        } catch {}
+        return currentLikes;
+      });
+    }
   };
 
   const chooseReaction = (nextReaction) => {
+    const prevReaction = reaction;
     setReaction(nextReaction);
+    
+    setLikesCount(prev => {
+      let diff = 0;
+      if (!prevReaction && nextReaction) diff = 1;
+      else if (prevReaction && !nextReaction) diff = -1;
+      return Math.max(0, prev + diff);
+    });
+
     setReactionPickerOpen(false);
+
+    const isMock = isMockId(id);
+    if (isAuthenticated && firebaseUser && id && !isMock) {
+      firebaseUser.getIdToken().then(async (token) => {
+        try {
+          const res = await reactToMemory(token, id, nextReaction);
+          setLikesCount(res.likes);
+          setReaction(res.userReaction);
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    } else {
+      setLikesCount(currentLikes => {
+        try {
+          const reactionsObj = {};
+          reactionsObj.userReaction = nextReaction;
+          reactionsObj.likes = currentLikes;
+          localStorage.setItem(`reactions_${id}`, JSON.stringify(reactionsObj));
+        } catch {}
+        return currentLikes;
+      });
+    }
   };
 
   const handleShare = async () => {
@@ -276,6 +383,19 @@ export default function MemoryDetailPage() {
       text: memory?.description,
       url: shareUrl,
     };
+
+    const isMock = isMockId(id);
+    if (isAuthenticated && firebaseUser && id && !isMock) {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const res = await shareMemoryOnBackend(token, id);
+        setSharesCount(res.shares);
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      setSharesCount(prev => prev + 1);
+    }
 
     try {
       if (navigator.share) {
@@ -455,7 +575,7 @@ export default function MemoryDetailPage() {
               <div className="mb-3 flex items-center justify-between px-1 text-[10px] font-bold text-stone-400">
                 <span className="flex items-center gap-1 select-none">
                   {reaction && <span className={selectedReaction?.color}>{selectedReaction?.icon}</span>}
-                  {reactionCount} reactions
+                  {likesCount} reactions &nbsp;·&nbsp; {sharesCount} shares
                 </span>
                 <button onClick={() => setCommentsOpen((current) => !current)} className="hover:text-[var(--brand)] cursor-pointer">
                   {commentsCount} comments

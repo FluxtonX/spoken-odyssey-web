@@ -57,6 +57,16 @@ export async function getProfileFromBackend(token) {
   return response.data;
 }
 
+export async function updateProfileOnBackend(token, formData) {
+  const response = await backendFetch("/api/auth/profile", {
+    method: "PUT",
+    body: formData,
+    token,
+    isFormData: true,
+  });
+  return response.data;
+}
+
 /** Get user's albums from MongoDB */
 export async function getAlbumsFromBackend(token) {
   const response = await backendFetch("/api/albums", { token });
@@ -92,8 +102,9 @@ export async function updateAlbumOnBackend(token, albumId, formData) {
 }
 
 /** Get memories from MongoDB */
-export async function getMemoriesFromBackend(token) {
-  const response = await backendFetch("/api/memories", { token });
+export async function getMemoriesFromBackend(token, userId = null) {
+  const path = userId ? `/api/memories?userId=${userId}` : "/api/memories";
+  const response = await backendFetch(path, { token });
   return response.data;
 }
 
@@ -146,6 +157,130 @@ export async function interactWithMemoryOnBackend(token, memoryId, type) {
 
 export async function getMemoryDetailsFromBackend(token, memoryId) {
   const response = await backendFetch(`/api/memories/${memoryId}`, { token });
+  return response.data;
+}
+
+/** Get discovery filter memories */
+export async function getDiscoveryMemories(token, filter, theme) {
+  const query = `filter=${filter || ""}&theme=${theme || ""}`;
+  const response = await backendFetch(`/api/memories/discovery?${query}`, { token });
+  return response.data;
+}
+
+/** Search archive (memories, albums, users) on backend */
+export async function searchOnBackend(token, query, type = "all") {
+  const qStr = `q=${encodeURIComponent(query || "")}&type=${encodeURIComponent(type)}`;
+  const response = await backendFetch(`/api/search?${qStr}`, { token });
+  return response.data;
+}
+
+/** Get suggested profiles to connect with */
+export async function getSuggestedPeople(token) {
+  const response = await backendFetch("/api/users/discovery", { token });
+  return response.data;
+}
+
+/** Get list of connected family members */
+export async function getFamilyMembers(token) {
+  const response = await backendFetch("/api/users/family", { token });
+  return response.data;
+}
+
+/** Bidirectionally connect family member */
+export async function connectFamilyMember(token, targetUid) {
+  const response = await backendFetch("/api/users/family", {
+    method: "POST",
+    body: { firebaseUid: targetUid },
+    token,
+  });
+  return response.data;
+}
+
+/** Bidirectionally disconnect family member */
+export async function disconnectFamilyMember(token, targetUid) {
+  const response = await backendFetch(`/api/users/family/${targetUid}`, {
+    method: "DELETE",
+    token,
+  });
+  return response.data;
+}
+
+/** Get comments tree for a memory */
+export async function getComments(token, memoryId) {
+  const response = await backendFetch(`/api/memories/${memoryId}/comments`, { token });
+  return response.data;
+}
+
+/** Add comment/reply to a memory */
+export async function addComment(token, memoryId, text, parentCommentId = null) {
+  const response = await backendFetch(`/api/memories/${memoryId}/comments`, {
+    method: "POST",
+    body: { text, parentCommentId },
+    token,
+  });
+  return response.data;
+}
+
+/** React to a comment */
+export async function reactToComment(token, memoryId, commentId, type) {
+  const response = await backendFetch(`/api/memories/${memoryId}/comments/${commentId}/react`, {
+    method: "POST",
+    body: { type },
+    token,
+  });
+  return response.data;
+}
+
+/** React to a memory */
+export async function reactToMemory(token, memoryId, type) {
+  const response = await backendFetch(`/api/memories/${memoryId}/react`, {
+    method: "POST",
+    body: { type },
+    token,
+  });
+  return response.data;
+}
+
+/** Increment share count */
+export async function shareMemoryOnBackend(token, memoryId) {
+  const response = await backendFetch(`/api/memories/${memoryId}/share`, {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+export async function followUser(token, targetUid) {
+  const response = await backendFetch(`/api/users/follow/${targetUid}`, {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+export async function unfollowUser(token, targetUid) {
+  const response = await backendFetch(`/api/users/follow/${targetUid}`, {
+    method: "DELETE",
+    token,
+  });
+  return response.data;
+}
+
+export async function getFollowers(token) {
+  const response = await backendFetch("/api/users/followers", { token });
+  return response.data;
+}
+
+export async function getFollowing(token) {
+  const response = await backendFetch("/api/users/following", { token });
+  return response.data;
+}
+
+export async function sendHeartbeat(token) {
+  const response = await backendFetch("/api/users/heartbeat", {
+    method: "POST",
+    token,
+  });
   return response.data;
 }
 
