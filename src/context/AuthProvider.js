@@ -63,6 +63,7 @@ export function AuthProvider({ children }) {
             email: user.email,
             uid: user.uid,
             profileCompleted: !!(localProfile.name && localProfile.name.trim()),
+            onboardingCompleted: true,
           };
           setProfile(fallbackProfile);
           return fallbackProfile;

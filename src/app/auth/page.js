@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,10 +9,11 @@ import AuthLayout from "@/components/layout/AuthLayout";
 import { useAuth } from "@/context/AuthProvider";
 import { getAuthErrorMessage } from "@/services/firebase";
 import { getPostAuthRoute } from "@/lib/routes";
+import { verifyMockEmailOnBackend } from "@/services/backend";
 
 export default function AuthPage() {
   const router = useRouter();
-  const { login, signup, loginWithGoogle, sendResetEmail, resendVerification } = useAuth();
+  const { login, signup, loginWithGoogle, sendResetEmail, resendVerification, firebaseUser, refreshProfile } = useAuth();
 
   const [view, setView] = useState("login"); // "login" | "signup" | "verify" | "reset"
   const [email, setEmail] = useState("");
@@ -23,6 +25,8 @@ export default function AuthPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Check URL query parameters on mount to check if user clicked "signup"
   useEffect(() => {
@@ -150,6 +154,40 @@ export default function AuthPage() {
       setErrorMsg(getAuthErrorMessage(error));
     } finally {
       setIsResending(false);
+    }
+  };
+
+  const handleVerifyCode = async (event) => {
+    event.preventDefault();
+    if (verificationCode.length !== 6) return;
+    if (!firebaseUser) {
+      setErrorMsg("No active session found. Please try logging in again.");
+      return;
+    }
+
+    setIsVerifying(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      const token = await firebaseUser.getIdToken(true);
+      await verifyMockEmailOnBackend(token, verificationCode);
+      
+      setSuccessMsg("Email verified successfully! Redirecting...");
+      
+      // Reload Firebase user state to update emailVerified status client-side
+      await firebaseUser.reload();
+      
+      const updatedProfile = await refreshProfile();
+      
+      setTimeout(() => {
+        router.replace(getPostAuthRoute(updatedProfile));
+      }, 1000);
+    } catch (error) {
+      console.error("Verification code error:", error);
+      setErrorMsg(getAuthErrorMessage(error, "Invalid verification code. Please try 555555."));
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -418,24 +456,48 @@ export default function AuthPage() {
         {/* 3. EMAIL VERIFICATION VIEW */}
         {view === "verify" && (
           <div className="animate-fade-in">
-            <div className="mb-8 text-left">
+            <div className="mb-6 text-left">
               <div className="w-12 h-12 rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)] flex items-center justify-center mb-4 border border-[var(--brand)]/20 shadow-sm">
                 <Mail size={22} />
               </div>
               <h1 className="text-2xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">Verify Your Email</h1>
               <p className="text-sm font-semibold text-stone-500">
-                We sent a verification link to{" "}
-                <span className="text-stone-800 dark:text-stone-200 font-extrabold">{email}</span>.
-                Open the link in your inbox to activate your account, then return here to sign in.
+                To activate your account, enter the 6-digit verification code below. Use code <span className="text-stone-800 dark:text-stone-200 font-extrabold">555555</span> for instant testing.
               </p>
             </div>
 
+            {/* Code Verification Input Form */}
+            <form onSubmit={handleVerifyCode} className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">
+                  6-Digit Code
+                </label>
+                <input 
+                  type="text" 
+                  maxLength={6}
+                  placeholder="555555" 
+                  required
+                  className="w-full p-4 text-center tracking-[0.5em] font-mono text-xl rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-300 transition-all shadow-inner"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                disabled={isVerifying || verificationCode.length !== 6}
+                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+              >
+                {isVerifying ? "Verifying..." : "Verify Code"}
+              </button>
+            </form>
+
             <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-slate-50 dark:bg-slate-800 p-4 text-xs font-semibold text-stone-600 dark:text-stone-300">
-              After verifying, use the same email and password on the login screen.
+              Or verify by checking your email inbox for the verification link we sent.
             </div>
 
             <div className="mt-8 text-center text-xs">
-              <p className="text-stone-500 font-semibold mb-2">Didn&apos;t receive the email?</p>
+              <p className="text-stone-500 font-semibold mb-2">Didn&apos;t receive the link?</p>
               <button 
                 type="button"
                 onClick={handleResendVerification}

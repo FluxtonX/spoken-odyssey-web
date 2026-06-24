@@ -67,8 +67,6 @@ export async function signUpWithEmail({ name, email, password }) {
   const auth = await ensurePersistence();
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   if (name?.trim()) await updateProfile(credential.user, { displayName: name.trim() });
-  await sendEmailVerification(credential.user, getActionCodeSettings());
-  await signOut(auth);
   return credential.user;
 }
 
@@ -76,8 +74,6 @@ export async function signInWithEmail(email, password) {
   const auth = await ensurePersistence();
   const credential = await signInWithEmailAndPassword(auth, email, password);
   if (!credential.user.emailVerified) {
-    await sendEmailVerification(credential.user, getActionCodeSettings());
-    await signOut(auth);
     const error = new Error("Please verify your email before signing in.");
     error.code = "auth/email-not-verified";
     throw error;

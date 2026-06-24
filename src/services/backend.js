@@ -57,6 +57,15 @@ export async function getProfileFromBackend(token) {
   return response.data;
 }
 
+export async function verifyMockEmailOnBackend(token, code) {
+  const response = await backendFetch("/api/auth/verify-mock", {
+    method: "POST",
+    body: { code },
+    token,
+  });
+  return response.data;
+}
+
 export async function updateProfileOnBackend(token, formData) {
   const response = await backendFetch("/api/auth/profile", {
     method: "PUT",

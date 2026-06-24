@@ -27,7 +27,7 @@ export function isPublicRoute(pathname) {
 }
 
 export function getPostAuthRoute(profile) {
-  if (!profile?.profileCompleted) {
+  if (!profile?.onboardingCompleted) {
     return "/profile-setup";
   }
   return "/home";
