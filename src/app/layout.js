@@ -1,11 +1,8 @@
-import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import NavBar from "@/components/navigation/NavBar";
 import LayoutShell from "@/components/layout/LayoutShell";
 import { AuthProvider } from "@/context/AuthProvider";
 import { GOOGLE_FONTS_LINK } from "@/data/postFonts";
-
-const publicSans = Public_Sans({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800", "900"] });
 
 export const metadata = {
   title: "Spoken Odyssey — Preserve Your Family's Voice Forever",
@@ -18,9 +15,10 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
         <link href={GOOGLE_FONTS_LINK} rel="stylesheet" />
       </head>
-      <body className={`${publicSans.className} antialiased bg-[var(--background)]`}>
+      <body className="antialiased bg-[var(--background)] font-sans">
         <AuthProvider>
           <LayoutShell>
             <NavBar />

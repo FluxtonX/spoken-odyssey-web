@@ -8,12 +8,13 @@ import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { getStoredUserProfile } from "@/data/userProfile";
 import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 export default function NavBar() {
   const pathname = usePathname();
   const { isAuthenticated, profile } = useAuth();
   const [userProfile, setUserProfile] = useState(null);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
 
   useEffect(() => {
     function loadProfile() {
@@ -47,13 +48,13 @@ export default function NavBar() {
             if (item.isPrimary) {
               return (
                 <div key={item.name} className="relative -top-3.5 flex flex-col items-center">
-                  <Link
-                    href={item.href}
-                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5e4eff] dark:bg-[#6366f1] text-white shadow-lg shadow-[#5e4eff]/25 transition-all active:scale-90"
+                  <button
+                    onClick={() => setShowPlusMenu(true)}
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5e4eff] dark:bg-[#6366f1] text-white shadow-lg shadow-[#5e4eff]/25 transition-all active:scale-90 cursor-pointer"
                     aria-label={item.name}
                   >
                     <Plus size={28} strokeWidth={2.5} />
-                  </Link>
+                  </button>
                 </div>
               );
             }
@@ -88,6 +89,23 @@ export default function NavBar() {
         <div className="mt-2 flex w-full flex-1 flex-col items-center gap-2.5 px-3 lg:items-start lg:px-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+
+            if (item.isPrimary) {
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => setShowPlusMenu(true)}
+                  className="group relative flex w-full items-center justify-center gap-3 rounded-lg border border-transparent p-2 transition-all lg:justify-start text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-900/40 hover:text-[var(--ink)] cursor-pointer"
+                >
+                  <div className="shrink-0 scale-75 transition-transform -my-1 -ml-1">
+                    <div className="relative w-14 h-14 flex items-center justify-center text-white bg-[#5e4eff] dark:bg-[#6366f1] rounded-2xl shadow-md transition-all">
+                      <Plus size={28} strokeWidth={2.5} />
+                    </div>
+                  </div>
+                  <span className="hidden text-sm font-black lg:block">{item.name}</span>
+                </button>
+              );
+            }
 
             return (
               <Link
@@ -133,6 +151,72 @@ export default function NavBar() {
           </div>
         </Link>
       </nav>
+
+      {/* Global Wavy Glassmorphic Overlay Menu */}
+      {showPlusMenu && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-fade-in"
+          onClick={() => setShowPlusMenu(false)}
+        >
+          <div 
+            className="relative grid grid-cols-2 gap-5 max-w-sm sm:max-w-md w-full p-6 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button on bottom center */}
+            <button
+              onClick={() => setShowPlusMenu(false)}
+              className="absolute -bottom-20 left-1/2 -translate-x-1/2 flex h-14 w-14 items-center justify-center rounded-full bg-[#5e4eff] dark:bg-[#6366f1] text-white shadow-xl shadow-[#5e4eff]/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            >
+              <X size={28} strokeWidth={2.5} />
+            </button>
+
+            {/* 4 Cards */}
+            {[
+              { 
+                title: "Spoken", 
+                subtitle: "Record your voice", 
+                icon: "voice", 
+                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
+                href: "/record?mode=Spoken" 
+              },
+              { 
+                title: "Visual", 
+                subtitle: "Upload photos/videos", 
+                icon: "photo", 
+                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
+                href: "/record?mode=Visual" 
+              },
+              { 
+                title: "Written", 
+                subtitle: "Write your story", 
+                icon: "text", 
+                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
+                href: "/record?mode=Written" 
+              },
+              { 
+                title: "Milestone", 
+                subtitle: "Mark an achievement", 
+                icon: "milestone", 
+                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
+                href: "/record?mode=Milestone" 
+              }
+            ].map((item) => (
+              <Link
+                key={item.title}
+                href={item.href}
+                onClick={() => setShowPlusMenu(false)}
+                className="flex flex-col items-center justify-center bg-white dark:bg-stone-900 border border-stone-150/40 dark:border-stone-800/40 rounded-3xl p-6 shadow-xl hover:scale-102 hover:shadow-2xl transition-all duration-300 group cursor-pointer text-center min-h-[170px]"
+              >
+                <div className={`mb-3 flex h-14 w-14 items-center justify-center rounded-2xl ${item.color} text-white shadow-md shadow-black/10 transition group-hover:scale-105`}>
+                  {resolveGlass3DIcon(item.icon)}
+                </div>
+                <h3 className="text-base font-black text-stone-850 dark:text-white mb-0.5">{item.title}</h3>
+                <p className="text-[10px] font-bold text-stone-400 dark:text-stone-500 leading-tight">{item.subtitle}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }

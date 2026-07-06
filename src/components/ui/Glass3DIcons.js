@@ -13,7 +13,8 @@ import {
   Settings,
   Image as ImageIcon,
   Video,
-  User
+  User,
+  Award
 } from "lucide-react";
 
 // Centering wrapper to match the exact dimensions (w-14 h-14) of the original 3D icon SVGs
@@ -110,6 +111,13 @@ export const Profile3D = () => (
   </IconWrapper>
 );
 
+// 13. Milestone / Award: Sleek award ribbon icon
+export const Award3D = () => (
+  <IconWrapper>
+    <Award size={28} strokeWidth={1.75} fill="currentColor" fillOpacity={0.08} />
+  </IconWrapper>
+);
+
 // Helper function resolving modern, professional line icons (matching the signatures expected by all consumers)
 export const resolveGlass3DIcon = (title) => {
   const norm = title?.toLowerCase() || "";
@@ -126,6 +134,7 @@ export const resolveGlass3DIcon = (title) => {
   if (norm.includes("notification") || norm.includes("bell") || norm.includes("notifications")) return <Bell3D />;
   if (norm.includes("video") || norm.includes("clip")) return <Video3D />;
   if (norm.includes("profile") || norm.includes("me")) return <Profile3D />;
+  if (norm.includes("milestone") || norm.includes("award") || norm.includes("achievement")) return <Award3D />;
 
   return <Privacy3D />;
 };

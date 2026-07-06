@@ -45,6 +45,7 @@
 
 @layer base {
   body {
+    font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--background);
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;
@@ -65,5 +66,29 @@
     border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
     border-radius: 1rem;
+  }
+
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(24px) saturate(120%);
+    border: 1.5px solid rgba(225, 223, 255, 0.85);
+    box-shadow: 0 8px 32px 0 rgba(120, 110, 255, 0.08);
+  }
+  
+  .dark .glass-panel {
+    background: rgba(23, 23, 37, 0.55);
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-input {
+    background: rgba(255, 255, 255, 0.65);
+    border: 1.5px solid rgba(225, 223, 255, 0.85);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .dark .glass-input {
+    background: rgba(15, 15, 25, 0.4);
+    border: 1.5px solid rgba(255, 255, 255, 0.05);
   }
 }

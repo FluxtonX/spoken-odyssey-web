@@ -24,6 +24,13 @@ import {
   Video,
   X,
   Loader2,
+  Calendar,
+  BookOpen,
+  ChevronDown,
+  Tag,
+  Award,
+  FolderHeart,
+  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { getStoredAlbums } from "@/data/userProfile";
@@ -42,11 +49,20 @@ import FontSelectorModal from "@/components/ui/FontSelectorModal";
 
 const LOCAL_MEMORIES_KEY = "spokenOdysseyLocalMemories";
 
+const toneEmojis = {
+  Joyful: "😊",
+  Nostalgic: "😌",
+  Grateful: "🙏",
+  Reflective: "🤔",
+  Solemn: "🙏",
+  Excited: "🎉"
+};
+
 const formats = [
-  { id: "Voice", icon: Mic },
-  { id: "Text", icon: Type },
-  { id: "Photo", icon: Camera },
-  { id: "Video", icon: Video },
+  { id: "Voice", label: "Spoken", icon: Mic },
+  { id: "Visual", label: "Visual", icon: Camera },
+  { id: "Text", label: "Written", icon: Type },
+  { id: "Milestone", label: "Milestone", icon: Award },
 ];
 
 const audienceOptions = [
@@ -72,12 +88,18 @@ function resolveFormat(mode) {
     voice: "Voice",
     audio: "Voice",
     record: "Voice",
+    spoken: "Voice",
     text: "Text",
     write: "Text",
     journal: "Text",
-    photo: "Photo",
-    image: "Photo",
-    video: "Video",
+    written: "Text",
+    photo: "Visual",
+    image: "Visual",
+    video: "Visual",
+    visual: "Visual",
+    milestone: "Milestone",
+    award: "Milestone",
+    achievement: "Milestone",
   };
 
   return aliases[normalizedMode] ?? "Voice";
@@ -140,6 +162,13 @@ function RecordMemoryContent() {
   const [selectedAudience, setSelectedAudience] = useState("family");
   const [mediaFile, setMediaFile] = useState(null);
   const [notice, setNotice] = useState("");
+
+  const [date, setDate] = useState(() => new Date().toISOString().substring(0, 10));
+  const [lifeChapter, setLifeChapter] = useState("");
+  const [isChapterDropdownOpen, setIsChapterDropdownOpen] = useState(false);
+  const [mood, setMood] = useState("Joyful");
+  const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
+  const [tags, setTags] = useState("");
   
   const handleClose = (e) => {
     e.preventDefault();
@@ -168,6 +197,8 @@ function RecordMemoryContent() {
 
   const albumDropdownRef = useRef(null);
   const audienceDropdownRef = useRef(null);
+  const chapterDropdownRef = useRef(null);
+  const toneDropdownRef = useRef(null);
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
@@ -180,6 +211,12 @@ function RecordMemoryContent() {
       }
       if (audienceDropdownRef.current && !audienceDropdownRef.current.contains(event.target)) {
         setIsAudienceDropdownOpen(false);
+      }
+      if (chapterDropdownRef.current && !chapterDropdownRef.current.contains(event.target)) {
+        setIsChapterDropdownOpen(false);
+      }
+      if (toneDropdownRef.current && !toneDropdownRef.current.contains(event.target)) {
+        setIsToneDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -341,13 +378,12 @@ function RecordMemoryContent() {
   async function handleMultipleMediaFiles(files) {
     if (!files || files.length === 0) return;
 
-    const expectedType = activeFormat === "Video" ? "video/" : "image/";
     const validFiles = [];
     const validDrafts = [];
 
     for (const file of files) {
-      if (!file.type.startsWith(expectedType)) {
-        setNotice(`Please choose only valid ${activeFormat.toLowerCase()} files.`);
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        setNotice("Please choose only valid image or video files.");
         continue;
       }
       validFiles.push(file);
@@ -365,15 +401,9 @@ function RecordMemoryContent() {
       }
     }
 
-    if (activeFormat === "Photo") {
-      setPhotoFiles(prev => [...prev, ...validFiles]);
-      setPhotoDrafts(prev => [...prev, ...validDrafts]);
-      setNotice(`${validFiles.length} photo(s) added.`);
-    } else {
-      setVideoFiles(prev => [...prev, ...validFiles]);
-      setVideoDrafts(prev => [...prev, ...validDrafts]);
-      setNotice(`${validFiles.length} video(s) added.`);
-    }
+    setPhotoFiles(prev => [...prev, ...validFiles]);
+    setPhotoDrafts(prev => [...prev, ...validDrafts]);
+    setNotice(`${validFiles.length} file(s) added.`);
   }
 
   function clearForm() {
@@ -392,6 +422,10 @@ function RecordMemoryContent() {
     setFontId("default");
     setSelectedAlbumId("");
     setSelectedAudience("family");
+    setDate(new Date().toISOString().substring(0, 10));
+    setLifeChapter("");
+    setMood("Joyful");
+    setTags("");
     setIsSaving(false);
   }
 
@@ -418,13 +452,8 @@ function RecordMemoryContent() {
       return;
     }
 
-    if (activeFormat === "Photo" && photoFiles.length === 0) {
-      setNotice("Upload a photo before saving.");
-      return;
-    }
-
-    if (activeFormat === "Video" && videoFiles.length === 0) {
-      setNotice("Upload a video before saving.");
+    if (activeFormat === "Visual" && photoFiles.length === 0) {
+      setNotice("Upload a photo or video before saving.");
       return;
     }
 
@@ -443,6 +472,9 @@ function RecordMemoryContent() {
     };
     const mappedPrivacy = privacyMap[selectedAudience] || "Private";
 
+    // Map unified format to backend format types safely
+    const backendType = activeFormat === "Visual" ? (photoFiles.some(f => f.type?.startsWith("video")) ? "Video" : "Photo") : activeFormat === "Milestone" ? "Text" : activeFormat;
+
     if (isAuthenticated && firebaseUser) {
       try {
         const token = await firebaseUser.getIdToken();
@@ -450,12 +482,21 @@ function RecordMemoryContent() {
         formData.append("title", cleanTitle);
         formData.append("description", storyText.trim());
         formData.append("privacy", mappedPrivacy);
-        formData.append("type", activeFormat);
+        formData.append("type", backendType);
         formData.append("status", "published");
         if (selectedAlbumId) {
           formData.append("albumId", selectedAlbumId);
         }
-        formData.append("occurredAt", new Date().toISOString());
+        formData.append("occurredAt", date ? new Date(date).toISOString() : new Date().toISOString());
+
+        // Custom metadata fields
+        formData.append("mood", mood);
+        if (lifeChapter) {
+          formData.append("chapter", lifeChapter);
+        }
+        if (tags) {
+          formData.append("tags", tags);
+        }
         
         if (activeFormat === "Text") {
           formData.append("backgroundId", backgroundId);
@@ -465,12 +506,8 @@ function RecordMemoryContent() {
         if (activeFormat === "Voice" && audioUrl) {
           const audioFile = dataURLtoFile(audioUrl, `recording-${Date.now()}.webm`);
           formData.append("media", audioFile);
-        } else if (activeFormat === "Photo" && photoFiles.length > 0) {
+        } else if (activeFormat === "Visual" && photoFiles.length > 0) {
           photoFiles.forEach(file => {
-            formData.append("media", file);
-          });
-        } else if (activeFormat === "Video" && videoFiles.length > 0) {
-          videoFiles.forEach(file => {
             formData.append("media", file);
           });
         }
@@ -493,12 +530,16 @@ function RecordMemoryContent() {
       description: storyText.trim(),
       createdAt: new Date().toISOString(),
       displayDate: new Date().toLocaleString(),
+      occurredAt: date,
+      mood: mood,
+      chapter: lifeChapter,
+      tags: tags,
       albums: selectedAlbumId ? [selectedAlbumId] : [],
       albumId: selectedAlbumId || null,
       audiences: [selectedAudience],
       privacy: mappedPrivacy,
       audio: activeFormat === "Voice" ? { url: audioUrl, mimeType: audioMimeType, seconds: capturedVoiceSeconds } : null,
-      media: activeFormat === "Photo" ? photoDrafts : activeFormat === "Video" ? videoDrafts : null,
+      media: activeFormat === "Visual" ? photoDrafts : null,
       backgroundId: activeFormat === "Text" ? backgroundId : "none",
       fontId: activeFormat === "Text" ? fontId : "default",
       ownerId: "alexander",
@@ -520,156 +561,274 @@ function RecordMemoryContent() {
   return (
     <WavesBackground>
       <div className="flex w-full max-w-none mx-auto flex-col pb-28">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/90 py-5 px-4 sm:px-6 backdrop-blur-md">
-        <div>
-          <p className="text-xs font-black uppercase tracking-wide text-[var(--brand)]">Create</p>
-          <h1 className="text-2xl font-black tracking-tight text-[var(--ink)] dark:text-white">Record Memory</h1>
-        </div>
-        <button
-          onClick={handleClose}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95 cursor-pointer"
-          aria-label="Close record screen"
-        >
-          <X size={18} className="text-stone-600 dark:text-stone-300" />
-        </button>
-      </header>
+        
+        {/* Sticky Header */}
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/90 py-4 px-4 sm:px-6 backdrop-blur-md">
+          <button
+            onClick={handleClose}
+            className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-stone-100 dark:hover:bg-stone-850 transition active:scale-95 cursor-pointer text-stone-600 dark:text-stone-300"
+            aria-label="Close record screen"
+          >
+            <X size={24} />
+          </button>
+          <div className="text-center flex-1">
+            <h1 className="text-xl font-black tracking-tight text-[var(--ink)] dark:text-white leading-none">New Memory</h1>
+            <p className="text-xs font-semibold text-stone-400 dark:text-stone-500 mt-1">Preserve this moment forever</p>
+          </div>
+          <div className="w-10 h-10" />
+        </header>
 
-      <div className="w-full max-w-4xl flex-1 flex flex-col px-4 sm:px-6 mx-auto">
-        <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-sm">
-        <div className="grid grid-cols-4 gap-1.5">
-          {formats.map((format) => {
-            const Icon = format.icon;
-            const selected = activeFormat === format.id;
+         <div className="w-full max-w-5xl flex-1 flex flex-col px-4 sm:px-6 mx-auto mt-6 space-y-6">
+          
+          {notice && (
+            <div className={`flex items-center gap-2 rounded-2xl border px-4 py-3.5 text-sm font-bold ${
+              notice.toLowerCase().includes("success") || notice.toLowerCase().includes("saved locally")
+                ? "border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/30 dark:text-emerald-400"
+                : "border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--brand)]"
+            }`}>
+              <CheckCircle2 size={17} />
+              <span>{notice}</span>
+            </div>
+          )}
 
-            return (
+          {/* Top Form Preview Card (Voice / Media) */}
+          {(activeFormat === "Voice" || activeFormat === "Visual") && (
+            <div className="glass-panel overflow-hidden rounded-[2rem] shadow-xl backdrop-blur-xl">
+              {activeFormat === "Voice" && (
+                <VoiceRecorder
+                  audioRef={audioRef}
+                  audioUrl={audioUrl}
+                  capturedVoiceSeconds={capturedVoiceSeconds}
+                  elapsedSeconds={elapsedSeconds}
+                  isAudioPlaying={isAudioPlaying}
+                  isRecording={isRecording}
+                  statusLabel={isRecording ? "Recording your memory..." : audioUrl ? "Voice clip ready" : "Tap to start recording"}
+                  onAudioEnded={() => setIsAudioPlaying(false)}
+                  onDelete={() => {
+                    setAudioUrl("");
+                    setCapturedVoiceSeconds(0);
+                    setIsAudioPlaying(false);
+                  }}
+                  onPreview={toggleAudioPreview}
+                  onToggle={toggleRecording}
+                />
+              )}
+
+              {activeFormat === "Visual" && (
+                <MediaComposer
+                  activeFormat={activeFormat}
+                  mediaDrafts={photoDrafts}
+                  onFiles={handleMultipleMediaFiles}
+                  onRemoveItem={(index) => {
+                    setPhotoDrafts(prev => prev.filter((_, i) => i !== index));
+                    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+                  }}
+                  onClearAll={() => {
+                    setPhotoDrafts([]);
+                    setPhotoFiles([]);
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Tell Us About This Moment Card */}
+          <div className="glass-panel p-6 space-y-6 text-left rounded-[2rem] shadow-xl backdrop-blur-xl">
+            <h2 className="text-xl font-black text-[var(--ink)] dark:text-white leading-none">Tell us about this moment</h2>
+            
+            {/* Title Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wide text-stone-500">Title</label>
+              <div className="glass-input p-4">
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  type="text"
+                  placeholder="The Day Everything Changed"
+                  className="w-full bg-transparent text-sm font-bold text-stone-850 dark:text-white outline-none placeholder:text-stone-400"
+                />
+              </div>
+            </div>
+
+            {/* Description Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wide text-stone-500">Description</label>
+              <div className="glass-input p-4 relative">
+                <textarea
+                  value={storyText}
+                  onChange={(event) => setStoryText(event.target.value)}
+                  placeholder="Describe the significant moment..."
+                  className="w-full min-h-[120px] bg-transparent text-sm font-semibold text-stone-750 dark:text-stone-300 outline-none resize-none placeholder:text-stone-400/80 leading-relaxed"
+                />
+                <div className="border-t border-[#eff0ff] dark:border-stone-800 mt-2 pt-2 flex justify-between text-[10px] text-stone-400 dark:text-stone-500 font-bold">
+                  <span>{storyText.length} characters</span>
+                  <span>{Math.ceil(storyText.split(/\s+/).filter(Boolean).length / 200)} min read</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Date Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wide text-stone-500">Date</label>
+              <div className="flex items-center gap-3 glass-input p-4">
+                <span className="text-stone-400 shrink-0"><Calendar size={18} /></span>
+                <input
+                  value={date}
+                  onChange={(event) => setDate(event.target.value)}
+                  type="date"
+                  className="w-full bg-transparent text-sm font-bold text-stone-800 dark:text-white outline-none cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Life Chapter Dropdown */}
+            <div className="space-y-1.5 relative" ref={chapterDropdownRef}>
+              <label className="text-xs font-black uppercase tracking-wide text-stone-500">Life Chapter</label>
               <button
-                key={format.id}
-                onClick={() => selectFormat(format.id)}
-                className={`flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-lg text-xs font-black transition ${
-                  selected ? "bg-[var(--brand)] text-white shadow-sm" : "text-stone-500 hover:bg-[var(--surface-hover)]"
-                }`}
+                type="button"
+                onClick={() => setIsChapterDropdownOpen(!isChapterDropdownOpen)}
+                className="w-full flex items-center justify-between p-4 glass-input hover:border-[var(--brand)] transition-all text-sm font-bold text-stone-750 dark:text-stone-300 cursor-pointer shadow-sm"
               >
-                <Icon size={16} />
-                <span className="hidden sm:inline">{format.id}</span>
+                <div className="flex items-center gap-2.5">
+                  <BookOpen size={18} className="text-stone-400" />
+                  <span>{lifeChapter || "Select Chapter..."}</span>
+                </div>
+                <ChevronDown size={18} className="opacity-50" />
               </button>
-            );
-          })}
-        </div>
-      </div>
+              {isChapterDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-white dark:bg-[#162033] border border-stone-200 dark:border-stone-850 p-2 shadow-2xl z-50 max-h-56 overflow-y-auto">
+                  {["Childhood", "Education & Youth", "Career Path", "Love & Family", "Adventures & Travel", "Reflections & Wisdom", "Milestones"].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setLifeChapter(cat);
+                        setIsChapterDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-sm font-bold rounded-xl transition cursor-pointer ${
+                        lifeChapter === cat 
+                          ? "bg-[var(--brand-soft)] text-[var(--brand)]" 
+                          : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-      {notice && (
-        <div className={`mt-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-bold ${
-          notice.toLowerCase().includes("success") || notice.toLowerCase().includes("saved locally")
-            ? "border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/30 dark:text-emerald-400"
-            : "border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--brand)]"
-        }`}>
-          <CheckCircle2 size={17} />
-          <span>{notice}</span>
-        </div>
-      )}
+          {/* Tone & Privacy Row */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Tone Selector */}
+            <div className="relative" ref={toneDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsToneDropdownOpen(!isToneDropdownOpen)}
+                className="w-full flex items-center justify-between p-4 glass-panel hover:border-[var(--brand)] transition-all text-sm font-bold text-stone-700 dark:text-stone-300 cursor-pointer shadow-sm rounded-2xl"
+              >
+                <div className="flex items-center gap-2">
+                  <span>{toneEmojis[mood] || "😊"}</span>
+                  <span>{mood}</span>
+                </div>
+                <ChevronDown size={16} className="opacity-50" />
+              </button>
+              {isToneDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-white dark:bg-[#162033] border border-stone-250 dark:border-stone-850 p-2 shadow-2xl z-50">
+                  {Object.keys(toneEmojis).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        setMood(t);
+                        setIsToneDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-2 ${
+                        mood === t 
+                          ? "bg-[var(--brand-soft)] text-[var(--brand)]" 
+                          : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <span>{toneEmojis[t]}</span>
+                      <span>{t}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-      <main className="mt-5 flex flex-1 flex-col gap-5">
-        <section className="min-h-[360px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-          {activeFormat === "Voice" && (
-            <VoiceRecorder
-              audioRef={audioRef}
-              audioUrl={audioUrl}
-              capturedVoiceSeconds={capturedVoiceSeconds}
-              elapsedSeconds={elapsedSeconds}
-              isAudioPlaying={isAudioPlaying}
-              isRecording={isRecording}
-              statusLabel={statusLabel}
-              onAudioEnded={() => setIsAudioPlaying(false)}
-              onDelete={() => {
-                setAudioUrl("");
-                setCapturedVoiceSeconds(0);
-                setIsAudioPlaying(false);
-              }}
-              onPreview={toggleAudioPreview}
-              onToggle={toggleRecording}
-            />
-          )}
+            {/* Privacy Selector */}
+            <div className="relative" ref={audienceDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
+                className="w-full flex items-center justify-between p-4 glass-panel hover:border-[var(--brand)] transition-all text-sm font-bold text-stone-700 dark:text-stone-300 cursor-pointer shadow-sm rounded-2xl"
+              >
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const opt = audienceOptions.find((o) => o.id === selectedAudience);
+                    const Icon = opt?.icon || Lock;
+                    return (
+                      <>
+                        <Icon size={16} className="text-stone-400" />
+                        <span>{opt?.label || "Private"}</span>
+                      </>
+                    );
+                  })()}
+                </div>
+                <ChevronDown size={16} className="opacity-50" />
+              </button>
+              {isAudienceDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-white dark:bg-[#162033] border border-stone-250 dark:border-stone-850 p-2 shadow-2xl z-50">
+                  {audienceOptions.map((opt) => {
+                    const Icon = opt.icon;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedAudience(opt.id);
+                          setIsAudienceDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-xl transition cursor-pointer flex items-center gap-3 ${
+                          selectedAudience === opt.id
+                            ? "bg-[var(--brand-soft)] text-[var(--brand)] font-bold"
+                            : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        <Icon size={16} className="text-stone-400" />
+                        <div className="flex-1 text-left">
+                          <span className="text-sm font-bold block leading-none">{opt.label}</span>
+                          <span className="text-[10px] opacity-60 font-medium block mt-0.5">{opt.helper}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
-          {activeFormat === "Text" && (
-            <TextComposer
-              value={storyText}
-              onChange={setStoryText}
-              backgroundId={backgroundId}
-              onOpenCustomizer={() => setIsCustomizerOpen(true)}
-              fontId={fontId}
-              onOpenFontSelector={() => setIsFontOpen(true)}
-            />
-          )}
-
-          {(activeFormat === "Photo" || activeFormat === "Video") && (
-            <MediaComposer
-              activeFormat={activeFormat}
-              mediaDrafts={activeFormat === "Photo" ? photoDrafts : videoDrafts}
-              onFiles={handleMultipleMediaFiles}
-              onRemoveItem={(index) => {
-                if (activeFormat === "Photo") {
-                  setPhotoDrafts(prev => prev.filter((_, i) => i !== index));
-                  setPhotoFiles(prev => prev.filter((_, i) => i !== index));
-                } else {
-                  setVideoDrafts(prev => prev.filter((_, i) => i !== index));
-                  setVideoFiles(prev => prev.filter((_, i) => i !== index));
-                }
-              }}
-              onClearAll={() => {
-                if (activeFormat === "Photo") {
-                  setPhotoDrafts([]);
-                  setPhotoFiles([]);
-                } else {
-                  setVideoDrafts([]);
-                  setVideoFiles([]);
-                }
-              }}
-            />
-          )}
-        </section>
-
-        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-          <label className="block border-b border-[var(--border)] pb-4">
-            <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">Title</span>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              type="text"
-              placeholder="Give it a title"
-              className="w-full bg-transparent text-base font-black text-[var(--ink)] outline-none placeholder:text-stone-400 dark:text-white"
-            />
-          </label>
-
-          <div className="mt-4 text-left relative" ref={albumDropdownRef}>
-            <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wide text-stone-500">
-              <Library size={14} />
-              Add to Album
-            </p>
+          {/* Select Albums Dropdown */}
+          <div className="relative" ref={albumDropdownRef}>
             <button
               type="button"
               onClick={() => setIsAlbumDropdownOpen(!isAlbumDropdownOpen)}
-              className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 hover:border-[var(--brand)] transition-all text-sm font-semibold text-stone-700 dark:text-stone-300"
+              className="w-full flex items-center justify-between p-4 glass-panel hover:border-[var(--brand)] transition-all text-sm font-bold text-stone-750 dark:text-stone-300 cursor-pointer shadow-sm rounded-2xl"
             >
-              <span>
-                {selectedAlbumId
-                  ? albumsList.find((a) => a.id === selectedAlbumId)?.title || "Selected Album"
-                  : "No Album Selected (Optional)"}
-              </span>
-              <span className="opacity-50">▼</span>
+              <div className="flex items-center gap-2.5">
+                <FolderHeart size={18} className="text-stone-400" />
+                <span>
+                  {selectedAlbumId
+                    ? albumsList.find((a) => a.id === selectedAlbumId)?.title || "Selected Album"
+                    : "Select Albums"}
+                </span>
+              </div>
+              <ChevronDown size={18} className={`opacity-50 transition-transform ${isAlbumDropdownOpen ? "rotate-180" : ""}`} />
             </button>
-            
             {isAlbumDropdownOpen && (
-              <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-white dark:bg-[#162033] border border-stone-200 dark:border-stone-850 p-2 shadow-xl z-50 max-h-60 overflow-y-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedAlbumId("");
-                    setIsAlbumDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 text-sm font-bold text-stone-500 hover:bg-stone-50 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
-                >
-                  ❌ None (Don't add to album)
-                </button>
+              <div className="rounded-2xl border border-[#d6d4ff] bg-white/60 dark:bg-stone-900/60 mt-2 overflow-hidden shadow-xl divide-y divide-[#eff0ff] dark:divide-stone-800 text-left z-50">
                 {albumsList.map((alb) => (
                   <button
                     key={alb.id}
@@ -678,141 +837,139 @@ function RecordMemoryContent() {
                       setSelectedAlbumId(alb.id);
                       setIsAlbumDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-3 text-sm font-bold rounded-xl transition cursor-pointer flex items-center justify-between ${
+                    className={`w-full text-left px-5 py-3.5 text-sm font-bold transition cursor-pointer ${
                       selectedAlbumId === alb.id
-                        ? "bg-[var(--brand-soft)] text-[var(--brand)]"
-                        : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
+                        ? "bg-[#5e4eff]/10 text-[#5e4eff]"
+                        : "text-stone-750 dark:text-stone-300 hover:bg-[#eff0ff]/40"
                     }`}
                   >
-                    <span>{alb.title}</span>
-                    {selectedAlbumId === alb.id && <span className="text-xs">✓</span>}
+                    {alb.title}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAlbumId("abc");
+                    setIsAlbumDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-5 py-3.5 text-sm font-bold transition cursor-pointer ${
+                    selectedAlbumId === "abc" ? "bg-[#5e4eff]/10 text-[#5e4eff]" : "text-stone-750 dark:text-stone-300 hover:bg-[#eff0ff]/40"
+                  }`}
+                >
+                  Abc
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAlbumId("xyz");
+                    setIsAlbumDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-5 py-3.5 text-sm font-bold transition cursor-pointer ${
+                    selectedAlbumId === "xyz" ? "bg-[#5e4eff]/10 text-[#5e4eff]" : "text-stone-750 dark:text-stone-300 hover:bg-[#eff0ff]/40"
+                  }`}
+                >
+                  Xyz
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAlbumId("123");
+                    setIsAlbumDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-5 py-3.5 text-sm font-bold transition cursor-pointer ${
+                    selectedAlbumId === "123" ? "bg-[#5e4eff]/10 text-[#5e4eff]" : "text-stone-750 dark:text-stone-300 hover:bg-[#eff0ff]/40"
+                  }`}
+                >
+                  123
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAlbumId("");
+                    setIsAlbumDropdownOpen(false);
+                  }}
+                  className="w-full text-left px-5 py-3.5 text-sm font-bold text-stone-500 hover:bg-[#eff0ff]/40 transition cursor-pointer"
+                >
+                  None
+                </button>
               </div>
             )}
           </div>
 
-          <div className="mt-4 text-left relative" ref={audienceDropdownRef}>
-            <p className="mb-2 text-xs font-black uppercase tracking-wide text-stone-500">Audience & Privacy</p>
+          {/* Tags Field */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-xs font-black uppercase tracking-wide text-stone-500">Tags</label>
+            <div className="flex items-center gap-2.5 glass-input p-4">
+              <span className="text-stone-400"><Tag size={16} /></span>
+              <input
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
+                type="text"
+                placeholder="Tags..."
+                className="w-full bg-transparent text-sm font-bold text-stone-850 dark:text-white outline-none placeholder:text-stone-400"
+              />
+            </div>
+          </div>
+
+          {/* Preserve & Archive Bottom Action Buttons */}
+          <div className="flex gap-4 mt-6">
             <button
-              type="button"
-              onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
-              className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 hover:border-[var(--brand)] transition-all text-sm font-semibold text-stone-700 dark:text-stone-300"
+              onClick={saveMemory}
+              disabled={isSaving}
+              className="flex-1 flex h-13 items-center justify-center gap-2 rounded-2xl bg-[#5e4eff] dark:bg-[#6366f1] text-white shadow-lg shadow-[#5e4eff]/25 hover:bg-[#4b3ae6] active:scale-[0.98] transition font-black cursor-pointer disabled:opacity-50"
             >
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const opt = audienceOptions.find((o) => o.id === selectedAudience);
-                  const Icon = opt?.icon || Lock;
-                  return (
-                    <>
-                      <Icon size={16} className="text-[var(--brand)]" />
-                      <span className="font-extrabold">{opt?.label || "Private"}</span>
-                      <span className="text-xs opacity-60">({opt?.helper})</span>
-                    </>
-                  );
-                })()}
-              </div>
-              <span className="opacity-50">▼</span>
+              {isSaving ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Preserving...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Preserve
+                </>
+              )}
             </button>
-            
-            {isAudienceDropdownOpen && (
-              <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-white dark:bg-[#162033] border border-stone-200 dark:border-stone-850 p-2 shadow-xl z-50">
-                {audienceOptions.map((opt) => {
-                  const Icon = opt.icon;
-                  const isSel = selectedAudience === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedAudience(opt.id);
-                        setIsAudienceDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 rounded-xl transition cursor-pointer flex items-center gap-3 ${
-                        isSel
-                          ? "bg-[var(--brand-soft)] text-[var(--brand)] font-bold"
-                          : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isSel ? "bg-[var(--brand)]/10 text-[var(--brand)]" : "bg-slate-100 dark:bg-slate-800 text-stone-500"}`}>
-                        <Icon size={14} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black truncate">{opt.label}</p>
-                        <p className="text-xs opacity-60 truncate">{opt.helper}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <button
+              onClick={handleClose}
+              className="flex-1 flex h-13 items-center justify-center gap-2 rounded-2xl border border-stone-200/60 dark:border-stone-800/60 bg-white/40 dark:bg-stone-900/40 text-stone-600 dark:text-stone-300 hover:bg-stone-50 active:scale-[0.98] transition font-black cursor-pointer"
+            >
+              Archive
+            </button>
           </div>
 
-          <div className="mt-4 rounded-lg bg-[var(--background)] p-3 text-left">
-            <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-stone-500">Selected</p>
-            {selectedSummary.length ? (
-              <div className="flex flex-wrap gap-2">
-                {selectedSummary.map((item) => (
-                  <span key={item} className="rounded-full bg-[var(--brand)] px-3 py-1 text-xs font-black text-white">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm font-bold text-stone-500">No album or audience selected.</p>
-            )}
-          </div>
-        </section>
+          {/* Local testing preview list */}
+          <SavedPreview memories={savedMemories} />
+        </div>
 
-        <button
-          onClick={saveMemory}
-          disabled={isSaving}
-          className="flex h-13 w-full items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-4 text-base font-black text-white shadow-lg shadow-black/10 transition active:scale-[0.98] disabled:opacity-50"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 size={18} className="animate-spin" />
-              Saving memory...
-            </>
-          ) : (
-            <>
-              <Save size={18} />
-              Save Memory
-            </>
-          )}
-        </button>
+        <BackgroundCustomizerModal
+          isOpen={isCustomizerOpen}
+          onClose={() => setIsCustomizerOpen(false)}
+          selectedId={backgroundId}
+          onSelect={setBackgroundId}
+        />
 
-        <SavedPreview memories={savedMemories} />
-      </main>
-      </div>
+        <FontSelectorModal
+          isOpen={isFontOpen}
+          onClose={() => setIsFontOpen(false)}
+          selectedId={fontId}
+          onSelect={setFontId}
+        />
 
-      <BackgroundCustomizerModal
-        isOpen={isCustomizerOpen}
-        onClose={() => setIsCustomizerOpen(false)}
-        selectedId={backgroundId}
-        onSelect={setBackgroundId}
-      />
-
-      <FontSelectorModal
-        isOpen={isFontOpen}
-        onClose={() => setIsFontOpen(false)}
-        selectedId={fontId}
-        onSelect={setFontId}
-      />
-
-      <style jsx>{`
-        @keyframes voice-wave {
-          0%,
-          100% {
-            transform: scaleY(0.35);
-            opacity: 0.55;
+        {/* CSS Keyframes for voice-wave */}
+        <style jsx>{`
+          @keyframes voice-wave {
+            0%,
+            100% {
+              transform: scaleY(0.35);
+              opacity: 0.55;
+            }
+            50% {
+              transform: scaleY(1);
+              opacity: 1;
+            }
           }
-          50% {
-            transform: scaleY(1);
-            opacity: 1;
-          }
-        }
-      `}</style>
+        `}</style>
       </div>
     </WavesBackground>
   );
@@ -831,11 +988,15 @@ function VoiceRecorder({
   onPreview,
   onToggle,
 }) {
+  const [currentTime, setCurrentTime] = useState(0);
+
   const displayTime = isRecording
     ? formatDuration(elapsedSeconds)
-    : capturedVoiceSeconds > 0
-      ? formatDuration(capturedVoiceSeconds)
-      : "00:00";
+    : isAudioPlaying
+      ? formatDuration(Math.max(0, Math.ceil(capturedVoiceSeconds - currentTime)))
+      : capturedVoiceSeconds > 0
+        ? formatDuration(capturedVoiceSeconds)
+        : "00:00";
 
   return (
     <div className="flex min-h-[360px] flex-col items-center justify-center p-6 text-center">
@@ -875,7 +1036,18 @@ function VoiceRecorder({
 
       {audioUrl && (
         <div className="mb-5 w-full max-w-md rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
-          <audio ref={audioRef} src={audioUrl} onEnded={onAudioEnded} className="hidden" />
+          <audio 
+            ref={audioRef} 
+            src={audioUrl} 
+            onEnded={() => {
+              onAudioEnded();
+              setCurrentTime(0);
+            }} 
+            onTimeUpdate={(e) => {
+              setCurrentTime(e.currentTarget.currentTime);
+            }}
+            className="hidden" 
+          />
           <div className="flex items-center gap-3">
             <button
               onClick={onPreview}
@@ -886,9 +1058,20 @@ function VoiceRecorder({
             </button>
             <div className="min-w-0 flex-1 text-left">
               <p className="truncate text-sm font-black text-[var(--ink)] dark:text-white">Recorded voice clip</p>
-              <p className="text-xs font-bold text-stone-500">{formatDuration(capturedVoiceSeconds)}</p>
+              <p className="text-xs font-bold text-stone-550">
+                {isAudioPlaying 
+                  ? `${formatDuration(Math.max(0, Math.ceil(capturedVoiceSeconds - currentTime)))} remaining`
+                  : formatDuration(capturedVoiceSeconds)}
+              </p>
             </div>
-            <button onClick={onDelete} className="flex h-10 w-10 items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50" aria-label="Delete voice preview">
+            <button 
+              onClick={() => {
+                setCurrentTime(0);
+                onDelete();
+              }} 
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50" 
+              aria-label="Delete voice preview"
+            >
               <Trash2 size={17} />
             </button>
           </div>
@@ -1124,7 +1307,6 @@ function BackgroundCustomizerModal({ isOpen, onClose, selectedId, onSelect }) {
 }
 
 function MediaComposer({ activeFormat, mediaDrafts, onFiles, onRemoveItem, onClearAll }) {
-  const isVideo = activeFormat === "Video";
   const fileInputRef = useRef(null);
 
   return (
@@ -1132,32 +1314,35 @@ function MediaComposer({ activeFormat, mediaDrafts, onFiles, onRemoveItem, onCle
       {mediaDrafts && mediaDrafts.length > 0 ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {mediaDrafts.map((draft, idx) => (
-              <div key={idx} className="relative group rounded-xl border border-[var(--border)] bg-[var(--background)] overflow-hidden shadow-sm aspect-[4/3] sm:aspect-square flex flex-col justify-between">
-                <div className="flex-1 w-full bg-[var(--ink)] flex items-center justify-center overflow-hidden relative">
-                  {isVideo ? (
-                    <video src={draft.url} className="h-full w-full object-cover" />
-                  ) : (
-                    <img src={draft.url} alt={draft.name} className="h-full w-full object-cover" />
-                  )}
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      onRemoveItem(idx);
-                    }}
-                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 hover:bg-rose-600 text-white transition z-10"
-                    aria-label="Remove item"
-                  >
-                    <X size={14} />
-                  </button>
+            {mediaDrafts.map((draft, idx) => {
+              const isDraftVideo = draft.type?.startsWith("video/") || draft.url?.startsWith("data:video/") || draft.name?.endsWith(".mp4") || draft.name?.endsWith(".mov") || draft.name?.endsWith(".webm");
+              return (
+                <div key={idx} className="relative group rounded-xl border border-[var(--border)] bg-[var(--background)] overflow-hidden shadow-sm aspect-[4/3] sm:aspect-square flex flex-col justify-between">
+                  <div className="flex-1 w-full bg-[var(--ink)] flex items-center justify-center overflow-hidden relative">
+                    {isDraftVideo ? (
+                      <video src={draft.url} controls className="h-full w-full object-contain" />
+                    ) : (
+                      <img src={draft.url} alt={draft.name} className="h-full w-full object-cover" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        onRemoveItem(idx);
+                      }}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 hover:bg-rose-600 text-white transition z-10"
+                      aria-label="Remove item"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="p-2 border-t border-[var(--border)] bg-[var(--surface)] text-left">
+                    <p className="truncate text-xs font-bold text-[var(--ink)] dark:text-white">{draft.name}</p>
+                    <p className="text-[10px] font-medium text-stone-500">{Math.max(1, Math.round(draft.size / 1024))} KB</p>
+                  </div>
                 </div>
-                <div className="p-2 border-t border-[var(--border)] bg-[var(--surface)] text-left">
-                  <p className="truncate text-xs font-bold text-[var(--ink)] dark:text-white">{draft.name}</p>
-                  <p className="text-[10px] font-medium text-stone-500">{Math.max(1, Math.round(draft.size / 1024))} KB</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             <button
               type="button"
@@ -1193,9 +1378,9 @@ function MediaComposer({ activeFormat, mediaDrafts, onFiles, onRemoveItem, onCle
           className="flex min-h-[328px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--background)] p-5 text-center transition hover:border-[var(--brand)] hover:bg-[var(--brand)]/5"
         >
           <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-            {isVideo ? <Video size={32} className="text-[var(--brand)]" /> : <ImagePlus size={32} className="text-[var(--brand)]" />}
+            <ImagePlus size={32} className="text-[var(--brand)]" />
           </div>
-          <h3 className="text-lg font-black text-[var(--ink)] dark:text-white">Upload {activeFormat}s</h3>
+          <h3 className="text-lg font-black text-[var(--ink)] dark:text-white">Upload Photos / Videos</h3>
           <p className="mt-1 text-xs font-bold text-stone-550">Tap to browse or drop files here (multiple supported)</p>
           <span className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--brand)] px-4 text-xs font-black text-white">
             <Upload size={15} />
@@ -1207,7 +1392,7 @@ function MediaComposer({ activeFormat, mediaDrafts, onFiles, onRemoveItem, onCle
       <input
         ref={fileInputRef}
         type="file"
-        accept={isVideo ? "video/*" : "image/*"}
+        accept="image/*,video/*"
         className="hidden"
         multiple
         onChange={(event) => {
