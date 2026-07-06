@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthProvider";
+import WavesBackground from "@/components/layout/WavesBackground";
 import { 
   User, 
   Lock, 
@@ -84,7 +85,8 @@ export default function Settings() {
   );
 
   return (
-    <div className="w-full max-w-5xl animation-fade-in pb-24">
+    <WavesBackground>
+      <div className="w-full max-w-5xl mx-auto pb-24">
       {/* Header - Clean alignment with baseline */}
       <header className="pb-6 text-left">
         <h1 className="text-3xl font-black text-[var(--ink)] dark:text-white tracking-tight mb-1">Settings</h1>
@@ -320,6 +322,7 @@ export default function Settings() {
         </div>
 
       </div>
-    </div>
+      </div>
+    </WavesBackground>
   );
 }

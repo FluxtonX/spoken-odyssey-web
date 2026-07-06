@@ -29,7 +29,12 @@ import {
   Sparkles,
   Lightbulb,
   HeartHandshake,
-  Loader2
+  Loader2,
+  Share2,
+  Mail,
+  Link2,
+  Copy,
+  Plus
 } from "lucide-react";
 import {
   AVATAR_PRESETS,
@@ -41,6 +46,7 @@ import { getBackgroundStyles, getBackgroundOverlay, getBackgroundTextStyles } fr
 import { getFontFamily } from "@/data/postFonts";
 import FeedCard from "@/components/ui/FeedCard";
 import UserAvatar from "@/components/ui/UserAvatar";
+import WavesBackground from "@/components/layout/WavesBackground";
 import { useAuth } from "@/context/AuthProvider";
 import {
   getProfileFromBackend,
@@ -94,6 +100,8 @@ export default function ProfilePage() {
   const [editMemoryOpen, setEditMemoryOpen] = useState(false);
   const [editingMemory, setEditingMemory] = useState(null);
   const [memoryEditData, setMemoryEditData] = useState({ title: "", description: "", privacy: "" });
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [viewerImage, setViewerImage] = useState(null);
 
   const [notice, setNotice] = useState("");
 
@@ -415,526 +423,463 @@ export default function ProfilePage() {
     (userProfile.personalityQs && userProfile.personalityQs.some(item => item.a))
   );
 
+  // Helper to format date cleanly
+  function formatBirthDateText(dateStr) {
+    if (!dateStr) return "Born March 1985";
+    try {
+      const date = new Date(dateStr);
+      const options = { month: "long", year: "numeric", timeZone: "UTC" };
+      return `Born ${date.toLocaleDateString("en-US", options)}`;
+    } catch {
+      return "Born March 1985";
+    }
+  }
+
+  const displayName = userProfile.displayName || "Sarah Mitchell";
+  const profession = userProfile.profession || "Entrepreneur";
+  const location = userProfile.location || "Portland, OR";
+  const defaultExpertise = userProfile.expertise && userProfile.expertise.length > 0 ? userProfile.expertise : ["Entrepreneurship", "Parenting", "Wellness", "Writing"];
+  const coverURL = userProfile.coverURL || "https://images.unsplash.com/photo-1543872084-c7bd3822856f?auto=format&fit=crop&w=1200&q=80";
+  const avatarURL = userProfile.photoURL || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80";
+  const bio = userProfile.bio || "Documenting my journey from small-town dreamer to business owner, mother, and lifelong learner.";
+  const quote = userProfile.values || "Live intentionally, love deeply, leave a legacy of kindness.";
+
   return (
-    <div className="w-full max-w-5xl pb-24 animation-fade-in text-[var(--foreground)]">
-      {/* Notice Banner */}
-      {notice && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-[var(--brand)]/25 bg-[var(--brand)]/95 text-white px-4 py-3 shadow-xl backdrop-blur-md animate-fade-in font-bold">
-          <CheckCircle2 size={16} />
-          <span>{notice}</span>
-        </div>
-      )}
+    <WavesBackground>
+      <div className="relative z-10 w-full max-w-xl md:max-w-5xl mx-auto space-y-6">
+        {/* Notice Banner */}
+        {notice && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-[var(--brand)]/25 bg-[var(--brand)]/95 text-white px-4 py-3 shadow-xl backdrop-blur-md animate-fade-in font-bold">
+            <CheckCircle2 size={16} />
+            <span>{notice}</span>
+          </div>
+        )}
 
-      {/* Facebook style Header */}
-      <header className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-md">
-        {/* Cover Photo */}
-        <div className="relative h-60 bg-stone-100 sm:h-72 md:h-80 group overflow-hidden">
-          <img src={userProfile.coverURL || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80"} alt="Cover cover photo" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.01]" />
-          <div className="absolute inset-0 bg-black/15 transition group-hover:bg-black/25" />
-          <button 
-            onClick={() => setEditCoverOpen(true)}
-            className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-black/60 hover:bg-black/80 text-white px-4 py-2 text-xs font-black shadow-lg transition duration-200"
+        {/* Profile Card Header (Cover Photo & Avatar) */}
+        <div className="overflow-hidden rounded-3xl bg-white dark:bg-[#162033] shadow-lg border border-stone-150/40 dark:border-stone-850">
+          {/* Cover Photo */}
+          <div 
+            onClick={() => setViewerImage({ url: coverURL, title: "Cover Photo", onEdit: () => setEditCoverOpen(true) })}
+            className="relative h-48 md:h-64 bg-stone-100 group overflow-hidden cursor-pointer"
           >
-            <Camera size={14} />
-            Edit Cover Photo
-          </button>
-        </div>
-
-        {/* Profile Avatar & Info Row */}
-        <div className="px-6 pb-6 text-center sm:text-left">
-          <div className="flex flex-col items-center sm:flex-row sm:items-start gap-5 mb-4 w-full">
-            {/* Profile Avatar with Hover camera icon */}
-            <UserAvatar
-              src={userProfile.photoURL}
-              alt={userProfile.displayName || "Alexander Mitchell"}
-              isActive={true}
-              size="xl"
-              className="z-10 -mt-16 sm:-mt-20 self-center sm:self-start border-4 border-[var(--surface)] shadow-xl bg-stone-200 rounded-full group"
+            <img src={coverURL} alt="Cover" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.01]" />
+            <div className="absolute inset-0 bg-black/10 transition group-hover:bg-black/20" />
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditCoverOpen(true);
+              }}
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white px-3 py-1.5 text-[10px] font-black shadow-lg transition duration-200 cursor-pointer"
             >
-              <button
-                onClick={() => setEditAvatarOpen(true)}
-                className="absolute inset-0 rounded-full flex flex-col items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+              <Camera size={12} />
+              Edit Cover
+            </button>
+          </div>
+
+          {/* Profile Avatar & Details Section */}
+          <div className="px-6 pb-6 pt-3 text-center relative flex flex-col items-center">
+            {/* Symmetrical iOS-like Rounded Square Avatar */}
+            <div className="relative z-10 -mt-16 md:-mt-20 w-28 h-28 md:w-32 md:h-32">
+              <div 
+                onClick={() => setViewerImage({ url: avatarURL, title: "Profile Picture", onEdit: () => setEditAvatarOpen(true) })}
+                className="w-full h-full border-4 border-white dark:border-[#162033] shadow-xl bg-stone-200 rounded-[2rem] overflow-hidden cursor-pointer"
               >
-                <Camera size={20} className="mb-1" />
-                <span className="text-[9px] font-black uppercase">Edit Photo</span>
-              </button>
-            </UserAvatar>
-            
-            {/* Name, Bio, and Stats Row */}
-            <div className="pb-2 pt-2 sm:pt-6 flex-1 min-w-0 w-full">
-              {/* Name & Edit Button flex header row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
-                {/* Inline Name Editing */}
-                <div className="flex-1 min-w-0">
-                  {isEditing ? (
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Your Name"
-                        className="text-2xl font-black bg-transparent border-b border-[var(--brand)] outline-none text-[var(--ink)] dark:text-white pb-1 w-full max-w-md focus:border-b-2"
-                      />
-                    </div>
-                  ) : (
-                    <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mt-0.5 leading-tight">{userProfile.displayName || "Alexander Mitchell"}</h1>
-                  )}
-                </div>
-
-                {/* Edit Button Container */}
-                <div className="flex shrink-0 justify-center md:justify-end">
-                  {isEditing ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleSaveInlineInfo}
-                        className="flex h-11 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-5 text-sm font-black text-white shadow-md transition-all active:scale-95 duration-200 cursor-pointer"
-                      >
-                        <Save size={15} />
-                        Save Details
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsEditing(false);
-                          setFormData({
-                            name: userProfile.displayName || "",
-                            role: userProfile.profession || "",
-                            location: userProfile.location || "",
-                            bio: userProfile.bio || "",
-                            birthDate: userProfile.birthDate ? userProfile.birthDate.split("T")[0] : "",
-                            categories: userProfile.expertise || [],
-                            goals: userProfile.goals || "",
-                            projects: userProfile.projects || "",
-                            achievements: userProfile.achievements || "",
-                            interests: userProfile.interests || "",
-                            lessons: userProfile.lessons || "",
-                            values: userProfile.values || "",
-                            causes: userProfile.causes || "",
-                            personalityQs: userProfile.personalityQs || []
-                          });
-                        }}
-                        className="flex h-11 items-center justify-center gap-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 px-4 text-sm font-black text-stone-700 transition-all active:scale-95 duration-200 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setFormData({
-                          name: userProfile.displayName || "",
-                          role: userProfile.profession || "",
-                          location: userProfile.location || "",
-                          bio: userProfile.bio || "",
-                          birthDate: userProfile.birthDate ? userProfile.birthDate.split("T")[0] : "",
-                          categories: userProfile.expertise || [],
-                          goals: userProfile.goals || "",
-                          projects: userProfile.projects || "",
-                          achievements: userProfile.achievements || "",
-                          interests: userProfile.interests || "",
-                          lessons: userProfile.lessons || "",
-                          values: userProfile.values || "",
-                          causes: userProfile.causes || "",
-                          personalityQs: userProfile.personalityQs || []
-                        });
-                        setIsEditing(true);
-                      }}
-                      className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-hover)] px-5 text-sm font-black text-white shadow-md transition-all active:scale-95 duration-200 cursor-pointer"
-                    >
-                      <Edit2 size={15} />
-                      Edit Profile
-                    </button>
-                  )}
-                </div>
+                <img src={avatarURL} alt={displayName} className="w-full h-full object-cover" />
               </div>
+              
+              {/* Floating Camera Edit Button at bottom-right of avatar */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditAvatarOpen(true);
+                }}
+                className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer hover:scale-105 z-20"
+                title="Edit Profile Picture"
+              >
+                <Camera size={14} />
+              </button>
+            </div>
 
-              {/* Subtitle / Role & counts */}
-              <div className="mt-1.5 flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs font-bold text-stone-500">
-                {isEditing ? (
+            {/* Centered Name */}
+            {isEditing ? (
+              <input
+                type="text"
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Your Name"
+                className="text-center text-2xl font-black bg-white dark:bg-stone-850 border border-[var(--border)] rounded-xl px-4 py-2 outline-none text-[var(--ink)] dark:text-white max-w-sm mt-3 focus:border-[var(--brand)]"
+              />
+            ) : (
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-stone-850 dark:text-white mt-3 leading-tight">{displayName}</h1>
+            )}
+
+            {/* 3 Stacked Icons Details Row */}
+            {isEditing ? (
+              <div className="flex justify-center items-center gap-4 mt-4 w-full">
+                <div className="flex flex-col items-center flex-1">
+                  <div className="w-10 h-10 rounded-full bg-[#eff0ff] dark:bg-[#25284b] flex items-center justify-center text-[#5e4eff] dark:text-[#8f83ff]">
+                    <Briefcase size={18} />
+                  </div>
                   <input
                     type="text"
                     value={formData.role}
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
-                    placeholder="Role (e.g. Writer, Historian)"
-                    className="text-xs font-bold bg-transparent border-b border-stone-300 outline-none text-stone-600 pb-0.5"
+                    placeholder="Role"
+                    className="text-center text-[10px] font-bold bg-white dark:bg-stone-850 border border-[var(--border)] rounded-lg px-1.5 py-1 mt-2 outline-none w-full focus:border-[var(--brand)]"
                   />
-                ) : (
-                  <p className="text-xs font-extrabold text-stone-500">{userProfile.profession || "Family Contributor"}</p>
-                )}
-                
-                <span className="text-stone-300">•</span>
-                
-                <Link href="/followers" className="flex items-center gap-1 hover:text-[var(--brand)] transition cursor-pointer">
-                  <Users size={13} className="text-stone-400" />
-                  <span className="text-stone-700 dark:text-stone-200">{followersCount}</span> Followers
-                </Link>
-                
-                <span className="text-stone-300">•</span>
-                
-                <Link href="/followers" className="flex items-center gap-1 hover:text-[var(--brand)] transition cursor-pointer">
-                  <User size={13} className="text-stone-400" />
-                  <span className="text-stone-700 dark:text-stone-200">{followingCount}</span> Following
-                </Link>
+                </div>
+                <div className="flex flex-col items-center flex-1">
+                  <div className="w-10 h-10 rounded-full bg-[#eff0ff] dark:bg-[#25284b] flex items-center justify-center text-[#5e4eff] dark:text-[#8f83ff]">
+                    <MapPin size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={e => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="Location"
+                    className="text-center text-[10px] font-bold bg-white dark:bg-stone-850 border border-[var(--border)] rounded-lg px-1.5 py-1 mt-2 outline-none w-full focus:border-[var(--brand)]"
+                  />
+                </div>
+                <div className="flex flex-col items-center flex-1">
+                  <div className="w-10 h-10 rounded-full bg-[#eff0ff] dark:bg-[#25284b] flex items-center justify-center text-[#5e4eff] dark:text-[#8f83ff]">
+                    <CalendarDays size={18} />
+                  </div>
+                  <input
+                    type="date"
+                    value={formData.birthDate}
+                    onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
+                    className="text-center text-[10px] font-bold bg-white dark:bg-stone-850 border border-[var(--border)] rounded-lg px-1 py-0.5 mt-2 outline-none w-full focus:border-[var(--brand)]"
+                  />
+                </div>
               </div>
+            ) : (
+              <div className="flex justify-center items-center gap-6 mt-4 w-full px-4">
+                <div className="flex flex-col items-center flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-[#eff0ff] dark:bg-[#25284b] flex items-center justify-center text-[#5e4eff] dark:text-[#8f83ff] shrink-0">
+                    <Briefcase size={18} />
+                  </div>
+                  <span className="text-xs font-semibold text-stone-500 mt-2 truncate max-w-full">{profession}</span>
+                </div>
+                <div className="flex flex-col items-center flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-[#eff0ff] dark:bg-[#25284b] flex items-center justify-center text-[#5e4eff] dark:text-[#8f83ff] shrink-0">
+                    <MapPin size={18} />
+                  </div>
+                  <span className="text-xs font-semibold text-stone-500 mt-2 truncate max-w-full">{location}</span>
+                </div>
+                <div className="flex flex-col items-center flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-[#eff0ff] dark:bg-[#25284b] flex items-center justify-center text-[#5e4eff] dark:text-[#8f83ff] shrink-0">
+                    <CalendarDays size={18} />
+                  </div>
+                  <span className="text-xs font-semibold text-stone-500 mt-2 truncate max-w-full">{formatBirthDateText(userProfile.birthDate)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
-              {/* Display active category chips */}
-              {!isEditing && userProfile.expertise && userProfile.expertise.length > 0 && (
-                <div className="mt-2.5 flex flex-wrap gap-1.5 justify-center sm:justify-start">
-                  {userProfile.expertise.map(cat => (
-                    <span key={cat} className="rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-[10px] font-extrabold px-2.5 py-0.5 border border-stone-200/50">
-                      {cat}
+        {/* Responsive Grid layout for desktop, sequential stack for mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          
+          {/* Left Column on Desktop (Bio, Tags, Actions, Quotes, Banner) */}
+          <div className="md:col-span-6 space-y-6">
+            {/* Bio Card (Outlined Box) */}
+            <div className="p-5 rounded-3xl border border-[#c8c5ff] bg-white/70 dark:bg-[#162033]/50 dark:border-[#383c66]/40 shadow-sm">
+              {isEditing ? (
+                <textarea
+                  rows={3}
+                  value={formData.bio}
+                  onChange={e => setFormData({ ...formData, bio: e.target.value })}
+                  className="w-full text-center text-xs md:text-sm font-semibold bg-white dark:bg-stone-855 rounded-xl p-3 border border-[var(--border)] outline-none focus:border-[var(--brand)] resize-none text-stone-700 dark:text-stone-300"
+                  placeholder="Short biography..."
+                />
+              ) : (
+                <p className="text-center text-xs md:text-sm font-semibold leading-relaxed text-stone-700 dark:text-stone-300">
+                  {bio}
+                </p>
+              )}
+            </div>
+
+            {/* Areas of Expertise */}
+            <div className="text-left space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-stone-400">Areas of Expertise</span>
+              {isEditing ? (
+                <div className="grid grid-cols-2 gap-1.5 max-h-[110px] overflow-y-auto pr-1">
+                  {CATEGORY_PRESETS.map((cat) => {
+                    const selected = formData.categories.includes(cat);
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => toggleCategory(cat)}
+                        className={`flex items-center justify-between px-2.5 py-1 rounded-lg border text-[9px] font-black transition cursor-pointer ${
+                          selected
+                            ? "bg-[var(--brand-soft)] border-[var(--brand)] text-[var(--brand)]"
+                            : "bg-[var(--background)] border-[var(--border)] text-stone-500 hover:bg-stone-50"
+                        }`}
+                      >
+                        <span>{cat}</span>
+                        {selected && <Check size={8} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {defaultExpertise.map((badge) => (
+                    <span key={badge} className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#e3f2fd] text-[#1e88e5] dark:bg-[#1a237e]/30 dark:text-[#42a5f5] border border-[#bbdefb]/40">
+                      {badge}
                     </span>
                   ))}
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Integrated Intro & Details Card */}
-          <div className="mt-6 pt-5 border-t border-[var(--border)]/55 text-left">
-              <div className="flex items-center justify-between pb-3 mb-4">
-                <h2 className="text-sm font-black tracking-tight text-[var(--ink)] dark:text-white uppercase">Intro & Details</h2>
-                {isEditing && (
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--brand)]">Editing Details...</span>
-                )}
+            {/* Action Buttons */}
+            {isEditing ? (
+              <div className="flex gap-4 w-full">
+                <button
+                  onClick={handleSaveInlineInfo}
+                  className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-750 text-xs font-black text-white shadow-md transition-all active:scale-95 duration-200 cursor-pointer"
+                >
+                  <Save size={15} />
+                  Save Details
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: userProfile.displayName || "",
+                      role: userProfile.profession || "",
+                      location: userProfile.location || "",
+                      bio: userProfile.bio || "",
+                      birthDate: userProfile.birthDate ? userProfile.birthDate.split("T")[0] : "",
+                      categories: userProfile.expertise || [],
+                      goals: userProfile.goals || "",
+                      projects: userProfile.projects || "",
+                      achievements: userProfile.achievements || "",
+                      interests: userProfile.interests || "",
+                      lessons: userProfile.lessons || "",
+                      values: userProfile.values || "",
+                      causes: userProfile.causes || "",
+                      personalityQs: userProfile.personalityQs || []
+                    });
+                  }}
+                  className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-xs font-black text-stone-700 dark:bg-stone-850 dark:border-stone-750 dark:text-stone-300 transition-all active:scale-95 duration-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-                {/* Bio Block */}
-                <div className="flex flex-col justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-1">Biography</p>
-                    {isEditing ? (
-                      <textarea
-                        rows={3}
-                        value={formData.bio}
-                        onChange={e => setFormData({ ...formData, bio: e.target.value })}
-                        className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-800 rounded-lg p-2 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
-                        placeholder="Short bio..."
-                      />
-                    ) : (
-                      <p className="text-xs font-bold leading-relaxed text-stone-600 dark:text-stone-300">
-                        {userProfile.bio || "No biography added yet."}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Info details Block (Location & Birthday) */}
-                <div className="flex flex-col gap-3 justify-center border-t md:border-t-0 md:border-x border-stone-100 dark:border-stone-800 px-0 md:px-6 py-3 md:py-0">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-1 flex items-center gap-1">
-                      <MapPin size={10} /> Location
-                    </p>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={formData.location}
-                        onChange={e => setFormData({ ...formData, location: e.target.value })}
-                        className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-800 rounded-lg p-2 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
-                        placeholder="Location"
-                      />
-                    ) : (
-                      <p className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                        {userProfile.location}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-1 flex items-center gap-1">
-                      <CalendarDays size={10} /> Birthday
-                    </p>
-                    {isEditing ? (
-                      <input
-                        type="date"
-                        value={formData.birthDate}
-                        onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
-                        className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-800 rounded-lg p-2 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
-                      />
-                    ) : (
-                      <p className="text-xs font-bold text-stone-600 dark:text-stone-300">
-                        {formatBirthday(userProfile.birthDate)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Category Tags Selector / Settings Block */}
-                <div className="flex flex-col gap-3 justify-center border-t md:border-t-0 border-stone-100 dark:border-stone-800 pt-3 md:pt-0">
-                  {isEditing ? (
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-2">Category tags</p>
-                      <div className="grid grid-cols-2 gap-1.5 max-h-[110px] overflow-y-auto pr-1">
-                        {CATEGORY_PRESETS.map((cat) => {
-                          const selected = formData.categories.includes(cat);
-                          return (
-                            <button
-                              key={cat}
-                              type="button"
-                              onClick={() => toggleCategory(cat)}
-                              className={`flex items-center justify-between px-2.5 py-1 rounded-lg border text-[9px] font-black transition cursor-pointer ${
-                                selected
-                                  ? "bg-[var(--brand-soft)] border-[var(--brand)] text-[var(--brand)]"
-                                  : "bg-[var(--background)] border-[var(--border)] text-stone-500 hover:bg-stone-50"
-                              }`}
-                            >
-                              <span>{cat}</span>
-                              {selected && <Check size={8} />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between text-xs border-b border-stone-100 dark:border-stone-800 pb-2">
-                        <span className="flex items-center gap-1.5 font-bold text-stone-500">
-                          <Lock size={12} /> Default privacy
-                        </span>
-                        <span className="font-extrabold text-stone-700 dark:text-stone-200">Family Circle</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="flex items-center gap-1.5 font-bold text-stone-500">
-                          <ShieldCheck size={12} /> Custodian
-                        </span>
-                        <span className="font-extrabold text-stone-700 dark:text-stone-200">{custodianName}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+            ) : (
+              <div className="flex gap-4 w-full">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl border-2 border-[#4f37ff] dark:border-[#8f83ff] text-xs font-black text-[#4f37ff] dark:text-[#8f83ff] hover:bg-[#4f37ff]/5 transition-all active:scale-95 duration-200 cursor-pointer bg-white dark:bg-[#162033]"
+                >
+                  <Edit2 size={13} />
+                  Edit Profile
+                </button>
+                <button
+                  onClick={() => setShareModalOpen(true)}
+                  className="flex-1 flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[#4f37ff] hover:bg-[#3b23e0] text-xs font-black text-white shadow-lg shadow-[#4f37ff]/20 transition-all active:scale-95 duration-200 cursor-pointer"
+                >
+                  Share Legacy
+                </button>
               </div>
-          </div>
-        </div>
-      </header>
+            )}
 
-      {/* Legacy Portrait Section */}
-      <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-md text-left">
-        <div className="flex items-center justify-between pb-4 mb-6 border-b border-[var(--border)]/55">
-          <h2 className="text-base font-black tracking-tight text-[var(--ink)] dark:text-white uppercase flex items-center gap-2">
-            <Sparkles className="text-[var(--brand)] animate-pulse" size={18} />
-            Legacy Portrait & Life Journey
-          </h2>
-          {isEditing && (
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--brand)]">Editing Portrait...</span>
-          )}
-        </div>
-
-        {isEditing ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
-                  <Target size={12} className="text-sky-550" /> Goals & Aspirations
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.goals}
-                  onChange={e => setFormData({ ...formData, goals: e.target.value })}
-                  placeholder="What are you working towards or hoping to achieve?"
-                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
-                  <Award size={12} className="text-amber-550" /> Achievements & Milestones
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.achievements}
-                  onChange={e => setFormData({ ...formData, achievements: e.target.value })}
-                  placeholder="What are your proudest accomplishments?"
-                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
-                  <Briefcase size={12} className="text-purple-555" /> Projects & Ventures
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.projects}
-                  onChange={e => setFormData({ ...formData, projects: e.target.value })}
-                  placeholder="Describe your creative work, startups, or legacy projects..."
-                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
-                  <Sparkles size={12} className="text-rose-550" /> Interests & Passions
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.interests}
-                  onChange={e => setFormData({ ...formData, interests: e.target.value })}
-                  placeholder="What are you passionate about?"
-                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
-                  <Lightbulb size={12} className="text-yellow-550" /> Life Lessons Learned
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.lessons}
-                  onChange={e => setFormData({ ...formData, lessons: e.target.value })}
-                  placeholder="What wisdom would you share with future generations?"
-                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
-                  <Globe size={12} className="text-emerald-550" /> Values & Beliefs
-                </label>
+            {/* Quotes Card */}
+            <div className="p-6 rounded-3xl border border-[#d2d5ff] bg-[#eef0ff]/55 dark:bg-[#1a1d35]/25 dark:border-[#383c66]/30 relative overflow-hidden flex flex-col items-center justify-center shadow-sm min-h-[140px]">
+              <span className="absolute top-1 left-4 text-8xl font-serif text-[#c5c8ff]/30 dark:text-[#4a4f80]/15 pointer-events-none select-none">“</span>
+              {isEditing ? (
                 <textarea
                   rows={2}
                   value={formData.values}
                   onChange={e => setFormData({ ...formData, values: e.target.value })}
-                  placeholder="What core values guide your decisions?"
-                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                  className="w-full text-center text-sm md:text-base font-black bg-white dark:bg-stone-850 rounded-xl p-3 border border-[var(--border)] outline-none focus:border-[var(--brand)] resize-none text-[#2a1b94] dark:text-[#8f83ff] italic relative z-10"
+                  placeholder="Your core legacy quote/value..."
                 />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs font-black uppercase text-stone-500 mb-1.5 flex items-center gap-1">
-                  <HeartHandshake size={12} className="text-orange-550" /> Causes & Advocacy
-                </label>
-                <input
-                  type="text"
-                  value={formData.causes}
-                  onChange={e => setFormData({ ...formData, causes: e.target.value })}
-                  placeholder="What charity initiatives or issues do you support?"
-                  className="w-full text-xs font-bold bg-stone-50 dark:bg-stone-850 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
-                />
-              </div>
+              ) : (
+                <p className="text-center text-base md:text-lg font-black leading-relaxed text-[#2a1b94] dark:text-[#8f83ff] italic relative z-10 max-w-[90%]">
+                  "{quote}"
+                </p>
+              )}
             </div>
 
-            <div className="pt-4 border-t border-[var(--border)]/40">
-              <p className="text-[10px] font-black uppercase tracking-wider text-stone-400 mb-3">Personality Questions</p>
-              <div className="space-y-4">
-                {formData.personalityQs.map((item, idx) => (
-                  <div key={idx} className="bg-stone-50 dark:bg-stone-850 p-4 rounded-2xl border border-[var(--border)]/45">
-                    <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-2">{item.q}</p>
-                    <textarea
-                      rows={2}
-                      value={item.a}
-                      onChange={e => {
-                        const updated = [...formData.personalityQs];
-                        updated[idx] = { ...updated[idx], a: e.target.value };
-                        setFormData({ ...formData, personalityQs: updated });
-                      }}
-                      placeholder="Share your reflection..."
-                      className="w-full text-xs font-bold bg-white dark:bg-stone-800 rounded-xl p-3 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
-                    />
-                  </div>
-                ))}
-              </div>
+            {/* Bottom Preserving Banner */}
+            <div className="border border-[#d2d5ff] dark:border-[#383c66]/40 rounded-2xl p-4 bg-white/60 dark:bg-stone-900/30 text-center shadow-sm">
+              <p className="text-xs md:text-sm font-bold text-[#4f37ff] dark:text-[#8f83ff] italic tracking-wide">
+                "Changing The Way We Preserve Our Legacy"
+              </p>
             </div>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {!hasLegacyDetails ? (
-              <div className="flex flex-col items-center justify-center py-12 px-6 text-center border border-dashed border-[var(--border)] rounded-2xl bg-stone-50/30 dark:bg-stone-900/10">
-                <Sparkles className="text-[var(--brand)] mb-3 animate-pulse" size={24} />
-                <h3 className="text-xs font-black uppercase text-[var(--ink)] dark:text-white tracking-wider">Your Legacy Portrait & Life Journey is Empty</h3>
-                <p className="text-xs font-semibold text-stone-500 max-w-sm mt-1.5 leading-relaxed">
-                  Share your life lessons, proud achievements, goals, and reflections with your family. Click the <strong>Edit Profile</strong> button above to start your story.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {/* Goals Card */}
-                  {userProfile.goals && (
-                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-sky-500/5 to-transparent hover:shadow-md transition duration-300">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 mb-2">
-                        <Target size={14} /> Goals & Aspirations
-                      </span>
-                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.goals}</p>
-                    </div>
-                  )}
 
-                  {/* Achievements Card */}
-                  {userProfile.achievements && (
-                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-amber-500/5 to-transparent hover:shadow-md transition duration-300">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">
-                        <Award size={14} /> Achievements & Milestones
-                      </span>
-                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.achievements}</p>
-                    </div>
-                  )}
-
-                  {/* Projects Card */}
-                  {userProfile.projects && (
-                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-purple-500/5 to-transparent hover:shadow-md transition duration-300">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-2">
-                        <Briefcase size={14} /> Projects & Ventures
-                      </span>
-                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.projects}</p>
-                    </div>
-                  )}
-
-                  {/* Interests Card */}
-                  {userProfile.interests && (
-                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-rose-500/5 to-transparent hover:shadow-md transition duration-300">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-2">
-                        <Sparkles size={14} /> Interests & Passions
-                      </span>
-                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.interests}</p>
-                    </div>
-                  )}
-
-                  {/* Life Lessons Card */}
-                  {userProfile.lessons && (
-                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-yellow-500/5 to-transparent hover:shadow-md transition duration-300">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-yellow-600 dark:text-yellow-400 mb-2">
-                        <Lightbulb size={14} /> Life Lessons Learned
-                      </span>
-                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.lessons}</p>
-                    </div>
-                  )}
-
-                  {/* Values Card */}
-                  {userProfile.values && (
-                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-emerald-500/5 to-transparent hover:shadow-md transition duration-300">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2">
-                        <Globe size={14} /> Values & Beliefs
-                      </span>
-                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.values}</p>
-                    </div>
-                  )}
-
-                  {/* Causes Card */}
-                  {userProfile.causes && (
-                    <div className="p-4 rounded-2xl border border-[var(--border)]/40 bg-gradient-to-br from-orange-500/5 to-transparent hover:shadow-md transition duration-300 md:col-span-2 lg:col-span-3">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-2">
-                        <HeartHandshake size={14} /> Causes I Care About
-                      </span>
-                      <p className="text-xs font-bold leading-relaxed text-stone-650 dark:text-stone-305">{userProfile.causes}</p>
-                    </div>
-                  )}
+          {/* Right Column on Desktop (Stats Grid, Life Journey) */}
+          <div className="md:col-span-6 space-y-6">
+            {/* Stats Grid (2x2) */}
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { count: localMemories.length || 127, label: "All Memories" },
+                { count: mockAlbums.length || 12, label: "Albums" },
+                { count: localMemories.filter(m => m.tags?.includes("Milestone")).length || 18, label: "Milestones" },
+                { count: followersCount || 342, label: "Followers" }
+              ].map((stat) => (
+                <div key={stat.label} className="p-5 rounded-2xl border border-[#d2d5ff] bg-[#eef0ff]/65 dark:bg-[#1a1d35]/40 dark:border-[#383c66]/40 flex flex-col items-center justify-center text-center shadow-sm">
+                  <span className="text-2xl md:text-3xl font-black text-stone-850 dark:text-white leading-none">{stat.count}</span>
+                  <span className="text-[10px] font-bold text-stone-500 mt-2 uppercase tracking-wide">{stat.label}</span>
                 </div>
+              ))}
+            </div>
+
+            {/* Legacy Portrait & Life Journey Details Section */}
+            {hasLegacyDetails || isEditing ? (
+              <div className="rounded-3xl border border-[#d2d5ff] bg-white/70 dark:bg-[#162033]/50 p-6 text-left shadow-sm space-y-6">
+                <h2 className="text-sm font-black uppercase tracking-wider text-stone-400 pb-3 border-b border-[#4f37ff]/10 flex items-center gap-2">
+                  <Sparkles className="text-[var(--brand)] animate-pulse" size={16} />
+                  Legacy Portrait & Life Journey
+                </h2>
+
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-stone-400 mb-1 flex items-center gap-1">
+                        <Target size={11} className="text-sky-550" /> Goals & Aspirations
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formData.goals}
+                        onChange={e => setFormData({ ...formData, goals: e.target.value })}
+                        placeholder="Goals..."
+                        className="w-full text-xs font-semibold bg-stone-50 dark:bg-stone-855 rounded-xl p-2.5 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-stone-400 mb-1 flex items-center gap-1">
+                        <Award size={11} className="text-amber-550" /> Achievements & Milestones
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formData.achievements}
+                        onChange={e => setFormData({ ...formData, achievements: e.target.value })}
+                        placeholder="Achievements..."
+                        className="w-full text-xs font-semibold bg-stone-50 dark:bg-stone-850 rounded-xl p-2.5 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-stone-400 mb-1 flex items-center gap-1">
+                        <Briefcase size={11} /> Projects & Ventures
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formData.projects}
+                        onChange={e => setFormData({ ...formData, projects: e.target.value })}
+                        placeholder="Projects..."
+                        className="w-full text-xs font-semibold bg-stone-50 dark:bg-stone-850 rounded-xl p-2.5 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-stone-400 mb-1 flex items-center gap-1">
+                        <Sparkles size={11} /> Interests & Passions
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formData.interests}
+                        onChange={e => setFormData({ ...formData, interests: e.target.value })}
+                        placeholder="Interests..."
+                        className="w-full text-xs font-semibold bg-stone-50 dark:bg-stone-850 rounded-xl p-2.5 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-stone-400 mb-1 flex items-center gap-1">
+                        <Lightbulb size={11} /> Life Lessons
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formData.lessons}
+                        onChange={e => setFormData({ ...formData, lessons: e.target.value })}
+                        placeholder="Lessons..."
+                        className="w-full text-xs font-semibold bg-stone-50 dark:bg-stone-850 rounded-xl p-2.5 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] resize-none text-[var(--ink)] dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-stone-400 mb-1 flex items-center gap-1">
+                        <HeartHandshake size={11} /> Causes & Advocacy
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.causes}
+                        onChange={e => setFormData({ ...formData, causes: e.target.value })}
+                        placeholder="Causes..."
+                        className="w-full text-xs font-semibold bg-stone-50 dark:bg-stone-850 rounded-xl p-2.5 border border-stone-200 dark:border-stone-700 outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {userProfile.goals && (
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 mb-1">
+                          <Target size={12} /> Goals & Aspirations
+                        </span>
+                        <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300">{userProfile.goals}</p>
+                      </div>
+                    )}
+                    {userProfile.achievements && (
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+                          <Award size={12} /> Achievements & Milestones
+                        </span>
+                        <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300">{userProfile.achievements}</p>
+                      </div>
+                    )}
+                    {userProfile.projects && (
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-1">
+                          <Briefcase size={12} /> Projects & Ventures
+                        </span>
+                        <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300">{userProfile.projects}</p>
+                      </div>
+                    )}
+                    {userProfile.interests && (
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1">
+                          <Sparkles size={12} /> Interests & Passions
+                        </span>
+                        <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300">{userProfile.interests}</p>
+                      </div>
+                    )}
+                    {userProfile.lessons && (
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-yellow-600 dark:text-yellow-400 mb-1">
+                          <Lightbulb size={12} /> Life Lessons Learned
+                        </span>
+                        <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300">{userProfile.lessons}</p>
+                      </div>
+                    )}
+                    {userProfile.causes && (
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-1">
+                          <HeartHandshake size={12} /> Causes I Care About
+                        </span>
+                        <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300">{userProfile.causes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Personality Questions Answers */}
                 {userProfile.personalityQs && userProfile.personalityQs.some(item => item.a) && (
-                  <div className="pt-6 border-t border-[var(--border)]/40">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-stone-400 mb-4">Reflections & Personality Q&A</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="pt-5 border-t border-[var(--border)]/45 space-y-4">
+                    <h3 className="text-[10px] font-black uppercase tracking-wider text-stone-400">Reflections & Personality Q&A</h3>
+                    <div className="space-y-4">
                       {userProfile.personalityQs.map((item, idx) => {
                         if (!item.a) return null;
                         return (
-                          <div key={idx} className="bg-stone-50 dark:bg-stone-800/40 p-5 rounded-2xl border border-[var(--border)]/45 relative overflow-hidden group hover:-translate-y-0.5 transition duration-300 shadow-sm text-left">
-                            <div className="absolute right-0 top-0 w-24 h-24 bg-[var(--brand)] opacity-[0.02] rounded-full blur-xl group-hover:scale-110 transition duration-500" />
-                            <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-2 pb-2 border-b border-[var(--border)]/35 flex items-start gap-1.5">
+                          <div key={idx} className="bg-stone-50 dark:bg-[#1a1d35]/15 p-4 rounded-2xl border border-[var(--border)]/45 relative overflow-hidden group shadow-sm text-left">
+                            <p className="text-xs font-extrabold text-[var(--ink)] dark:text-white mb-2 pb-2 border-b border-[var(--border)]/35 flex items-start gap-1">
                               <span className="text-[var(--brand)] font-serif italic text-lg leading-none">“</span>
                               {item.q}
                             </p>
-                            <p className="text-xs font-bold leading-relaxed text-stone-600 dark:text-stone-300 italic">
+                            <p className="text-xs font-semibold leading-relaxed text-stone-600 dark:text-stone-300 italic">
                               "{item.a}"
                             </p>
                           </div>
@@ -943,119 +888,309 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 )}
-              </>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Navigation Tab buttons (All Memories & Albums) */}
-      <div className="mt-6 flex items-center gap-4 bg-[var(--surface)] p-2.5 rounded-xl border border-[var(--border)] shadow-sm">
-        <button
-          onClick={() => setActiveTab("memories")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-black transition cursor-pointer ${
-            activeTab === "memories"
-              ? "bg-[var(--brand)] text-white shadow-sm"
-              : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-800"
-          }`}
-        >
-          <FileText size={15} />
-          All Memories ({localMemories.length})
-        </button>
-        
-        <button
-          onClick={() => setActiveTab("albums")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-black transition cursor-pointer ${
-            activeTab === "albums"
-              ? "bg-[var(--brand)] text-white shadow-sm"
-              : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-800"
-          }`}
-        >
-          <FolderHeart size={15} />
-          Albums ({mockAlbums.length})
-        </button>
-      </div>
-
-      {/* Main Content Area: Centered, expanding to the full width */}
-      <div className="mt-6">
-        {activeTab === "memories" && (
-          <div className="space-y-6">
-            {/* Quick Compose Box */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-              <div className="mb-4 flex gap-3">
-                <UserAvatar
-                  src={userProfile.photoURL}
-                  alt={userProfile.displayName || "Alexander Mitchell"}
-                  isActive={true}
-                  size="md"
-                />
-                <Link
-                  href="/record"
-                  className="flex flex-1 items-center rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-left text-xs font-semibold text-stone-500 transition hover:border-[var(--brand)]"
-                >
-                  Share a memory with the community...
-                </Link>
               </div>
+            ) : null}
+          </div> {/* Closes Right Column */}
+        </div> {/* Closes Split Grid container */}
 
-              <div className="grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
-                {[
-                  ["Text", "text"],
-                  ["Photo", "photo"],
-                  ["Voice", "voice"],
-                ].map(([label, icon]) => (
-                  <Link
-                    key={label}
-                    href={`/record?mode=${label}`}
-                    className="flex h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-black text-stone-700 transition hover:bg-[var(--background)]"
-                  >
-                    <div className="scale-50 -mx-3 -my-3 shrink-0 text-[var(--brand)]">
-                      {icon === "text" && <FileText size={24} />}
-                      {icon === "photo" && <CameraIcon size={24} />}
-                      {icon === "voice" && <Mic size={24} />}
-                    </div>
-                    {label}
-                  </Link>
-                ))}
-              </div>
+        {/* Navigation Tab buttons (All Memories & Albums) */}
+            <div className="flex items-center gap-4 bg-[var(--surface)] p-2 rounded-2xl border border-[var(--border)] shadow-sm">
+              <button
+                onClick={() => setActiveTab("memories")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                  activeTab === "memories"
+                    ? "bg-[var(--brand)] text-white shadow-sm"
+                    : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-850"
+                }`}
+              >
+                <FileText size={14} />
+                All Memories ({localMemories.length})
+              </button>
+              
+              <button
+                onClick={() => setActiveTab("albums")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                  activeTab === "albums"
+                    ? "bg-[var(--brand)] text-white shadow-sm"
+                    : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-850"
+                }`}
+              >
+                <FolderHeart size={14} />
+                Albums ({mockAlbums.length})
+              </button>
             </div>
 
-            {/* Memories stream */}
-            {localMemories.length > 0 ? (
-              localMemories.map((memory) => (
-                <FeedCard
-                  key={memory.id}
-                  memory={memory}
-                  onEdit={handleStartEditMemory}
-                  onDelete={handleDeleteMemory}
-                />
-              ))
-            ) : (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
-                <p className="text-sm font-bold text-stone-500">You haven't preserved any memories yet. Start by capturing one!</p>
-              </div>
-            )}
-          </div>
-        )}
+            {/* Main Content Area */}
+            <div className="text-left">
+              {activeTab === "memories" && (
+                <div className="space-y-4">
+                  {/* Quick Compose Box */}
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+                    <div className="mb-3 flex gap-3">
+                      <UserAvatar
+                        src={userProfile.photoURL}
+                        alt={displayName}
+                        isActive={true}
+                        size="md"
+                      />
+                      <Link
+                        href="/record"
+                        className="flex flex-1 items-center rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 text-left text-xs font-semibold text-stone-500 transition hover:border-[var(--brand)]"
+                      >
+                        Share a memory with the community...
+                      </Link>
+                    </div>
 
-        {activeTab === "albums" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-            {mockAlbums.map((album) => (
-              <Link
-                key={album.id}
-                href={`/albums/${album.id}?from=profile`}
-                className="group relative h-48 rounded-2xl overflow-hidden border border-[var(--border)] shadow-sm cursor-pointer transition active:scale-[0.98]"
-              >
-                <img src={album.cover} alt={album.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5 text-white" />
-                <div className="absolute bottom-4 left-4 text-white">
-                  <h4 className="text-lg font-black leading-tight">{album.title}</h4>
-                  <p className="text-[10px] font-semibold opacity-80 mt-1 uppercase tracking-wider">Open Gallery</p>
+                    <div className="grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
+                      {[
+                        ["Text", "text"],
+                        ["Photo", "photo"],
+                        ["Voice", "voice"],
+                      ].map(([label, icon]) => (
+                        <Link
+                          key={label}
+                          href={`/record?mode=${label}`}
+                          className="flex h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-black text-stone-700 transition hover:bg-[var(--background)]"
+                        >
+                          <div className="scale-50 -mx-3 -my-3 shrink-0 text-[var(--brand)]">
+                            {icon === "text" && <FileText size={24} />}
+                            {icon === "photo" && <CameraIcon size={24} />}
+                            {icon === "voice" && <Mic size={24} />}
+                          </div>
+                          {label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Memories stream */}
+                  {localMemories.length > 0 ? (
+                    localMemories.map((memory) => (
+                      <FeedCard
+                        key={memory.id}
+                        memory={memory}
+                        onEdit={handleStartEditMemory}
+                        onDelete={handleDeleteMemory}
+                      />
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+                      <p className="text-xs font-bold text-stone-500">You haven't preserved any memories yet. Start by capturing one!</p>
+                    </div>
+                  )}
                 </div>
-              </Link>
-            ))}
-          </div>
-        )}
+              )}
+
+              {activeTab === "albums" && (
+                mockAlbums.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                    {mockAlbums.map((album) => (
+                      <Link
+                        key={album.id}
+                        href={`/albums/${album.id}?from=profile`}
+                        className="group relative h-40 rounded-2xl overflow-hidden border border-[var(--border)] shadow-sm cursor-pointer transition active:scale-[0.98] block"
+                      >
+                        <img src={album.cover} alt={album.title} className="h-full w-full object-cover transition duration-505 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-white" />
+                        <div className="absolute bottom-3 left-3 text-white">
+                          <h4 className="text-base font-black leading-tight">{album.title}</h4>
+                          <p className="text-[9px] font-semibold opacity-85 mt-1 uppercase tracking-wider">Open Gallery</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm">
+                    <FolderHeart size={64} className="text-stone-400 mb-4" strokeWidth={1.5} />
+                    <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2">No albums yet</h3>
+                    <p className="text-sm text-stone-500 max-w-sm">Create albums in the Albums tab to organize your memories</p>
+                  </div>
+                )
+              )}
+            </div>
+
       </div>
+
+      {/* Fullscreen Image Viewer Modal */}
+      {viewerImage && (
+        <div 
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => setViewerImage(null)}
+        >
+          {/* Close button */}
+          <button 
+            onClick={() => setViewerImage(null)}
+            className="absolute top-6 right-6 rounded-full p-2 bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Image Container */}
+          <div 
+            className="w-full max-w-3xl flex flex-col items-center gap-4 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={viewerImage.url} 
+              alt={viewerImage.title} 
+              className="max-w-full max-h-[75vh] object-contain rounded-2xl border border-white/10 shadow-2xl" 
+            />
+            
+            <div className="flex items-center gap-4 text-white">
+              <span className="text-sm font-bold">{viewerImage.title}</span>
+              <button
+                onClick={() => {
+                  viewerImage.onEdit();
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-[#4f37ff] hover:bg-[#3b23e0] text-white px-4 py-1.5 text-xs font-black shadow-lg transition duration-200 cursor-pointer"
+              >
+                <Camera size={12} />
+                Update Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Profile Modal */}
+      {shareModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-sm rounded-2xl border border-[#c8c5ff] bg-white dark:bg-[#162033] p-6 shadow-2xl animate-scale-up text-left relative">
+            
+            {/* Header */}
+            <div className="mb-4 flex items-center justify-between border-b border-[#4f37ff]/10 pb-3">
+              <h3 className="text-base font-extrabold text-[#4f37ff] dark:text-[#8f83ff]">Share Profile</h3>
+              <button 
+                onClick={() => setShareModalOpen(false)} 
+                className="rounded-lg p-1 hover:bg-stone-100 dark:hover:bg-stone-855 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Description */}
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-stone-500 leading-relaxed">
+                Share "{displayName}'s Profile" with the world or someone special.
+              </p>
+            </div>
+
+            {/* Social Buttons Grid */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {/* Twitter / X */}
+              <a
+                href={`https://twitter.com/intent/tweet?text=Check out ${encodeURIComponent(displayName)}'s legacy profile on Spoken Odyssey!`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-black hover:bg-stone-900 text-white text-xs font-bold transition shadow-sm"
+              >
+                {/* Clean X vector icon */}
+                <svg className="w-4 h-4 fill-white shrink-0" viewBox="0 0 24 24">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                Twitter / X
+              </a>
+
+              {/* Facebook */}
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://spokenodyssey.com')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] text-white text-xs font-bold transition shadow-sm"
+              >
+                <svg className="w-4 h-4 fill-white shrink-0" viewBox="0 0 24 24">
+                  <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1V12h3v3h-3v6.8c4.56-.93 8-4.96 8-9.8z" />
+                </svg>
+                Facebook
+              </a>
+
+              {/* Email */}
+              <a
+                href={`mailto:?subject=${encodeURIComponent(displayName + "'s Profile — Spoken Odyssey")}&body=Check out this legacy profile: ${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : 'https://spokenodyssey.com')}`}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ea4335] hover:bg-[#d93025] text-white text-xs font-bold transition shadow-sm"
+              >
+                <Mail size={16} className="shrink-0" />
+                Email
+              </a>
+
+              {/* Copy Link */}
+              <button
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    navigator.clipboard.writeText(window.location.href);
+                    triggerNotice("Link copied to clipboard!");
+                  }
+                }}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#eff0ff] hover:bg-[#e0e2ff] text-[#5e4eff] dark:text-[#8f83ff] text-xs font-bold transition cursor-pointer"
+              >
+                <Link2 size={16} className="shrink-0" />
+                Copy Link
+              </button>
+            </div>
+
+            {/* Copyable Link Field */}
+            <div className="border border-[#c8c5ff]/50 rounded-xl p-2 bg-[#eff0ff]/35 dark:bg-[#1f223f]/25 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold text-stone-500 truncate select-all px-1 max-w-[180px]">
+                {typeof window !== 'undefined' ? window.location.hostname + window.location.pathname : 'spokenodyssey.com/profile'}
+              </span>
+              <button
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    navigator.clipboard.writeText(window.location.href);
+                    triggerNotice("Link copied to clipboard!");
+                  }
+                }}
+                className="flex h-8 items-center gap-1 rounded-lg bg-[#4f37ff] hover:bg-[#3b23e0] text-white px-3 text-[10px] font-extrabold shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+              >
+                <Copy size={11} />
+                Copy
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Image Viewer Modal */}
+      {viewerImage && (
+        <div 
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => setViewerImage(null)}
+        >
+          {/* Close button */}
+          <button 
+            onClick={() => setViewerImage(null)}
+            className="absolute top-6 right-6 rounded-full p-2 bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Image Container */}
+          <div 
+            className="w-full max-w-3xl flex flex-col items-center gap-4 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={viewerImage.url} 
+              alt={viewerImage.title} 
+              className="max-w-full max-h-[75vh] object-contain rounded-2xl border border-white/10 shadow-2xl" 
+            />
+            
+            <div className="flex items-center gap-4 text-white">
+              <span className="text-sm font-bold">{viewerImage.title}</span>
+              <button
+                onClick={() => {
+                  viewerImage.onEdit();
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-[#4f37ff] hover:bg-[#3b23e0] text-white px-4 py-1.5 text-xs font-black shadow-lg transition duration-200 cursor-pointer"
+              >
+                <Camera size={12} />
+                Update Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Avatar Presets Modal */}
       {editAvatarOpen && (
@@ -1254,6 +1389,6 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-    </div>
+    </WavesBackground>
   );
 }

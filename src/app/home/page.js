@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import LandingPage from "@/app/landing/page";
 import { useAuth } from "@/context/AuthProvider";
+import { useRouter } from "next/navigation";
 import { getAlbumsFromBackend, getMemoriesFromBackend } from "@/services/backend";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { memories } from "@/data/mockApp";
@@ -43,6 +44,11 @@ function AlbumSlideshowCard({ album }) {
 }
 
 export default function Home() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/profile");
+  }, [router]);
+
   const { isAuthenticated, loading, profile, firebaseUser } = useAuth();
   const [albumsList, setAlbumsList] = useState([]);
   const [memoriesList, setMemoriesList] = useState([]);

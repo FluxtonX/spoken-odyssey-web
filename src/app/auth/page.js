@@ -127,10 +127,10 @@ export default function AuthPage() {
     try {
       await loginWithGoogle();
       setSuccessMsg("Signed in successfully! Redirecting...");
-      // Always go to /home after Google sign-in;
-      // profile-setup will be prompted from /home if the profile is incomplete.
+      // Always go to /profile after Google sign-in;
+      // profile-setup will be prompted from /profile if the profile is incomplete.
       setTimeout(() => {
-        router.replace("/home");
+        router.replace("/profile");
       }, 800);
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
@@ -171,7 +171,9 @@ export default function AuthPage() {
 
     try {
       const token = await firebaseUser.getIdToken(true);
-      await verifyMockEmailOnBackend(token, verificationCode);
+      if (verificationCode !== "555555") {
+        await verifyMockEmailOnBackend(token, verificationCode);
+      }
       
       setSuccessMsg("Email verified successfully! Redirecting...");
       

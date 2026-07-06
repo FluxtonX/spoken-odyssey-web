@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import FeedCard from "@/components/ui/FeedCard";
 import { useAuth } from "@/context/AuthProvider";
+import WavesBackground from "@/components/layout/WavesBackground";
 import {
   getDiscoveryMemories,
   getSuggestedPeople,
@@ -151,7 +152,8 @@ export default function DiscoverPage() {
   }, [suggestedPeople, searchQuery]);
 
   return (
-    <div className="w-full pb-24 animation-fade-in">
+    <WavesBackground>
+      <div className="w-full max-w-none mx-auto">
       <header className="mb-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6 text-left">
           <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-black uppercase tracking-wide text-[var(--brand)]">
@@ -340,6 +342,7 @@ export default function DiscoverPage() {
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </WavesBackground>
   );
 }

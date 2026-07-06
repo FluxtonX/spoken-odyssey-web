@@ -286,11 +286,15 @@ export async function getFollowing(token) {
 }
 
 export async function sendHeartbeat(token) {
-  const response = await backendFetch("/api/users/heartbeat", {
-    method: "POST",
-    token,
-  });
-  return response.data;
+  try {
+    const response = await backendFetch("/api/users/heartbeat", {
+      method: "POST",
+      token,
+    });
+    return response?.data;
+  } catch (_) {
+    return null;
+  }
 }
 
 export function getBackendErrorMessage(error, fallback = "Something went wrong. Please try again.") {

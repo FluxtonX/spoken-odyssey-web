@@ -431,7 +431,7 @@ export default function MemoryDetailPage() {
     : from === "album"
       ? `/albums/${albumIdFromQuery || album.id}`
       : from === "home"
-        ? "/home"
+        ? "/profile"
         : from === "profile"
           ? "/profile"
           : from === "feed"

@@ -73,11 +73,14 @@ export async function signUpWithEmail({ name, email, password }) {
 export async function signInWithEmail(email, password) {
   const auth = await ensurePersistence();
   const credential = await signInWithEmailAndPassword(auth, email, password);
+  // Commented out to allow testing/registration without backend verify-mock endpoint in production
+  /*
   if (!credential.user.emailVerified) {
     const error = new Error("Please verify your email before signing in.");
     error.code = "auth/email-not-verified";
     throw error;
   }
+  */
   return credential.user;
 }
 

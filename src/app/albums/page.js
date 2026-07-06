@@ -1,7 +1,8 @@
 "use client";
 
-import { Plus, Search, ChevronRight, X, Lock, Users, Globe, Upload, Loader2 } from "lucide-react";
+import { Plus, Search, ChevronRight, X, Lock, Users, Globe, Upload, Loader2, FolderHeart } from "lucide-react";
 import Link from "next/link";
+import WavesBackground from "@/components/layout/WavesBackground";
 import { useState, useEffect } from "react";
 import { getStoredAlbums, saveStoredAlbums } from "@/data/userProfile";
 import { useAuth } from "@/context/AuthProvider";
@@ -162,7 +163,8 @@ export default function AlbumsGallery() {
   );
 
   return (
-    <div className="w-full animation-fade-in pb-24">
+    <WavesBackground>
+      <div className="w-full max-w-5xl mx-auto">
       {/* Header Area */}
       <header className="sticky top-0 z-20 glass px-4 py-4 md:py-6 mb-6">
         <div className="flex justify-between items-center mb-4">
@@ -209,8 +211,10 @@ export default function AlbumsGallery() {
             <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading your albums...</p>
           </div>
         ) : filteredAlbums.length === 0 ? (
-          <div className="col-span-2 md:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-20 border-2 border-dashed border-[var(--border)] rounded-[2rem] hover:bg-[var(--surface-hover)] transition-colors">
-            <p className="text-sm font-bold text-stone-500">No albums found matching your query.</p>
+          <div className="col-span-2 md:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-20 border-2 border-dashed border-[var(--border)] rounded-[2rem] hover:bg-[var(--surface-hover)] transition-colors text-center px-4">
+            <FolderHeart size={64} className="text-stone-400 mb-4" strokeWidth={1.5} />
+            <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2">No albums yet</h3>
+            <p className="text-sm text-stone-500 max-w-sm">Create albums to organize your memories</p>
           </div>
         ) : (
           filteredAlbums.map((album) => (
@@ -422,6 +426,7 @@ export default function AlbumsGallery() {
           <span>{toastMessage}</span>
         </div>
       )}
-    </div>
+      </div>
+    </WavesBackground>
   );
 }

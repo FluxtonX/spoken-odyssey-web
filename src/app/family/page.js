@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import WavesBackground from "@/components/layout/WavesBackground";
 import { initialMembers, sharedMemories } from "./data";
 import {
   AddMemberModal,
@@ -41,7 +42,8 @@ export default function FamilyDashboard() {
   };
 
   return (
-    <div className="w-full max-w-3xl pb-24 animation-fade-in relative">
+    <WavesBackground>
+      <div className="w-full max-w-3xl mx-auto relative pb-24">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in flex items-center gap-2 bg-green-700 text-white px-4 py-3 rounded-xl shadow-2xl">
@@ -211,6 +213,7 @@ export default function FamilyDashboard() {
       <ConfigureLegacyModal isOpen={configureLegacyOpen} onClose={() => setConfigureLegacyOpen(false)} onSave={showToast} />
       <ManageMemberModal isOpen={!!manageMember} member={manageMember} onClose={() => setManageMember(null)} onSave={showToast} />
       <SharedMemoriesModal isOpen={!!sharedMember} member={sharedMember} memories={sharedMemories} onClose={() => setSharedMember(null)} />
-    </div>
+      </div>
+    </WavesBackground>
   );
 }

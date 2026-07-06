@@ -8,6 +8,7 @@ import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { getStoredUserProfile } from "@/data/userProfile";
 import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
+import { Plus } from "lucide-react";
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -24,12 +25,12 @@ export default function NavBar() {
   }, [pathname, profile]);
 
   const navItems = [
-    { name: "Home", href: "/home", icon: "home" },
-    { name: "Me", href: "/profile", icon: "me" },
-    { name: "Discovery", href: "/feed", icon: "feed", isPrimary: true },
-    { name: "Albums", href: "/albums", icon: "album" },
+    // { name: "Home", href: "/home", icon: "home" },
+    { name: "Home", href: "/profile", icon: "home" },
+    { name: "Discover", href: "/feed", icon: "feed" },
+    { name: "Record", href: "/record", icon: "plus", isPrimary: true },
     { name: "Family", href: "/family", icon: "family" },
-    { name: "Settings", href: "/settings", icon: "settings" },
+    { name: "Setting", href: "/settings", icon: "settings" },
   ];
 
   if (isPublicRoute(pathname) || !isAuthenticated) {
@@ -45,15 +46,14 @@ export default function NavBar() {
 
             if (item.isPrimary) {
               return (
-                <div key={item.name} className="relative -top-5 flex flex-col items-center">
+                <div key={item.name} className="relative -top-3.5 flex flex-col items-center">
                   <Link
                     href={item.href}
-                    className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-[var(--background)] bg-[var(--brand)] text-white shadow-xl shadow-black/20 transition-all active:scale-90"
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5e4eff] dark:bg-[#6366f1] text-white shadow-lg shadow-[#5e4eff]/25 transition-all active:scale-90"
                     aria-label={item.name}
                   >
-                    <div className="shrink-0 scale-90">{resolveGlass3DIcon(item.icon)}</div>
+                    <Plus size={28} strokeWidth={2.5} />
                   </Link>
-                  <span className="mt-1 text-[8px] font-black tracking-wide text-stone-500 dark:text-stone-400 -mb-5">{item.name}</span>
                 </div>
               );
             }
@@ -101,7 +101,15 @@ export default function NavBar() {
                 )}
               >
                 {isActive && <div className="absolute bottom-2 left-0 top-2 w-1 rounded-r-md bg-[var(--brand)] shadow-sm" />}
-                <div className="shrink-0 scale-75 transition-transform -my-1 -ml-1">{resolveGlass3DIcon(item.icon)}</div>
+                <div className="shrink-0 scale-75 transition-transform -my-1 -ml-1">
+                  {item.isPrimary ? (
+                    <div className="relative w-14 h-14 flex items-center justify-center text-current transition-all">
+                      <Plus size={28} strokeWidth={2} />
+                    </div>
+                  ) : (
+                    resolveGlass3DIcon(item.icon)
+                  )}
+                </div>
                 <span className="hidden text-sm font-black lg:block">{item.name}</span>
               </Link>
             );

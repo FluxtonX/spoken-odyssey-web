@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import { getStoredAlbums } from "@/data/userProfile";
 import { useAuth } from "@/context/AuthProvider";
+import WavesBackground from "@/components/layout/WavesBackground";
 import { getAlbumsFromBackend, createMemoryOnBackend, getBackendErrorMessage } from "@/services/backend";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import {
@@ -517,7 +518,8 @@ function RecordMemoryContent() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[var(--background)] pb-28 px-4 sm:px-6 md:px-8 animation-fade-in">
+    <WavesBackground>
+      <div className="flex w-full max-w-none mx-auto flex-col pb-28">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/90 py-5 px-4 sm:px-6 backdrop-blur-md">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-[var(--brand)]">Create</p>
@@ -811,7 +813,8 @@ function RecordMemoryContent() {
           }
         }
       `}</style>
-    </div>
+      </div>
+    </WavesBackground>
   );
 }
 

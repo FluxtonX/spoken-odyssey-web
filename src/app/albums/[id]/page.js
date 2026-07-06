@@ -284,7 +284,7 @@ export default function AlbumDetailPage() {
 
   const from = searchParams.get("from");
   const backHref = from === "home"
-    ? "/home"
+    ? "/profile"
     : from === "profile"
       ? "/profile"
       : from === "search"
