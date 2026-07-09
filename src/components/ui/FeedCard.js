@@ -13,7 +13,8 @@ import {
   Globe,
   X,
   Edit2,
-  Trash2
+  Trash2,
+  Calendar
 } from "lucide-react";
 import { people } from "@/data/mockApp";
 import { getStoredUserProfile } from "@/data/userProfile";
@@ -60,7 +61,7 @@ const formatMemoryDate = (rawDate) => {
   return date.toLocaleString("en-US");
 };
 
-export default function FeedCard({ memory, onEdit, onDelete }) {
+export default function FeedCard({ memory, onEdit, onDelete, isProfileView = false, onClickDetail }) {
   const { firebaseUser, isAuthenticated, profile: authProfile } = useAuth();
   const [reaction, setReaction] = useState(memory.userReaction || null);
   const [likesCount, setLikesCount] = useState(memory.likes || 0);
@@ -307,6 +308,133 @@ export default function FeedCard({ memory, onEdit, onDelete }) {
   const audienceLabel = memory.audiences?.[0] || memory.privacy;
   const displayAudience = audienceLabel === "public" ? "Public" : audienceLabel === "family" ? "Family Circle" : "Private";
   const displayDateStr = formatMemoryDate(memory.displayDate || memory.date || memory.createdAt);
+
+  if (isProfileView) {
+    const mainCategory = memory.category || memory.type || "Memory";
+    const dateObj = new Date(memory.displayDate || memory.date || memory.createdAt);
+    const dateStr = isNaN(dateObj.getTime()) ? String(memory.displayDate || memory.date || memory.createdAt) : dateObj.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const tags = memory.tags && memory.tags.length > 0 ? memory.tags : (memory.type === "Voice" ? ["Grateful", "Family Moments"] : ["Proud", "Career & Growth"]);
+
+    return (
+      <article 
+        onClick={() => onClickDetail && onClickDetail(memory)}
+        className={`overflow-hidden rounded-[1.25rem] border border-[#d2d5ff] bg-white dark:bg-[#162033] shadow-sm mb-4 transition ${onClickDetail ? 'cursor-pointer hover:border-[#4f37ff] hover:shadow-md' : ''}`}
+      >
+        {/* Header: Tag + Date */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <span className="rounded-md bg-[#4f37ff] px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+            {mainCategory}
+          </span>
+          <div className="flex items-center gap-1.5 text-stone-500">
+            <Calendar size={12} strokeWidth={2.5} />
+            <span className="text-[10px] font-bold">{dateStr}</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-5 pb-3 text-left">
+          <h4 className="mb-2 text-lg font-black text-stone-850 dark:text-white leading-tight">
+            {memory.title}
+          </h4>
+          {!isTextPreset && memory.description && (
+            <p className="text-sm font-semibold text-stone-600 dark:text-stone-300 leading-relaxed">
+              {memory.description}
+            </p>
+          )}
+        </div>
+
+        {/* Media */}
+        <div className="px-5 pb-3">
+          {(memory.type === "Photo" || memory.type === "Video") && (
+            <MediaGrid memory={memory} />
+          )}
+          {isTextPreset && (
+            <div
+              className="relative rounded-xl overflow-hidden min-h-[160px] p-5 flex items-center justify-center text-center shadow-inner"
+              style={getBackgroundStyles(memory.backgroundId)}
+            >
+              {getBackgroundOverlay(memory.backgroundId)}
+              <p
+                className="text-base font-extrabold italic z-10 leading-relaxed"
+                style={{
+                  ...getBackgroundTextStyles(memory.backgroundId),
+                  fontFamily: getFontFamily(memory.fontId),
+                }}
+              >
+                "{memory.description}"
+              </p>
+            </div>
+          )}
+          {memory.type === "Voice" && (
+            <VoicePlayer memory={memory} />
+          )}
+        </div>
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="px-5 pb-4 flex flex-wrap gap-2">
+            {tags.map(tag => (
+              <span key={tag} className="rounded-md bg-[#eff0ff] dark:bg-[#25284b] px-2.5 py-1 text-[10px] font-bold text-[#5e4eff] dark:text-[#8f83ff]">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="border-t border-[#d2d5ff] dark:border-[#383c66]/40 px-5 py-3 flex items-center justify-between relative">
+          {reactionPickerOpen && (
+            <div className="absolute bottom-full left-4 z-20 mb-2 flex rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-xl animate-scale-up">
+              {reactions.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => chooseReaction(item.id)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-xl transition hover:-translate-y-1 hover:bg-[var(--brand-soft)] cursor-pointer"
+                  aria-label={item.label}
+                >
+                  {item.icon}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-5 text-stone-500 dark:text-stone-400">
+            <button 
+              onMouseDown={startReactionHold}
+              onMouseUp={quickReact}
+              onMouseLeave={clearHoldTimer}
+              onTouchStart={startReactionHold}
+              onTouchEnd={quickReact}
+              className={`flex items-center gap-1.5 transition cursor-pointer ${reaction ? selectedReaction?.color : "hover:text-[#4f37ff]"}`}
+            >
+              {reaction && selectedReaction?.id !== "heart" ? (
+                <span className="text-lg leading-none -mt-0.5">{selectedReaction.icon}</span>
+              ) : (
+                <Heart size={16} strokeWidth={2} className={reaction === "heart" ? "fill-rose-500 text-rose-500" : ""} />
+              )}
+              <span className="text-[11px] font-bold">{reactionCount}</span>
+            </button>
+            <button className="flex items-center gap-1.5 hover:text-[#4f37ff] transition cursor-pointer" onClick={toggleComments}>
+              <MessageCircle size={16} strokeWidth={2} />
+              <span className="text-[11px] font-bold">{commentsCount}</span>
+            </button>
+          </div>
+          <div className="text-[#4f37ff] dark:text-[#8f83ff]">
+            {displayAudience === "Public" ? <Globe size={14} strokeWidth={2.5} /> : <Users size={14} strokeWidth={2.5} />}
+          </div>
+        </div>
+        
+        {commentsOpen && (
+          <div className="border-t border-[#d2d5ff] dark:border-[#383c66]/40">
+            <CommentsSection
+              memoryId={memory.id}
+              initialComments={[]}
+            />
+          </div>
+        )}
+      </article>
+    );
+  }
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">

@@ -633,7 +633,7 @@ function RecordMemoryContent() {
           )}
 
           {/* Tell Us About This Moment Card */}
-          <div className="glass-panel p-6 space-y-6 text-left rounded-[2rem] shadow-xl backdrop-blur-xl">
+          <div className="glass-panel p-6 space-y-6 text-left rounded-[2rem] shadow-xl backdrop-blur-xl relative z-50">
             <h2 className="text-xl font-black text-[var(--ink)] dark:text-white leading-none">Tell us about this moment</h2>
             
             {/* Title Field */}
@@ -682,7 +682,7 @@ function RecordMemoryContent() {
             </div>
 
             {/* Life Chapter Dropdown */}
-            <div className="space-y-1.5 relative" ref={chapterDropdownRef}>
+            <div className="space-y-1.5 relative z-50" ref={chapterDropdownRef}>
               <label className="text-xs font-black uppercase tracking-wide text-stone-500">Life Chapter</label>
               <button
                 type="button"
@@ -720,7 +720,7 @@ function RecordMemoryContent() {
           </div>
 
           {/* Tone & Privacy Row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 relative z-40">
             {/* Tone Selector */}
             <div className="relative" ref={toneDropdownRef}>
               <button
@@ -811,7 +811,7 @@ function RecordMemoryContent() {
           </div>
 
           {/* Select Albums Dropdown */}
-          <div className="relative" ref={albumDropdownRef}>
+          <div className="relative z-30" ref={albumDropdownRef}>
             <button
               type="button"
               onClick={() => setIsAlbumDropdownOpen(!isAlbumDropdownOpen)}

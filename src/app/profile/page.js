@@ -34,7 +34,8 @@ import {
   Mail,
   Link2,
   Copy,
-  Plus
+  Plus,
+  Search
 } from "lucide-react";
 import {
   AVATAR_PRESETS,
@@ -45,6 +46,7 @@ import { albums as mockAlbums } from "@/data/mockApp";
 import { getBackgroundStyles, getBackgroundOverlay, getBackgroundTextStyles } from "@/data/postBackgrounds";
 import { getFontFamily } from "@/data/postFonts";
 import FeedCard from "@/components/ui/FeedCard";
+import MemoryDetailModal from "@/components/ui/MemoryDetailModal";
 import UserAvatar from "@/components/ui/UserAvatar";
 import WavesBackground from "@/components/layout/WavesBackground";
 import { useAuth } from "@/context/AuthProvider";
@@ -57,19 +59,24 @@ import {
   getFamilyMembers,
   deleteMemoryOnBackend,
   updateMemoryOnBackend,
-  getBackendErrorMessage
+  getBackendErrorMessage,
+  getAlbumsFromBackend
 } from "@/services/backend";
+import CreateAlbumModal from "@/components/ui/CreateAlbumModal";
 
 export default function ProfilePage() {
   const { firebaseUser, loading: authLoading } = useAuth();
   const [userProfile, setUserProfile] = useState(null);
   const [localMemories, setLocalMemories] = useState([]);
   const [activeTab, setActiveTab] = useState("memories"); // "memories", "albums"
+  const [selectedMemoryDetail, setSelectedMemoryDetail] = useState(null);
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
   const [custodianName, setCustodianName] = useState("None assigned");
   const [loadingData, setLoadingData] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [albums, setAlbums] = useState([]);
+  const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
   
   // Inline editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -168,6 +175,9 @@ export default function ProfilePage() {
 
       const memories = await getMemoriesFromBackend(token, profile.firebaseUid);
       setLocalMemories(memories || []);
+      
+      const fetchedAlbums = await getAlbumsFromBackend(token);
+      setAlbums(fetchedAlbums || []);
     } catch (err) {
       console.error(err);
       setErrorMsg("Failed to load profile details: " + getBackendErrorMessage(err));
@@ -443,6 +453,10 @@ export default function ProfilePage() {
   const avatarURL = userProfile.photoURL || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80";
   const bio = userProfile.bio || "Documenting my journey from small-town dreamer to business owner, mother, and lifelong learner.";
   const quote = userProfile.values || "Live intentionally, love deeply, leave a legacy of kindness.";
+  
+  const milestoneMemories = localMemories.filter(m => m.tags?.some(t => t === "Milestone" || t === "Milestones") || m.chapter === "Milestones" || m.chapter === "Milestone");
+  const regularMemories = localMemories.filter(m => !(m.tags?.some(t => t === "Milestone" || t === "Milestones") || m.chapter === "Milestones" || m.chapter === "Milestone"));
+
 
   return (
     <WavesBackground>
@@ -456,10 +470,10 @@ export default function ProfilePage() {
         )}
 
         {/* Profile Card Header (Cover Photo & Avatar) */}
-        <div className="overflow-hidden rounded-3xl bg-white dark:bg-[#162033] shadow-lg border border-stone-150/40 dark:border-stone-850">
-          {/* Cover Photo */}
+        <div className="overflow-hidden rounded-3xl bg-white dark:bg-[#162033] shadow-lg border-2 border-[var(--brand)]/30 dark:border-[var(--brand)]/50">
+          {/* Cover Media */}
           <div 
-            onClick={() => setViewerImage({ url: coverURL, title: "Cover Photo", onEdit: () => setEditCoverOpen(true) })}
+            onClick={() => setViewerImage({ url: coverURL, title: "Cover Media", onEdit: () => setEditCoverOpen(true) })}
             className="relative h-48 md:h-64 bg-stone-100 group overflow-hidden cursor-pointer"
           >
             <img src={coverURL} alt="Cover" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.01]" />
@@ -481,8 +495,8 @@ export default function ProfilePage() {
             {/* Symmetrical iOS-like Rounded Square Avatar */}
             <div className="relative z-10 -mt-16 md:-mt-20 w-28 h-28 md:w-32 md:h-32">
               <div 
-                onClick={() => setViewerImage({ url: avatarURL, title: "Profile Picture", onEdit: () => setEditAvatarOpen(true) })}
-                className="w-full h-full border-4 border-white dark:border-[#162033] shadow-xl bg-stone-200 rounded-[2rem] overflow-hidden cursor-pointer"
+                onClick={() => setViewerImage({ url: avatarURL, title: "Profile Media", onEdit: () => setEditAvatarOpen(true) })}
+                className="w-full h-full border-4 border-[#4f37ff] dark:border-[#8f83ff] shadow-xl bg-stone-200 rounded-[2rem] overflow-hidden cursor-pointer"
               >
                 <img src={avatarURL} alt={displayName} className="w-full h-full object-cover" />
               </div>
@@ -494,7 +508,7 @@ export default function ProfilePage() {
                   setEditAvatarOpen(true);
                 }}
                 className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer hover:scale-105 z-20"
-                title="Edit Profile Picture"
+                title="Edit Profile Media"
               >
                 <Camera size={14} />
               </button>
@@ -626,7 +640,7 @@ export default function ProfilePage() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {defaultExpertise.map((badge) => (
-                    <span key={badge} className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#e3f2fd] text-[#1e88e5] dark:bg-[#1a237e]/30 dark:text-[#42a5f5] border border-[#bbdefb]/40">
+                    <span key={badge} className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--brand-soft)] text-[var(--brand)] dark:bg-[var(--brand-soft)] border border-[var(--brand)]/30">
                       {badge}
                     </span>
                   ))}
@@ -687,7 +701,34 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Quotes Card */}
+            {/* Stats Grid (1 row on large screens) */}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 mt-2">
+              {[
+                { count: regularMemories.length, label: "All Memories", tab: "memories" },
+                { count: albums.length, label: "Albums", tab: "albums" },
+                { count: milestoneMemories.length, label: "Milestones", tab: "milestones" },
+                { count: followersCount || 342, label: "Followers", tab: "followers" }
+              ].map((stat) => (
+                <button
+                  key={stat.label}
+                  onClick={() => setActiveTab(stat.tab)}
+                  className={`p-3 md:p-4 rounded-2xl border flex flex-col items-center justify-center text-center shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer ${
+                    activeTab === stat.tab 
+                      ? "border-[#4f37ff] bg-[#4f37ff]/10 dark:bg-[#4f37ff]/20" 
+                      : "border-[#d2d5ff] bg-[#eef0ff]/65 dark:bg-[#1a1d35]/40 dark:border-[#383c66]/40 hover:bg-white dark:hover:bg-[#162033]"
+                  }`}
+                >
+                  <span className="text-xl md:text-2xl font-black text-stone-850 dark:text-white leading-none">{stat.count}</span>
+                  <span className="text-[9px] font-bold text-stone-500 mt-1.5 uppercase tracking-wide">{stat.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column on Desktop (Stats Grid, Life Journey) */}
+          <div className="md:col-span-6 space-y-6">
+            
+            {/* Quotes Card (Moved from left for alignment) */}
             <div className="p-6 rounded-3xl border border-[#d2d5ff] bg-[#eef0ff]/55 dark:bg-[#1a1d35]/25 dark:border-[#383c66]/30 relative overflow-hidden flex flex-col items-center justify-center shadow-sm min-h-[140px]">
               <span className="absolute top-1 left-4 text-8xl font-serif text-[#c5c8ff]/30 dark:text-[#4a4f80]/15 pointer-events-none select-none">“</span>
               {isEditing ? (
@@ -705,31 +746,13 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Bottom Preserving Banner */}
+            {/* Bottom Preserving Banner (Moved to right side) */}
             <div className="border border-[#d2d5ff] dark:border-[#383c66]/40 rounded-2xl p-4 bg-white/60 dark:bg-stone-900/30 text-center shadow-sm">
               <p className="text-xs md:text-sm font-bold text-[#4f37ff] dark:text-[#8f83ff] italic tracking-wide">
                 "Changing The Way We Preserve Our Legacy"
               </p>
             </div>
-          </div>
-
-          {/* Right Column on Desktop (Stats Grid, Life Journey) */}
-          <div className="md:col-span-6 space-y-6">
-            {/* Stats Grid (2x2) */}
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { count: localMemories.length || 127, label: "All Memories" },
-                { count: mockAlbums.length || 12, label: "Albums" },
-                { count: localMemories.filter(m => m.tags?.includes("Milestone")).length || 18, label: "Milestones" },
-                { count: followersCount || 342, label: "Followers" }
-              ].map((stat) => (
-                <div key={stat.label} className="p-5 rounded-2xl border border-[#d2d5ff] bg-[#eef0ff]/65 dark:bg-[#1a1d35]/40 dark:border-[#383c66]/40 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-2xl md:text-3xl font-black text-stone-850 dark:text-white leading-none">{stat.count}</span>
-                  <span className="text-[10px] font-bold text-stone-500 mt-2 uppercase tracking-wide">{stat.label}</span>
-                </div>
-              ))}
-            </div>
-
+            
             {/* Legacy Portrait & Life Journey Details Section */}
             {hasLegacyDetails || isEditing ? (
               <div className="rounded-3xl border border-[#d2d5ff] bg-white/70 dark:bg-[#162033]/50 p-6 text-left shadow-sm space-y-6">
@@ -893,31 +916,55 @@ export default function ProfilePage() {
           </div> {/* Closes Right Column */}
         </div> {/* Closes Split Grid container */}
 
-        {/* Navigation Tab buttons (All Memories & Albums) */}
+        {/* Navigation Tab buttons */}
             <div className="flex items-center gap-4 bg-[var(--surface)] p-2 rounded-2xl border border-[var(--border)] shadow-sm">
-              <button
-                onClick={() => setActiveTab("memories")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                  activeTab === "memories"
-                    ? "bg-[var(--brand)] text-white shadow-sm"
-                    : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-850"
-                }`}
-              >
-                <FileText size={14} />
-                All Memories ({localMemories.length})
-              </button>
-              
-              <button
-                onClick={() => setActiveTab("albums")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                  activeTab === "albums"
-                    ? "bg-[var(--brand)] text-white shadow-sm"
-                    : "text-stone-600 hover:bg-[var(--background)] hover:text-stone-850"
-                }`}
-              >
-                <FolderHeart size={14} />
-                Albums ({mockAlbums.length})
-              </button>
+              {(activeTab === "memories" || activeTab === "albums") ? (
+                <>
+                  <button
+                    onClick={() => setActiveTab("memories")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                      activeTab === "memories"
+                        ? "bg-[#4f37ff] text-white shadow-sm"
+                        : "text-stone-600 hover:bg-[#4f37ff]/10 hover:text-[#4f37ff]"
+                    }`}
+                  >
+                    All Memories
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("albums")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                      activeTab === "albums"
+                        ? "bg-[#4f37ff] text-white shadow-sm"
+                        : "text-stone-600 hover:bg-[#4f37ff]/10 hover:text-[#4f37ff]"
+                    }`}
+                  >
+                    Albums
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setActiveTab("milestones")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                      activeTab === "milestones"
+                        ? "bg-[#4f37ff] text-white shadow-sm"
+                        : "text-stone-600 hover:bg-[#4f37ff]/10 hover:text-[#4f37ff]"
+                    }`}
+                  >
+                    Milestones
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("followers")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                      activeTab === "followers"
+                        ? "bg-[#4f37ff] text-white shadow-sm"
+                        : "text-stone-600 hover:bg-[#4f37ff]/10 hover:text-[#4f37ff]"
+                    }`}
+                  >
+                    Followers
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Main Content Area */}
@@ -964,13 +1011,15 @@ export default function ProfilePage() {
                   </div>
 
                   {/* Memories stream */}
-                  {localMemories.length > 0 ? (
-                    localMemories.map((memory) => (
+                  {regularMemories.length > 0 ? (
+                    regularMemories.map((memory) => (
                       <FeedCard
                         key={memory.id}
                         memory={memory}
+                        isProfileView={true}
                         onEdit={handleStartEditMemory}
                         onDelete={handleDeleteMemory}
+                        onClickDetail={setSelectedMemoryDetail}
                       />
                     ))
                   ) : (
@@ -981,73 +1030,188 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {activeTab === "albums" && (
-                mockAlbums.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-                    {mockAlbums.map((album) => (
-                      <Link
-                        key={album.id}
-                        href={`/albums/${album.id}?from=profile`}
-                        className="group relative h-40 rounded-2xl overflow-hidden border border-[var(--border)] shadow-sm cursor-pointer transition active:scale-[0.98] block"
-                      >
-                        <img src={album.cover} alt={album.title} className="h-full w-full object-cover transition duration-505 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-white" />
-                        <div className="absolute bottom-3 left-3 text-white">
-                          <h4 className="text-base font-black leading-tight">{album.title}</h4>
-                          <p className="text-[9px] font-semibold opacity-85 mt-1 uppercase tracking-wider">Open Gallery</p>
+              {activeTab === "milestones" && (
+                <div className="space-y-4">
+                  {/* Search Bar for Milestones (matching Followers screenshot styling) */}
+                  <div className="relative mb-6">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search milestones..."
+                      className="w-full rounded-xl border border-[#c8c5ff] bg-white py-3 pl-11 pr-4 text-sm font-semibold text-stone-800 shadow-sm focus:border-[#4f37ff] focus:outline-none focus:ring-1 focus:ring-[#4f37ff] dark:bg-[#162033] dark:text-white"
+                    />
+                  </div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-500">{milestoneMemories.length} milestones</span>
+                  </div>
+
+                  {milestoneMemories.length > 0 ? (
+                    milestoneMemories.map((memory) => (
+                      <FeedCard
+                        key={memory.id}
+                        memory={memory}
+                        isProfileView={true}
+                        onEdit={handleStartEditMemory}
+                        onDelete={handleDeleteMemory}
+                        onClickDetail={setSelectedMemoryDetail}
+                      />
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm">
+                      <p className="text-xs font-bold text-stone-500">You haven't added any milestones yet.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "followers" && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="relative mb-6">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search followers..."
+                      className="w-full rounded-xl border border-[#c8c5ff] bg-white py-3 pl-11 pr-4 text-sm font-semibold text-stone-800 shadow-sm focus:border-[#4f37ff] focus:outline-none focus:ring-1 focus:ring-[#4f37ff] dark:bg-[#162033] dark:text-white"
+                    />
+                  </div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-500">5 followers</span>
+                  </div>
+
+                  {[
+                    { name: "Sarah Jenkins", role: "Daughter", following: true, avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80", text: '"Always listening to your stories from the 80s."' },
+                    { name: "Robert Miller", role: "Close Friend", following: false, avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80", text: '"Following along to relive our college days together."' },
+                    { name: "Elena Johnson", role: "Mentee", following: false, avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80", text: "Learning from your experiences in the architecture field." },
+                    { name: "Michael Thompson", role: "Grandson", following: true, avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80", text: "Mom said I should listen to these formostly." },
+                    { name: "Dr. Emily Chen", role: "Colleague", following: false, avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80", text: "Fascinating archive of the early research days." }
+                  ].map((follower, idx) => (
+                    <div key={idx} className="rounded-xl border border-[#4f37ff] bg-[#eff0ff]/40 dark:bg-[#1a1d35]/40 p-4 flex gap-4 shadow-sm items-start">
+                      <img src={follower.avatar} alt={follower.name} className="h-14 w-14 rounded-xl object-cover border border-[#c8c5ff]" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-sm font-black text-stone-850 dark:text-white truncate">{follower.name}</h4>
+                            <span className="rounded-md bg-[#d2d5ff] dark:bg-[#383c66] px-2 py-0.5 text-[9px] font-bold text-[#4f37ff] dark:text-[#8f83ff] uppercase tracking-wide">
+                              {follower.role}
+                            </span>
+                          </div>
+                          {follower.following ? (
+                            <button className="flex items-center gap-1.5 rounded-lg border border-[#4f37ff] bg-white dark:bg-transparent px-3 py-1.5 text-[10px] font-bold text-[#4f37ff] dark:text-[#8f83ff] shadow-sm ml-2 shrink-0">
+                              <Check size={12} strokeWidth={3} />
+                              Following
+                            </button>
+                          ) : (
+                            <button className="flex items-center gap-1.5 rounded-lg bg-[#4f37ff] px-3 py-1.5 text-[10px] font-bold text-white shadow-sm ml-2 shrink-0">
+                              <Plus size={12} strokeWidth={3} />
+                              Follow Back
+                            </button>
+                          )}
                         </div>
-                      </Link>
-                    ))}
+                        <p className="text-xs font-semibold text-stone-500 leading-relaxed">{follower.text}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button className="w-full mt-4 rounded-xl border border-[#4f37ff] bg-white/50 dark:bg-transparent py-3.5 text-sm font-bold text-[#4f37ff] dark:text-[#8f83ff] shadow-sm hover:bg-[#4f37ff]/5 transition cursor-pointer">
+                    Load More Followers
+                  </button>
+                </div>
+              )}
+
+              {activeTab === "albums" && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-500">{albums.length} albums</span>
+                    <button 
+                      onClick={() => setCreateAlbumOpen(true)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4f37ff] text-[#4f37ff] hover:bg-[#eff0ff] transition cursor-pointer"
+                    >
+                      <Plus size={16} strokeWidth={2.5} />
+                    </button>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm">
-                    <FolderHeart size={64} className="text-stone-400 mb-4" strokeWidth={1.5} />
-                    <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2">No albums yet</h3>
-                    <p className="text-sm text-stone-500 max-w-sm">Create albums in the Albums tab to organize your memories</p>
-                  </div>
-                )
+                  
+                  {albums.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {albums.map((album) => (
+                        <Link
+                          key={album.id}
+                          href={`/albums/${album.id}?from=profile`}
+                          className="group relative h-40 rounded-2xl overflow-hidden border border-[var(--border)] shadow-sm cursor-pointer transition active:scale-[0.98] block"
+                        >
+                          <img src={album.coverImageUrl || album.coverImageKey || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80"} alt={album.title} className="h-full w-full object-cover transition duration-505 group-hover:scale-105" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 text-white" />
+                          <div className="absolute bottom-3 left-3 text-white">
+                            <h4 className="text-base font-black leading-tight">{album.title}</h4>
+                            <p className="text-[9px] font-semibold opacity-85 mt-1 uppercase tracking-wider">Open Gallery</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm">
+                      <FolderHeart size={64} className="text-stone-400 mb-4" strokeWidth={1.5} />
+                      <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2">No albums yet</h3>
+                      <p className="text-sm text-stone-500 max-w-sm">Create albums in the Albums tab to organize your memories</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
       </div>
 
-      {/* Fullscreen Image Viewer Modal */}
+      {createAlbumOpen && (
+        <CreateAlbumModal 
+          onClose={() => setCreateAlbumOpen(false)} 
+          onSuccess={() => {
+            setCreateAlbumOpen(false);
+            loadProfileAndMemories();
+          }} 
+        />
+      )}
+
+      {/* Fullscreen Media Viewer Modal */}
       {viewerImage && (
         <div 
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-white/30 dark:bg-black/60 backdrop-blur-2xl px-4 animate-fade-in"
           onClick={() => setViewerImage(null)}
         >
           {/* Close button */}
           <button 
             onClick={() => setViewerImage(null)}
-            className="absolute top-6 right-6 rounded-full p-2 bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            className="absolute top-6 right-6 rounded-full p-2 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-stone-800 dark:text-white transition cursor-pointer z-50 backdrop-blur-md"
           >
             <X size={24} />
           </button>
 
-          {/* Image Container */}
+          {/* Media Container */}
           <div 
-            className="w-full max-w-3xl flex flex-col items-center gap-4 animate-scale-up"
+            className="relative w-full max-w-4xl max-h-[90vh] flex flex-col items-center justify-center animate-scale-up"
             onClick={(e) => e.stopPropagation()}
           >
-            <img 
-              src={viewerImage.url} 
-              alt={viewerImage.title} 
-              className="max-w-full max-h-[75vh] object-contain rounded-2xl border border-white/10 shadow-2xl" 
-            />
-            
-            <div className="flex items-center gap-4 text-white">
-              <span className="text-sm font-bold">{viewerImage.title}</span>
-              <button
-                onClick={() => {
-                  viewerImage.onEdit();
-                }}
-                className="flex items-center gap-1.5 rounded-full bg-[#4f37ff] hover:bg-[#3b23e0] text-white px-4 py-1.5 text-xs font-black shadow-lg transition duration-200 cursor-pointer"
-              >
-                <Camera size={12} />
-                Update Photo
-              </button>
+            <div className="w-full flex-1 flex items-center justify-center">
+              <img 
+                src={viewerImage.url} 
+                alt={viewerImage.title} 
+                className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-white/50 dark:border-white/10" 
+              />
             </div>
+            
+            {viewerImage.onEdit && (
+              <div className="flex items-center gap-6 mt-6 bg-white/70 dark:bg-black/60 backdrop-blur-xl px-6 py-3 rounded-full border border-white/60 dark:border-white/20 shadow-xl">
+                <span className="text-sm font-bold text-stone-800 dark:text-white">{viewerImage.title}</span>
+                <button
+                  onClick={() => {
+                    viewerImage.onEdit();
+                    setViewerImage(null);
+                  }}
+                  className="flex items-center gap-2 rounded-full bg-[#4f37ff] hover:bg-[#3b23e0] text-white px-5 py-2 text-xs font-black shadow-lg shadow-[#4f37ff]/30 transition-all active:scale-95 duration-200 cursor-pointer"
+                >
+                  <Camera size={14} />
+                  Update Media
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1151,53 +1315,12 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Fullscreen Image Viewer Modal */}
-      {viewerImage && (
-        <div 
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-fade-in"
-          onClick={() => setViewerImage(null)}
-        >
-          {/* Close button */}
-          <button 
-            onClick={() => setViewerImage(null)}
-            className="absolute top-6 right-6 rounded-full p-2 bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
-          >
-            <X size={24} />
-          </button>
-
-          {/* Image Container */}
-          <div 
-            className="w-full max-w-3xl flex flex-col items-center gap-4 animate-scale-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img 
-              src={viewerImage.url} 
-              alt={viewerImage.title} 
-              className="max-w-full max-h-[75vh] object-contain rounded-2xl border border-white/10 shadow-2xl" 
-            />
-            
-            <div className="flex items-center gap-4 text-white">
-              <span className="text-sm font-bold">{viewerImage.title}</span>
-              <button
-                onClick={() => {
-                  viewerImage.onEdit();
-                }}
-                className="flex items-center gap-1.5 rounded-full bg-[#4f37ff] hover:bg-[#3b23e0] text-white px-4 py-1.5 text-xs font-black shadow-lg transition duration-200 cursor-pointer"
-              >
-                <Camera size={12} />
-                Update Photo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit Avatar Presets Modal */}
       {editAvatarOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl animate-scale-up">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-black">Edit Profile Picture</h3>
+              <h3 className="text-lg font-black">Edit Profile Media</h3>
               <button onClick={() => setEditAvatarOpen(false)} className="rounded-lg p-1.5 hover:bg-[var(--background)] transition cursor-pointer">
                 <X size={18} />
               </button>
@@ -1260,7 +1383,7 @@ export default function ProfilePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl animate-scale-up">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-black">Edit Cover Photo</h3>
+              <h3 className="text-lg font-black">Edit Cover Media</h3>
               <button onClick={() => setEditCoverOpen(false)} className="rounded-lg p-1.5 hover:bg-[var(--background)] transition cursor-pointer">
                 <X size={18} />
               </button>
@@ -1388,6 +1511,13 @@ export default function ProfilePage() {
             </form>
           </div>
         </div>
+      )}
+      {selectedMemoryDetail && (
+        <MemoryDetailModal
+          memory={selectedMemoryDetail}
+          userProfile={userProfile}
+          onClose={() => setSelectedMemoryDetail(null)}
+        />
       )}
     </WavesBackground>
   );
