@@ -1,58 +1,138 @@
 "use client";
 
-import { Bell, ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Play, Pause, Mic, Image as ImageIcon, FileText, Share2, LogOut, Settings, HelpCircle, User, Sparkles, Users, BookOpen, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import DashboardHeader from "@/components/layout/DashboardHeader";
 import LandingPage from "@/app/landing/page";
 import { useAuth } from "@/context/AuthProvider";
 import { useRouter } from "next/navigation";
 import { getAlbumsFromBackend, getMemoriesFromBackend } from "@/services/backend";
-import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { memories } from "@/data/mockApp";
 import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COVER_PRESETS } from "@/data/userProfile";
 
-// Sliding Album Card Component
-function AlbumSlideshowCard({ album }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+function MemoryCard({ memory, index }) {
+  const type = memory.type?.toLowerCase() || "voice";
+  const dateStr = memory.date || new Date(memory.createdAt).toLocaleDateString() || "Unknown Date";
+  
+  const openView = () => {
+    window.dispatchEvent(new CustomEvent("openMemoryView", { detail: {
+      ...memory,
+      date: dateStr
+    } }));
+  };
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev === 0 ? 1 : 0));
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
+  const delay = `stagger-${(index % 4) + 2}`;
 
-  return (
-    <Link href={`/albums/${album.id}?from=home`} className="shrink-0 w-40 md:w-52 h-52 md:h-64 rounded-3xl snap-center relative overflow-hidden shadow-lg cursor-pointer group active:scale-95 transition-transform block">
-      {album.images.map((img, index) => (
-        <img key={index} src={img} alt={album.title}
-          className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${index === currentIndex ? "opacity-100 scale-100" : "opacity-0 scale-110"}`}
-        />
-      ))}
-      <div className="absolute inset-0 bg-[var(--brand)] mix-blend-multiply opacity-35 group-hover:opacity-20 transition-opacity duration-500" />
-      <div className="absolute inset-0 p-4 md:p-5 flex flex-col justify-end bg-gradient-to-t from-black/95 via-black/20 to-transparent text-white">
-        <h3 className="font-bold text-base md:text-lg leading-tight mb-1">{album.title}</h3>
-        <p className="text-xs font-medium opacity-90">{album.count}</p>
-        <div className="flex gap-1 mt-2">
-          {album.images.map((_, idx) => (
-            <div key={idx} className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`} />
+  if (type === "voice") {
+    return (
+      <div onClick={openView} className={`figma-card p-6 md:p-8 animate-fade-in-up ${delay} break-inside-avoid cursor-pointer`}>
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-2 text-[#f59e0b]">
+            <Mic size={16} strokeWidth={2.5} />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]">VOICE</span>
+          </div>
+          <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+        </div>
+        <h3 className="text-[22px] font-bold mb-3 text-stone-900">{memory.title}</h3>
+        <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">
+          {memory.description || "No transcript available for this voice memory."}
+        </p>
+        <div className="flex items-center gap-3 bg-white border border-[#E5E7EB] rounded-full p-1.5 pr-6 mb-6 w-full max-w-full">
+          <button className="h-10 w-10 shrink-0 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center hover:bg-[#3b2dd1] transition-colors">
+            <Play size={18} fill="currentColor" className="ml-0.5" />
+          </button>
+          <div className="flex-1 flex items-center overflow-hidden">
+            <div className="w-full border-t-4 border-dotted border-[#A5B4FC] opacity-60" />
+          </div>
+          <span className="text-xs font-bold text-stone-500">{memory.duration || "1:00"}</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(memory.tags || []).map(tag => (
+            <span key={tag} className="px-3 py-1 bg-white border border-[#E5E7EB] rounded-full text-[11px] font-semibold text-stone-500">{tag}</span>
           ))}
         </div>
       </div>
-    </Link>
+    );
+  }
+
+  if (type === "text" || type === "written" || type === "milestone") {
+    return (
+      <div onClick={openView} className={`figma-card p-6 md:p-8 flex flex-col gap-6 animate-fade-in-up ${delay} break-inside-avoid cursor-pointer`}>
+        <div className="flex-1">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-2">
+              <FileText size={16} strokeWidth={2.5} className="text-[#10b981]" />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-[#10b981]">WRITTEN</span>
+            </div>
+            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+          </div>
+          <h3 className="text-[22px] font-bold mb-3 text-stone-900">{memory.title}</h3>
+          <p className="text-stone-500 mb-6 line-clamp-3 text-[15px] leading-relaxed">
+            {memory.description}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(memory.tags || []).map(tag => (
+              <span key={tag} className="px-3 py-1 bg-[#4A3AFF] text-white rounded-full text-[11px] font-semibold">{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // photo / video
+  return (
+    <div onClick={openView} className={`figma-card overflow-hidden group animate-fade-in-up ${delay} break-inside-avoid cursor-pointer`}>
+      <div className="h-48 bg-stone-200 relative overflow-hidden">
+        <img src={memory.image || memory.cover || "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80"} alt="Memory" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+      </div>
+      <div className="p-6 md:p-8">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-2">
+            <ImageIcon size={16} strokeWidth={2.5} className="text-[#3b82f6]" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-[#3b82f6]">PHOTO</span>
+          </div>
+          <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+        </div>
+        <h3 className="text-[22px] font-bold mb-2 text-stone-900">{memory.title}</h3>
+        <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>
+        <div className="flex flex-wrap gap-2">
+          {(memory.tags || []).map(tag => (
+            <span key={tag} className="px-3 py-1 bg-[#4A3AFF] text-white rounded-full text-[11px] font-semibold">{tag}</span>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function Home() {
   const router = useRouter();
-  useEffect(() => {
-    router.replace("/profile");
-  }, [router]);
-
-  const { isAuthenticated, loading, profile, firebaseUser } = useAuth();
-  const [albumsList, setAlbumsList] = useState([]);
+  const { isAuthenticated, loading, profile, firebaseUser, logout } = useAuth();
+  
   const [memoriesList, setMemoriesList] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
+  const [currentDate, setCurrentDate] = useState("Loading date...");
+  const [greeting, setGreeting] = useState("Hello");
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+      setCurrentDate(now.toLocaleDateString('en-US', options));
+
+      const hour = now.getHours();
+      if (hour < 12) setGreeting("Good morning");
+      else if (hour < 17) setGreeting("Good afternoon");
+      else if (hour < 21) setGreeting("Good evening");
+      else setGreeting("Good night");
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     function loadProfile() {
@@ -69,210 +149,153 @@ export default function Home() {
             getAlbumsFromBackend(token),
             getMemoriesFromBackend(token)
           ]);
-
-          const mappedAlbums = backendAlbums.map(album => ({
-            id: album.id,
-            title: album.title,
-            privacy: album.privacy || "Private",
-            cover: album.coverImageUrl || album.coverImageKey || COVER_PRESETS[0].url,
-            created: new Date(album.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-          }));
-
-          const mappedMemories = backendMemories.map(m => ({
-            id: m.id,
-            title: m.title,
-            type: m.type,
-            description: m.description,
-            date: new Date(m.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
-            privacy: m.privacy || "Private",
-            image: m.thumbnailUrl || m.mediaUrl || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
-          }));
-
-          setAlbumsList(mappedAlbums);
-          setMemoriesList(mappedMemories);
+          setMemoriesList(backendMemories || []);
           return;
         } catch (error) {
-          console.warn("Failed to load backend home data, using local fallback:", error);
+          console.warn("Failed to load backend data", error);
         }
       }
-
-      // Local storage fallback
-      setAlbumsList(getStoredAlbums());
       seedInitialMemoriesIfNeeded();
       const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-      if (saved) {
-        try {
-          setMemoriesList(JSON.parse(saved));
-        } catch {
-          setMemoriesList(memories);
-        }
-      } else {
-        setMemoriesList(memories);
-      }
+      setMemoriesList(saved ? JSON.parse(saved) : memories);
     };
 
     loadHomeData();
-
-    return () => window.removeEventListener("profileUpdated", loadProfile);
+    window.addEventListener("memoryPublished", loadHomeData);
+    return () => {
+      window.removeEventListener("profileUpdated", loadProfile);
+      window.removeEventListener("memoryPublished", loadHomeData);
+    };
   }, [isAuthenticated, firebaseUser]);
 
-  const quickActions = [
-    { name: "Voice", label: "Quick Audio", href: "/record?mode=Voice" },
-    { name: "Write", label: "Journal Entry", href: "/record?mode=Text" },
-    { name: "Photo", label: "Upload Image", href: "/record?mode=Photo" },
-    { name: "Video", label: "Record Clip", href: "/record?mode=Video" },
-  ];
+  if (loading) return null;
+  if (!isAuthenticated) return null;
 
-  const recentMemories = memoriesList.slice(0, 4);
+  const fullName = firebaseUser?.displayName || profile?.displayName || firebaseUser?.email?.split("@")[0] || profile?.email?.split("@")[0] || userProfile?.name || "Explorer";
 
-  const heroAlbums = albumsList.slice(0, 3).map((album) => {
-    const albumMemories = memoriesList.filter((m) => (m.albums && m.albums.includes(album.id)) || m.albumId === album.id);
-    return {
-      ...album,
-      count: `${albumMemories.length} Memories`,
-      images: [
-        album.cover,
-        albumMemories.find((m) => m.image)?.image ?? album.cover,
-      ],
-    };
-  });
-  if (loading) {
-    return null;
-  }
-
-  // ── LANDING PAGE (Logged-out) ──
-  if (!isAuthenticated) {
-    return <LandingPage />;
-  }
-
-  const displayName =
-    userProfile?.name?.split(" ")[0] ||
-    profile?.displayName?.split(" ")[0] ||
-    profile?.email?.split("@")[0] ||
-    "Explorer";
-
-  // ── DASHBOARD (Logged-in) ──
   return (
-    <div className="w-full animation-fade-in pb-24">
-      {/* Header */}
-      <header className="mb-6 md:mb-8 flex justify-between items-end gap-4">
-        <div>
-          <p className="text-[var(--foreground)] opacity-60 text-sm font-medium mb-1">Good Morning,</p>
-          <h1 className="text-3xl md:text-4xl font-bold text-[var(--foreground)] tracking-tight">{displayName}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/search" className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95" aria-label="Search">
-            <Search size={18} />
-          </Link>
-          <Link href="/notifications" className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95" aria-label="Notifications">
-            <Bell size={18} />
-            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-rose-500" />
-          </Link>
-          <Link href="/profile" className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]/50 text-sm font-black text-[var(--brand)] shadow-sm lg:hidden overflow-hidden transition active:scale-95 shrink-0" aria-label="Profile">
-            {userProfile?.avatar ? (
-              <img src={userProfile.avatar} alt={userProfile.name} className="h-full w-full object-cover animate-fade-in" />
+    <div className="w-full pb-24 animate-fade-in">
+      {/* TOP HEADER BAR */}
+      <DashboardHeader />
+
+      {/* WELCOME BANNER */}
+      <div className="mb-10 animate-fade-in-up stagger-1">
+        <p className="text-stone-400 font-semibold text-sm mb-1">{currentDate}</p>
+        <h1 className="text-4xl md:text-5xl font-black text-stone-900 tracking-tight mb-2 leading-none">
+          {greeting}, {fullName}.
+        </h1>
+        <p className="text-stone-500 text-sm font-medium">
+          Your archive has <span className="font-bold text-[var(--brand)]">247 memories</span> and is growing.
+        </p>
+      </div>
+
+      {/* TOP STAT CARDS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
+        {[
+          { icon: BookOpen, count: 247, label: "Memories", iconColor: "text-[#4A3AFF]", delay: "stagger-1" },
+          { icon: Mic, count: 89, label: "Voice recordings", iconColor: "text-[#f59e0b]", delay: "stagger-2" },
+          { icon: Users, count: 5, label: "Family members", iconColor: "text-[#0ea5e9]", delay: "stagger-3" },
+          { icon: TrendingUp, count: 34, label: "This year", iconColor: "text-[#10b981]", delay: "stagger-4" }
+        ].map((stat, idx) => (
+          <div key={idx} className={`figma-card p-6 relative group hover:scale-[1.02] cursor-pointer animate-fade-in-up ${stat.delay}`}>
+            <div className={`w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center mb-5 ${stat.iconColor} group-hover:scale-110 transition-transform border border-[#E5E7EB]`}>
+              <stat.icon size={20} strokeWidth={2.5} />
+            </div>
+            <h2 className="text-[32px] font-black leading-none mb-1.5 text-stone-900">{stat.count}</h2>
+            <p className="text-[13px] font-bold text-stone-500">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* THREE COLUMN LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* LEFT COLUMNS: Recent Memories (Masonry) */}
+        <div className="lg:col-span-2">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-[var(--foreground)]">Recent memories</h2>
+            <Link href="/memories" className="text-sm font-semibold text-[var(--brand)] flex items-center gap-1 hover:underline">
+              View all <ChevronRight size={16} />
+            </Link>
+          </div>
+          
+          <div className="columns-1 md:columns-2 gap-6 space-y-6">
+            {memoriesList.length > 0 ? (
+              memoriesList.map((memory, index) => (
+                <MemoryCard key={memory._id || memory.id || index} memory={memory} index={index} />
+              ))
             ) : (
-              <span>{userProfile?.name?.charAt(0) || "A"}</span>
+              <div className="col-span-full p-10 text-center border-2 border-dashed border-stone-200 rounded-3xl text-stone-400 font-semibold bg-stone-50">
+                You haven't published any memories yet.
+              </div>
             )}
-          </Link>
-          <span className="hidden" aria-hidden="true" />
+          </div>
         </div>
-      </header>
 
-      {/* Albums Gallery Strip */}
-      <section className="mb-10 -mx-4 sm:mx-0">
-        <div className="px-4 sm:px-0 flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Your Albums</h2>
-          <Link href="/albums" className="text-sm px-4 py-1.5 rounded-full glass hover:bg-[var(--surface-hover)] transition-colors text-[var(--brand)] font-semibold flex items-center gap-1 border border-[var(--border)]/50">
-            View All <ChevronRight size={14} />
-          </Link>
-        </div>
-        <div className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-4 px-4 sm:px-0 gap-4">
-          <Link href="/albums" className="shrink-0 w-32 md:w-40 h-52 md:h-64 rounded-3xl border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center snap-center hover:bg-[var(--surface-hover)] hover:border-[var(--brand)]/50 transition-colors cursor-pointer group">
-            <div className="w-12 h-12 rounded-full bg-[var(--brand)]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <span className="text-2xl font-light leading-none text-[var(--brand)]">+</span>
+        {/* RIGHT COLUMN: Insights & Widgets */}
+        <div className="lg:col-span-1 space-y-6">
+          
+          {/* Today's Prompt */}
+          <div className="figma-card-dark text-white p-7 relative overflow-hidden animate-fade-in-up stagger-2">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#4A3AFF] rounded-full blur-[40px] opacity-30 -mr-10 -mt-10 pointer-events-none" />
+            <div className="flex items-center gap-2 mb-6">
+              <Sparkles size={16} className="text-[#A5B4FC]" />
+              <span className="text-[11px] font-bold tracking-widest text-[#A5B4FC] uppercase">Today&apos;s Prompt</span>
             </div>
-            <span className="font-bold text-sm">New Album</span>
-          </Link>
-          {heroAlbums.map((album) => (
-            <AlbumSlideshowCard key={album.id} album={album} />
-          ))}
-        </div>
-      </section>
+            <h3 className="text-[20px] font-medium leading-snug mb-8 italic text-stone-100">
+              &quot;What were you doing this time five years ago?&quot;
+            </h3>
+            <button className="w-full py-3 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-[14px] font-bold transition-all flex justify-center items-center gap-2 active:scale-95">
+              <Mic size={18} strokeWidth={2.5} /> Record your answer
+            </button>
+          </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-        <div className="xl:col-span-8 space-y-10">
-
-          {/* Quick Actions */}
-          <section>
-            <h2 className="text-xl font-bold mb-4">Capture Memory</h2>
-            <div className="grid grid-cols-4 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              {quickActions.map((action) => (
-                <Link href={action.href} key={action.name} className="group flex flex-col items-center sm:items-start justify-center sm:p-5 p-3 bg-white border border-stone-200/80 hover:border-[var(--brand)]/40 hover:shadow-lg rounded-lg transition-all active:scale-95 w-full">
-                  <div className="w-14 h-14 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-sm text-[var(--brand)]">
-                    {resolveGlass3DIcon(action.name)}
-                  </div>
-                  <span className="text-[11px] md:text-sm font-bold text-stone-800">{action.name}</span>
-                  <span className="hidden sm:block text-xs text-stone-400 mt-1 font-medium">{action.label}</span>
-                </Link>
-              ))}
+          {/* AI Insight */}
+          <div className="figma-card p-7 bg-white relative overflow-hidden transition-colors animate-fade-in-up stagger-3">
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles size={16} className="text-[#4A3AFF]" />
+                <span className="text-[11px] font-bold tracking-widest text-[#4A3AFF] uppercase">AI Insight</span>
+              </div>
+              <p className="text-stone-600 italic text-[14px] leading-relaxed mb-6">
+                &quot;Your most active memory-recording period is Sunday evenings. You are more reflective then — and more honest.&quot;
+              </p>
+              <Link href="/insights" className="text-sm font-bold text-[#4A3AFF] flex items-center gap-1 hover:underline w-max">
+                View all insights <ChevronRight size={16} strokeWidth={2.5} />
+              </Link>
             </div>
-          </section>
+          </div>
 
-          {/* Recent Archives */}
-          <section>
-            <h2 className="text-xl font-bold mb-5">Recent Archives</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {recentMemories.map((memory) => (
-                <Link href={`/memories/${memory.id}?from=home`} key={memory.id} className="block p-5 glass-card group cursor-pointer hover:-translate-y-1 transition-all duration-300">
-                  <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm text-[var(--brand)]">
-                      {resolveGlass3DIcon(memory.title)}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-base mb-1 group-hover:text-[var(--brand)] transition-colors">{memory.title}</h3>
-                      <p className="text-sm opacity-60 mb-3 line-clamp-2">{memory.description}</p>
-                      <div className="flex justify-between items-center text-xs font-medium">
-                        <span className="opacity-60">{memory.date}</span>
-                        <span className="px-2.5 py-1 bg-[var(--border)]/50 rounded-md opacity-80">{memory.privacy}</span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* Sidebar */}
-        <div className="xl:col-span-4">
-          <div className="glass-card p-6 relative overflow-hidden">
-            <div className="absolute -right-6 -top-6 w-32 h-32 bg-[var(--brand)] opacity-10 rounded-full blur-3xl" />
-            <h2 className="text-base font-bold opacity-90 mb-6 flex items-center gap-2">
-              <div className="w-2 h-6 rounded-full bg-[var(--brand)]" />
-              Your Legacy Progress
-            </h2>
-            <div className="space-y-3">
+          {/* Activity Chart (This Week) */}
+          <div className="figma-card p-7 bg-[#E8E9FF] animate-fade-in-up stagger-4">
+            <h3 className="font-bold text-stone-900 mb-6">This week</h3>
+            <div className="space-y-4">
               {[
-                { label: "Total Memories", count: memoriesList.length, href: "/search" },
-                { label: "Albums Curated", count: albumsList.length, href: "/albums" },
-                { label: "Family Members", count: "5", href: "/family" },
-              ].map((stat) => (
-                <Link key={stat.label} href={stat.href} className="flex items-center justify-between rounded-lg p-2 transition hover:bg-[var(--surface-hover)]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-[var(--brand-soft)] border border-[var(--border)] flex items-center justify-center shrink-0 shadow-sm text-[var(--brand)]">
-                      {resolveGlass3DIcon(stat.label)}
-                    </div>
-                    <span className="font-medium opacity-80">{stat.label}</span>
+                { day: "Mon", val: 2 },
+                { day: "Tue", val: 0 },
+                { day: "Wed", val: 3 },
+                { day: "Thu", val: 1 },
+                { day: "Fri", val: 4 },
+                { day: "Sat", val: 2 },
+                { day: "Sun", val: 5 },
+              ].map(row => (
+                <div key={row.day} className="flex items-center gap-4">
+                  <span className="text-xs font-semibold text-stone-500 w-6">{row.day}</span>
+                  <div className="flex-1 h-1.5 bg-white rounded-full overflow-hidden shadow-inner">
+                    <div 
+                      className="h-full bg-[#4A3AFF] rounded-full transition-all duration-1000" 
+                      style={{ width: `${(row.val / 5) * 100}%` }}
+                    />
                   </div>
-                  <span className="text-xl font-bold">{stat.count}</span>
-                </Link>
+                  <span className="text-xs font-semibold text-stone-800 w-3 text-right">{row.val}</span>
+                </div>
               ))}
             </div>
           </div>
+
         </div>
       </div>
     </div>
   );
 }
+

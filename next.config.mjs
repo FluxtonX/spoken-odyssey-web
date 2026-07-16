@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
+  generateEtags: false, // Prevents browser from caching 304 responses when files change
   async rewrites() {
     return [
       {

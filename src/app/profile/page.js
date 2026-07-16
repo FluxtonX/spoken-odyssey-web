@@ -460,7 +460,7 @@ export default function ProfilePage() {
 
   return (
     <WavesBackground>
-      <div className="relative z-10 w-full max-w-xl md:max-w-5xl mx-auto space-y-6">
+      <div className="relative z-10 w-full space-y-6">
         {/* Notice Banner */}
         {notice && (
           <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-[var(--brand)]/25 bg-[var(--brand)]/95 text-white px-4 py-3 shadow-xl backdrop-blur-md animate-fade-in font-bold">

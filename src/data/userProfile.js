@@ -154,52 +154,64 @@ const LOCAL_ALBUMS_KEY = "spokenOdysseyLocalAlbums";
 
 const DEFAULT_ALBUMS = [
   {
-    id: "summer-2023",
-    title: "Summer 2023",
-    subtitle: "Lake weekends, mountain roads, and slow family dinners.",
-    privacy: "Family",
-    cover: "https://images.unsplash.com/photo-1473496169904-658ba37448eb?auto=format&fit=crop&w=1200&q=80",
-    created: "June 2023",
-  },
-  {
-    id: "grandpas-tales",
-    title: "Grandpa's Tales",
-    subtitle: "Voice notes and old-world stories recorded before dinner.",
-    privacy: "Private",
-    cover: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=1200&q=80",
-    created: "March 2026",
-  },
-  {
-    id: "sarah-first-year",
-    title: "Sarah's First Year",
-    subtitle: "Tiny milestones, first performances, and the little ordinary days.",
-    privacy: "Family",
-    cover: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1200&q=80",
-    created: "December 2025",
-  },
-  {
-    id: "family-recipes",
-    title: "Family Recipes",
-    subtitle: "Kitchen stories, recipe cards, and voices around the table.",
-    privacy: "Public",
-    cover: "https://images.unsplash.com/photo-1466637574441-749b8f19452f?auto=format&fit=crop&w=1200&q=80",
-    created: "January 2026",
-  },
-  {
-    id: "europe-trip",
-    title: "Europe Trip '18",
-    subtitle: "Old clips, train tickets, and notes from every city.",
-    privacy: "Private",
-    cover: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1200&q=80",
-    created: "October 2025",
-  },
-  {
-    id: "letters-keepsakes",
-    title: "Letters & Keepsakes",
-    subtitle: "Scanned notes, handwritten cards, and important reflections.",
+    id: "childhood-summers",
+    title: "Childhood Summers",
+    subtitle: "The long July evenings in Cork. The smell of cut grass and sea air.",
     privacy: "Private",
     cover: "https://images.unsplash.com/photo-1517971071642-34a2d3ecc9cd?auto=format&fit=crop&w=1200&q=80",
+    created: "June 2023",
+    tags: ["childhood", "ireland"],
+    memoryCount: 47
+  },
+  {
+    id: "years-in-london",
+    title: "The Years in London",
+    subtitle: "Arrived with two bags. Left with a life.",
+    privacy: "Private",
+    cover: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1200&q=80",
+    created: "March 2026",
+    tags: ["london", "career"],
+    memoryCount: 124
+  },
+  {
+    id: "family-of-my-own",
+    title: "A Family of My Own",
+    subtitle: "From two to four. The years that changed everything.",
+    privacy: "Family",
+    cover: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=1200&q=80",
+    created: "December 2025",
+    tags: ["family", "parenthood"],
+    memoryCount: 89
+  },
+  {
+    id: "places-that-shaped-me",
+    title: "Places That Shaped Me",
+    subtitle: "From the cliffs of Moher to the markets of Bangkok. The world as teacher.",
+    privacy: "Public",
+    cover: "https://images.unsplash.com/photo-1473496169904-658ba37448eb?auto=format&fit=crop&w=1200&q=80",
+    created: "January 2026",
+    tags: ["travel", "adventure"],
+    memoryCount: 34
+  },
+  {
+    id: "mum",
+    title: "Mum",
+    subtitle: "For the woman who made me who I am.",
+    privacy: "Private",
+    cover: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1200&q=80",
+    created: "October 2025",
+    tags: ["mum", "family"],
+    memoryCount: 38
+  },
+  {
+    id: "career-and-craft",
+    title: "Career & Craft",
+    subtitle: "The work that mattered. The work that didn't.",
+    privacy: "Private",
+    cover: "https://images.unsplash.com/photo-1466637574441-749b8f19452f?auto=format&fit=crop&w=1200&q=80",
     created: "February 2026",
+    tags: ["career", "work"],
+    memoryCount: 22
   },
 ];
 

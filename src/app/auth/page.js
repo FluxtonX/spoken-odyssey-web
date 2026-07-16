@@ -130,7 +130,7 @@ export default function AuthPage() {
       // Always go to /profile after Google sign-in;
       // profile-setup will be prompted from /profile if the profile is incomplete.
       setTimeout(() => {
-        router.replace("/profile");
+        router.replace("/home");
       }, 800);
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
@@ -193,16 +193,95 @@ export default function AuthPage() {
     }
   };
 
+  if (isSubmitting || isVerifying) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-white relative animate-fade-in">
+        {/* Skip button in top right */}
+        <button 
+          onClick={() => {
+            setIsSubmitting(false);
+            setIsVerifying(false);
+          }}
+          className="absolute top-6 right-8 text-stone-400 font-semibold text-sm hover:text-stone-600 transition cursor-pointer"
+        >
+          Skip &times;
+        </button>
+
+        {/* 5-bar Soundwave logo animation */}
+        <div className="flex items-end justify-center gap-2 h-16 mb-8">
+          <span className="w-2.5 bg-[#4A3AFF] rounded-full animate-soundwave-1" />
+          <span className="w-2.5 bg-[#4A3AFF] rounded-full animate-soundwave-2" />
+          <span className="w-2.5 bg-[#4A3AFF] rounded-full animate-soundwave-3" />
+          <span className="w-2.5 bg-[#4A3AFF] rounded-full animate-soundwave-4" />
+          <span className="w-2.5 bg-[#4A3AFF] rounded-full animate-soundwave-5" />
+        </div>
+
+        {/* Spoken Odyssey brand */}
+        <h2 className="text-[#4A3AFF] font-black text-3xl tracking-tight mb-20">
+          Spoken Odyssey
+        </h2>
+
+        {/* Tagline */}
+        <div className="text-center">
+          <p className="text-xs font-black tracking-[0.25em] text-stone-500 uppercase mb-4">
+            Preserving your legacy...
+          </p>
+          <div className="w-64 h-[1.5px] bg-gradient-to-r from-transparent via-[#4A3AFF]/60 to-transparent mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  const renderTabSelector = (current) => (
+    <div className="flex p-1 bg-stone-100/70 rounded-[14px] w-full mb-8">
+      <button
+        type="button"
+        onClick={() => {
+          setErrorMsg("");
+          setSuccessMsg("");
+          setView("login");
+        }}
+        className={`flex-1 py-2.5 text-center text-xs font-black rounded-xl transition-all cursor-pointer ${
+          current === "login"
+            ? "bg-white text-stone-900 shadow-sm"
+            : "text-stone-400 hover:text-stone-600"
+        }`}
+      >
+        Sign In
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setErrorMsg("");
+          setSuccessMsg("");
+          setView("signup");
+        }}
+        className={`flex-1 py-2.5 text-center text-xs font-black rounded-xl transition-all cursor-pointer ${
+          current === "signup"
+            ? "bg-white text-stone-900 shadow-sm"
+            : "text-stone-400 hover:text-stone-600"
+        }`}
+      >
+        Create Account
+      </button>
+    </div>
+  );
+
   return (
-    <AuthLayout>
-      <div className="w-full max-w-md mx-auto relative z-10 py-6">
+    <AuthLayout view={view}>
+      <div className="w-full max-w-sm mx-auto relative z-10 py-6">
         
         {/* Back Button */}
-        <div className="absolute -top-12 left-0">
-          <Link href="/" className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 shadow-sm hover:border-[var(--brand)] hover:bg-slate-100 transition-all text-stone-750 dark:text-stone-300">
-            <ChevronLeft size={18} />
-          </Link>
-        </div>
+        {view !== "login" && view !== "signup" && view !== "reset" && (
+          <div className="absolute -top-12 left-0">
+            <button
+              onClick={() => setView("login")}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 shadow-sm hover:border-[var(--brand)] hover:bg-slate-100 transition-all text-stone-750 dark:text-stone-300 cursor-pointer"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          </div>
+        )}
 
         {/* Status Messages */}
         {successMsg && (
@@ -222,30 +301,24 @@ export default function AuthPage() {
         {/* 1. LOGIN VIEW */}
         {view === "login" && (
           <div className="animate-fade-in">
-            <div className="mb-8">
-              <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">Welcome Back</h1>
-              <p className="text-sm font-semibold text-stone-500">Sign in to continue your legacy story.</p>
-            </div>
+            {renderTabSelector("login")}
 
             <form onSubmit={handleLoginSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">Email Address</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-                  <input 
-                    type="email" 
-                    placeholder="name@example.com" 
-                    required
-                    className="w-full p-4 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">Email address</label>
+                <input 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
 
               <div>
-                <div className="mb-2 flex items-center justify-between gap-3 pl-1">
-                  <label className="block text-xs font-black text-stone-500 uppercase tracking-wider">Password</label>
+                <div className="mb-1.5 flex items-center justify-between gap-3 pl-0.5">
+                  <label className="block text-xs font-bold text-stone-700">Password</label>
                   <button
                     type="button"
                     onClick={() => {
@@ -253,18 +326,17 @@ export default function AuthPage() {
                       setSuccessMsg("");
                       setView("reset");
                     }}
-                    className="text-xs font-black text-[var(--brand)] hover:underline"
+                    className="text-xs font-semibold text-[var(--brand)] hover:underline cursor-pointer"
                   >
                     Forgot password?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
                   <input 
                     type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
                     required
-                    className="w-full p-4 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -282,9 +354,10 @@ export default function AuthPage() {
               <button 
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+                className="w-full py-3.5 rounded-xl bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-60 text-white font-bold transition-all text-center flex items-center justify-center gap-2 text-sm cursor-pointer mt-2"
               >
-                {isSubmitting ? "Signing in..." : "Login"}
+                <span>Sign In</span>
+                <span className="text-base font-medium">&rarr;</span>
               </button>
             </form>
 
@@ -292,122 +365,103 @@ export default function AuthPage() {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-stone-200 dark:border-stone-800" />
               </div>
-              <span className="relative px-3 bg-white dark:bg-[#0f172a] text-xs font-bold text-stone-400">OR</span>
+              <span className="relative px-3 bg-white text-xs font-semibold text-stone-400">or continue with</span>
             </div>
 
             <button 
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-stone-700 hover:border-[var(--brand)] hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-95 group shadow-sm text-sm"
+              className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 transition-all active:scale-[0.98] shadow-sm text-sm cursor-pointer"
             >
-              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="font-extrabold text-stone-700 dark:text-stone-200">Continue with Google</span>
+              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5" />
+              <span className="font-bold text-stone-750">Continue with Google</span>
             </button>
-
-            <div className="mt-8 text-center text-sm">
-              <span className="text-stone-500 dark:text-stone-400 font-semibold">Don't have an account? </span>
-              <button onClick={() => setView("signup")} className="text-[var(--brand)] font-black hover:underline cursor-pointer">Sign Up</button>
-            </div>
           </div>
         )}
 
         {/* 1b. RESET PASSWORD VIEW */}
         {view === "reset" && (
           <div className="animate-fade-in">
-            <div className="mb-8">
-              <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">Reset Password</h1>
-              <p className="text-sm font-semibold text-stone-500">Enter your email and we'll send reset instructions.</p>
+            {/* Top Back Link */}
+            <button
+              onClick={() => {
+                setErrorMsg("");
+                setSuccessMsg("");
+                setView("login");
+              }}
+              className="text-stone-400 hover:text-stone-600 transition text-sm font-semibold flex items-center gap-1.5 mb-6 cursor-pointer"
+            >
+              &larr; Back
+            </button>
+
+            <div className="mb-6">
+              <h1 className="text-2xl font-black tracking-tight text-stone-900 dark:text-white mb-2 font-sans">Reset password</h1>
+              <p className="text-xs lg:text-[13px] font-semibold text-stone-400 leading-relaxed max-w-xs">Enter your email and we'll send you instructions to reset your password.</p>
             </div>
 
             <form onSubmit={handleResetSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">Email Address</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    required
-                    className="w-full p-4 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">Email address</label>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+                className="w-full py-3.5 rounded-xl bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-60 text-white font-bold transition-all text-center text-sm cursor-pointer shadow-sm active:scale-[0.99] font-sans"
               >
-                {isSubmitting ? "Sending..." : "Send Reset Link"}
+                Send reset link
               </button>
             </form>
-
-            <div className="mt-8 text-center text-sm">
-              <button
-                onClick={() => {
-                  setErrorMsg("");
-                  setSuccessMsg("");
-                  setView("login");
-                }}
-                className="text-stone-500 dark:text-stone-400 font-bold hover:underline cursor-pointer"
-              >
-                Back to Login
-              </button>
-            </div>
           </div>
         )}
 
         {/* 2. SIGNUP VIEW */}
         {view === "signup" && (
           <div className="animate-fade-in">
-            <div className="mb-8">
-              <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-2">Create Account</h1>
-              <p className="text-sm font-semibold text-stone-500">Begin your legacy journey today.</p>
-            </div>
+            {renderTabSelector("signup")}
 
             <form onSubmit={handleSignupSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">Full Name</label>
-                <div className="relative">
-                  <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Alexander Mitchell" 
-                    required
-                    className="w-full p-4 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">Full name</label>
+                <input 
+                  type="text" 
+                  placeholder="Your full name" 
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">Email Address</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-                  <input 
-                    type="email" 
-                    placeholder="name@example.com" 
-                    required
-                    className="w-full p-4 pl-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">Email address</label>
+                <input 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">Password</label>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">Password</label>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
                   <input 
                     type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
                     required
-                    className="w-full p-4 pl-12 pr-12 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-400 transition-all shadow-sm text-sm"
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -422,12 +476,25 @@ export default function AuthPage() {
                 </div>
               </div>
 
+              <div className="flex items-center gap-2 mt-2">
+                <input 
+                  type="checkbox" 
+                  required 
+                  id="terms"
+                  className="rounded border-stone-300 text-[var(--brand)] focus:ring-[var(--brand)] h-4 w-4 cursor-pointer" 
+                />
+                <label htmlFor="terms" className="text-xs font-medium text-stone-500 leading-normal cursor-pointer select-none">
+                  I agree to the <Link href="/terms" className="text-[var(--brand)] font-semibold hover:underline">Terms of Service</Link> and <Link href="/privacy" className="text-[var(--brand)] font-semibold hover:underline">Privacy Policy</Link>
+                </label>
+              </div>
+
               <button 
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+                className="w-full py-3.5 rounded-xl bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-60 text-white font-bold transition-all text-center flex items-center justify-center gap-2 text-sm cursor-pointer mt-4"
               >
-                {isSubmitting ? "Creating account..." : "Sign Up"}
+                <span>Create Account</span>
+                <span className="text-base font-medium">&rarr;</span>
               </button>
             </form>
 
@@ -435,23 +502,18 @@ export default function AuthPage() {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-stone-200 dark:border-stone-800" />
               </div>
-              <span className="relative px-3 bg-white dark:bg-[#0f172a] text-xs font-bold text-stone-400">OR</span>
+              <span className="relative px-3 bg-white text-xs font-semibold text-stone-400">or continue with</span>
             </div>
 
             <button 
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-stone-300 dark:border-stone-700 hover:border-[var(--brand)] hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-95 group shadow-sm text-sm"
+              className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 transition-all active:scale-[0.98] shadow-sm text-sm cursor-pointer"
             >
-              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="font-extrabold text-stone-700 dark:text-stone-200">Continue with Google</span>
+              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5" />
+              <span className="font-bold text-stone-750">Continue with Google</span>
             </button>
-
-            <div className="mt-8 text-center text-sm">
-              <span className="text-stone-500 dark:text-stone-400 font-semibold">Already have an account? </span>
-              <button onClick={() => setView("login")} className="text-[var(--brand)] font-black hover:underline cursor-pointer">Login</button>
-            </div>
           </div>
         )}
 
@@ -471,7 +533,7 @@ export default function AuthPage() {
             {/* Code Verification Input Form */}
             <form onSubmit={handleVerifyCode} className="space-y-4 mb-6">
               <div>
-                <label className="block text-xs font-black text-stone-500 uppercase tracking-wider mb-2 pl-1">
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">
                   6-Digit Code
                 </label>
                 <input 
@@ -479,7 +541,7 @@ export default function AuthPage() {
                   maxLength={6}
                   placeholder="555555" 
                   required
-                  className="w-full p-4 text-center tracking-[0.5em] font-mono text-xl rounded-2xl bg-slate-50 dark:bg-slate-800 border border-stone-200 dark:border-stone-700 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15 outline-none font-bold text-[var(--ink)] dark:text-white placeholder-stone-300 transition-all shadow-inner"
+                  className="w-full p-3 text-center tracking-[0.5em] font-mono text-xl rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-bold text-stone-800 placeholder-stone-300 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)]"
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
                 />
@@ -488,13 +550,14 @@ export default function AuthPage() {
               <button 
                 type="submit"
                 disabled={isVerifying || verificationCode.length !== 6}
-                className="w-full py-4 rounded-2xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black shadow-lg shadow-[var(--brand)]/10 hover:scale-[1.01] active:scale-95 transition-all text-center block text-sm cursor-pointer"
+                className="w-full py-3.5 rounded-xl bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-60 text-white font-bold transition-all text-center flex items-center justify-center gap-2 text-sm cursor-pointer"
               >
-                {isVerifying ? "Verifying..." : "Verify Code"}
+                <span>Verify Code</span>
+                <span className="text-base font-medium">&rarr;</span>
               </button>
             </form>
 
-            <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-slate-50 dark:bg-slate-800 p-4 text-xs font-semibold text-stone-600 dark:text-stone-300">
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs font-semibold text-stone-600">
               Or verify by checking your email inbox for the verification link we sent.
             </div>
 
@@ -506,7 +569,7 @@ export default function AuthPage() {
                 disabled={timer > 0 || isResending || !password}
                 className={`inline-flex items-center gap-1.5 font-black text-sm cursor-pointer ${
                   timer > 0 || !password
-                    ? "text-stone-400 dark:text-stone-600" 
+                    ? "text-stone-400" 
                     : "text-[var(--brand)] hover:underline"
                 }`}
               >
@@ -525,7 +588,7 @@ export default function AuthPage() {
               </button>
             </div>
 
-            <div className="mt-8 text-center text-sm border-t border-stone-100 dark:border-stone-800 pt-6">
+            <div className="mt-8 text-center text-sm border-t border-stone-100 pt-6">
               <button
                 type="button"
                 onClick={() => setView("login")}

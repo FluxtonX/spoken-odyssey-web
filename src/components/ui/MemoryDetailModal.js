@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Share2, Heart, MessageCircle, Globe, Users, X, Link as LinkIcon, Mail } from "lucide-react";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { ContinuousLayersBackground } from "@/components/layout/LayoutShell";
 import MediaGrid from "./MediaGrid";
 import VoicePlayer from "./VoicePlayer";
 import CommentsSection from "./CommentsSection";
@@ -61,7 +60,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
           count += 1;
           if (c.replies) count += c.replies.length;
         });
-        setCommentsCount(count);
+        setTimeout(() => setCommentsCount(count), 0);
       } catch {}
     }
     
@@ -80,16 +79,20 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setReaction(parsed.userReaction || null);
-          setLikesCount(parsed.likes || 0);
-          setCommentsCount(memory.comments || 0);
+          setTimeout(() => {
+            setReaction(parsed.userReaction || null);
+            setLikesCount(parsed.likes || 0);
+            setCommentsCount(memory.comments || 0);
+          }, 0);
           return;
         } catch {}
       }
     }
-    setReaction(memory.userReaction || null);
-    setLikesCount(memory.likes || 0);
-    setCommentsCount(memory.comments || 0);
+    setTimeout(() => {
+      setReaction(memory.userReaction || null);
+      setLikesCount(memory.likes || 0);
+      setCommentsCount(memory.comments || 0);
+    }, 0);
   }, [memory]);
 
   const toggleComments = () => {
@@ -189,8 +192,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
   const hashtags = ["family", "moments"]; // from screenshot
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-transparent overflow-hidden animate-fade-in">
-      <ContinuousLayersBackground />
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[var(--background)] overflow-hidden animate-fade-in">
       <WavesBackground>
         <div className="relative z-10 flex-1 overflow-y-auto w-full h-full pb-6">
           <div className="w-full max-w-2xl mx-auto px-4 md:px-6 pt-12 pb-6">
@@ -275,7 +277,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
                       fontFamily: getFontFamily(memory.fontId),
                     }}
                   >
-                    "{memory.description}"
+                    &quot;{memory.description}&quot;
                   </p>
                 </div>
               )}
@@ -366,7 +368,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
             </div>
             <div className="p-5 space-y-6">
               <p className="text-sm font-semibold text-stone-600">
-                Share "{memory.title}" with the world or someone special.
+                Share &quot;{memory.title}&quot; with the world or someone special.
               </p>
               
               <div className="grid grid-cols-2 gap-3">

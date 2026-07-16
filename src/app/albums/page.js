@@ -2,7 +2,6 @@
 
 import { Plus, Search, ChevronRight, X, Lock, Users, Globe, Upload, Loader2, FolderHeart } from "lucide-react";
 import Link from "next/link";
-import WavesBackground from "@/components/layout/WavesBackground";
 import { useState, useEffect } from "react";
 import { getStoredAlbums, saveStoredAlbums } from "@/data/userProfile";
 import { useAuth } from "@/context/AuthProvider";
@@ -163,87 +162,123 @@ export default function AlbumsGallery() {
   );
 
   return (
-    <WavesBackground>
-      <div className="w-full max-w-5xl mx-auto">
-      {/* Header Area */}
-      <header className="sticky top-0 z-20 glass px-4 py-4 md:py-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Your Albums</h1>
+    <div className="w-full relative min-h-screen">
+      {/* If WavesBackground causes layout issues, it can be added around this div. Based on screenshot, background is plain with slight purple shapes, which LayoutShell handles. */}
+      <div className="w-full px-4 md:px-6 lg:px-8 max-w-7xl mx-auto pb-24">
+        
+        {/* Header Section */}
+        <div className="flex justify-between items-center mb-8 pt-8">
+          <div>
+            <h1 className="text-[36px] font-bold text-stone-900 tracking-tight mb-1">Albums</h1>
+            <p className="text-stone-500 font-medium text-[15px]">
+              {albumsList.length} albums · {albumsList.reduce((acc, a) => acc + (a.memoryCount || 0), 0)} memories
+            </p>
+          </div>
           <button 
             onClick={() => setIsCreateModalOpen(true)}
-            className="w-10 h-10 rounded-full bg-[var(--brand)] text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
-            aria-label="Create new album"
+            className="bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white px-5 py-2.5 rounded-[12px] font-bold transition-all shadow-md flex items-center justify-center gap-2"
           >
-            <Plus size={24} />
+            <Plus size={18} strokeWidth={2.5} />
+            <span className="text-[14px]">New Album</span>
           </button>
         </div>
-        
-        {/* Search Bar */}
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40" />
-          <input 
-            type="text" 
-            placeholder="Search albums..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] outline-none focus:border-[var(--brand)] transition-colors text-sm font-medium"
-          />
+
+        {/* Filter Tags Row */}
+        <div className="flex items-center gap-3 mb-10 overflow-x-auto pb-2 w-full mask-edges [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="relative min-w-[260px] shrink-0">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+            <input 
+              type="text" 
+              placeholder="Search albums..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white border border-[#C7D2FE] outline-none focus:border-[#4A3AFF] focus:ring-1 focus:ring-[#4A3AFF] transition-all text-[14px] font-semibold text-stone-700 placeholder-stone-400 shadow-sm"
+            />
+          </div>
+          
+          {["childhood", "ireland", "nostalgia", "london", "career", "growth", "family", "parenthood"].map(tag => (
+            <button key={tag} className="px-5 py-2 rounded-full border border-[#C7D2FE] text-stone-700 text-[13px] font-bold bg-white hover:bg-[#EEF2FF] transition-colors whitespace-nowrap shadow-sm shrink-0 cursor-pointer">
+              {tag}
+            </button>
+          ))}
         </div>
-      </header>
 
-      {/* Grid Layout */}
-      <div className="px-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* Create New Album Card */}
-        <button 
-          onClick={() => setIsCreateModalOpen(true)}
-          className="relative w-full aspect-square rounded-[2rem] border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center hover:bg-[var(--surface-hover)] hover:border-[var(--brand)]/50 transition-all cursor-pointer group active:scale-95 text-left"
-        >
-          <div className="w-16 h-16 rounded-full bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <Plus size={32} />
-          </div>
-          <h3 className="font-bold text-base text-[var(--ink)] dark:text-white">New Album</h3>
-          <p className="text-xs opacity-60 mt-1">Organize new memories</p>
-        </button>
+        {/* Albums Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+          
+          {/* Create New Album Card */}
+          <button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="relative w-full aspect-[4/4.5] rounded-[32px] border border-[#4A3AFF] bg-[#EAEBFF] flex flex-col items-center justify-center hover:bg-[#E0E7FF] hover:border-[#4A3AFF] transition-all cursor-pointer group active:scale-95 text-left shadow-sm"
+          >
+            <div className="w-16 h-16 rounded-full bg-white border border-[#C7D2FE]/50 text-[#4A3AFF] flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#4A3AFF] group-hover:text-white transition-all duration-300 shadow-sm">
+              <Plus size={32} />
+            </div>
+            <h3 className="font-bold text-lg text-stone-800">New Album</h3>
+            <p className="text-sm text-stone-500 mt-1 font-medium">Organize new memories</p>
+          </button>
 
-        {isLoading ? (
-          <div className="col-span-2 md:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-20">
-            <Loader2 size={36} className="animate-spin text-[var(--brand)] mb-3" />
-            <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading your albums...</p>
-          </div>
-        ) : filteredAlbums.length === 0 ? (
-          <div className="col-span-2 md:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-20 border-2 border-dashed border-[var(--border)] rounded-[2rem] hover:bg-[var(--surface-hover)] transition-colors text-center px-4">
-            <FolderHeart size={64} className="text-stone-400 mb-4" strokeWidth={1.5} />
-            <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2">No albums yet</h3>
-            <p className="text-sm text-stone-500 max-w-sm">Create albums to organize your memories</p>
-          </div>
-        ) : (
-          filteredAlbums.map((album) => (
-            <Link href={`/albums/${album.id}`} key={album.id} className="group cursor-pointer">
-              <div className="relative w-full aspect-square rounded-[2rem] overflow-hidden mb-3 shadow-md group-hover:shadow-xl transition-all duration-500 group-hover:-translate-y-1">
-                
-                <img 
-                  src={album.cover} 
-                  alt={album.title} 
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                />
-                
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
-                <div className="absolute inset-0 bg-[var(--brand)] mix-blend-multiply opacity-25 group-hover:opacity-10 transition-opacity duration-500" />
-
-                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-[10px] font-bold text-white tracking-wide uppercase">
-                  {album.privacy}
+          {isLoading ? (
+            <div className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col items-center justify-center py-20">
+              <Loader2 size={36} className="animate-spin text-[var(--brand)] mb-3" />
+              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading your albums...</p>
+            </div>
+          ) : filteredAlbums.length === 0 ? (
+            <div className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col items-center justify-center py-20 border border-dashed border-[#C7D2FE] bg-white/40 rounded-[24px] px-4">
+              <FolderHeart size={64} className="text-[#C7D2FE] mb-4" strokeWidth={1.5} />
+              <h3 className="text-lg font-bold text-stone-800 mb-2">No albums yet</h3>
+              <p className="text-sm text-stone-500 max-w-sm text-center">Create your first album to start organizing your memories.</p>
+            </div>
+          ) : (
+            filteredAlbums.map((album) => (
+              <Link href={`/albums/${album.id}`} key={album.id} className="group cursor-pointer">
+                <div className="relative w-full rounded-[32px] overflow-hidden bg-[#EAEBFF] border border-[#4A3AFF] shadow-sm hover:shadow-[0_12px_40px_rgb(74,58,255,0.12)] transition-all duration-300 hover:-translate-y-1 flex flex-col aspect-[4/4.5]">
+                  
+                  {/* Image Top Half */}
+                  <div className="relative w-full h-[60%] overflow-hidden bg-stone-200 shrink-0">
+                    <img 
+                      src={album.cover} 
+                      alt={album.title} 
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                    />
+                    {/* Gradient Overlay for text */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
+                    
+                    {/* Title */}
+                    <div className="absolute bottom-6 left-7 right-7 text-white">
+                      <h3 className="font-bold text-[28px] leading-tight filter drop-shadow-md tracking-tight">
+                        {album.title}
+                      </h3>
+                    </div>
+                  </div>
+                  
+                  {/* Card Body */}
+                  <div className="p-7 flex flex-col flex-1 justify-between bg-[#EAEBFF]">
+                    <p className="text-stone-700 text-[16px] leading-relaxed font-medium line-clamp-2 pr-2">
+                      {album.subtitle || "No description provided."}
+                    </p>
+                    
+                    {/* Footer row: Tags and Memory Count */}
+                    <div className="flex items-center justify-between mt-6">
+                      <div className="flex items-center gap-2.5">
+                        {album.tags?.slice(0, 2).map((tag, idx) => (
+                          <span key={idx} className="px-4 py-1.5 bg-[#6B4EFF] text-white rounded-[10px] text-[14px] font-medium tracking-wide">
+                            {tag}
+                          </span>
+                        ))}
+                        {!album.tags && <span className="px-4 py-1.5 bg-[#6B4EFF] text-white rounded-[10px] text-[14px] font-medium tracking-wide">album</span>}
+                      </div>
+                      <span className="text-[15px] font-medium text-stone-700">
+                        {album.memoryCount || 0} memories
+                      </span>
+                    </div>
+                  </div>
+                  
                 </div>
-
-                <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <p className="text-xs font-semibold opacity-80 mb-0.5">{album.created}</p>
-                  <h3 className="font-bold text-base md:text-lg leading-tight filter drop-shadow-md group-hover:text-white transition-colors line-clamp-2">
-                    {album.title}
-                  </h3>
-                </div>
-              </div>
-            </Link>
-          ))
-        )}
+              </Link>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Album Creation Modal */}
@@ -426,7 +461,6 @@ export default function AlbumsGallery() {
           <span>{toastMessage}</span>
         </div>
       )}
-      </div>
-    </WavesBackground>
+    </div>
   );
 }

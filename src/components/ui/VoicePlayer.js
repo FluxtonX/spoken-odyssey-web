@@ -65,7 +65,6 @@ export default function VoicePlayer({ memory }) {
   // Audio setup (using user uploaded clip if available)
   useEffect(() => {
     const url = memory.mediaUrl || memory.media?.url || memory.audio?.url || "";
-    setRealDuration(null);
 
     if (url) {
       const audio = new Audio(url);

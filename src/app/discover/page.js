@@ -153,84 +153,88 @@ export default function DiscoverPage() {
 
   return (
     <WavesBackground>
-      <div className="w-full max-w-none mx-auto">
-      <header className="mb-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6 text-left">
-          <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-black uppercase tracking-wide text-[var(--brand)]">
-            <Compass size={14} />
-            Discover
-          </p>
-          <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white md:text-5xl">
-            Explore Odyssey
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-stone-600 dark:text-stone-300">
-            Browse public memories, family archives, and suggested connections. Experience heritage through voice and story.
-          </p>
+      <div className="w-full">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
+          
+          {/* LEFT COLUMN: Header + Tabs + Content */}
+          <div className="flex flex-col min-w-0 gap-5">
+            {/* Main Header Card */}
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6 text-left">
+              <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-black uppercase tracking-wide text-[var(--brand)]">
+                <Compass size={14} />
+                Discover
+              </p>
+              <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white md:text-5xl">
+                Explore Odyssey
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-stone-600 dark:text-stone-300">
+                Browse public memories, family archives, and suggested connections. Experience heritage through voice and story.
+              </p>
 
-          <div className="mt-5 flex gap-2">
-            <div className="relative flex-1">
-              <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-              <input
-                placeholder={activeTab === "People" ? "Search suggested profiles" : "Search public memories"}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] pl-9 pr-3 text-sm font-bold outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
-              />
+              <div className="mt-5 flex gap-2">
+                <div className="relative flex-1">
+                  <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                  <input
+                    placeholder={activeTab === "People" ? "Search suggested profiles" : "Search public memories"}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] pl-9 pr-3 text-sm font-bold outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
+                  />
+                </div>
+                <button className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-stone-600 dark:text-stone-300">
+                  <Filter size={17} />
+                </button>
+              </div>
             </div>
-            <button className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-stone-600 dark:text-stone-300">
-              <Filter size={17} />
-            </button>
-          </div>
-        </div>
 
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm text-left flex flex-col justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ink)] dark:text-white">
-              <TrendingUp size={18} className="text-[var(--brand)]" />
-              Trending Themes
-            </h2>
-            <p className="mt-1 text-xs text-stone-500 font-semibold">Filter public posts by topic.</p>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {topics.map((item) => (
-              <button
-                key={item}
-                onClick={() => {
-                  setSelectedTheme(item);
-                  setActiveTab("Themes");
-                }}
-                className={`rounded-full border px-3 py-2 text-xs font-black transition ${
-                  selectedTheme === item && activeTab === "Themes"
-                    ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-                    : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--brand)] text-stone-600 dark:text-stone-300"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
+            {/* Trending Themes (Mobile Only) */}
+            <div className="lg:hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm text-left flex flex-col justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ink)] dark:text-white">
+                  <TrendingUp size={18} className="text-[var(--brand)]" />
+                  Trending Themes
+                </h2>
+                <p className="mt-1 text-xs text-stone-500 font-semibold">Filter public posts by topic.</p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {topics.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => {
+                      setSelectedTheme(item);
+                      setActiveTab("Themes");
+                    }}
+                    className={`rounded-full border px-3 py-2 text-xs font-black transition ${
+                      selectedTheme === item && activeTab === "Themes"
+                        ? "border-[var(--brand)] bg-[var(--brand)] text-white"
+                        : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--brand)] text-stone-600 dark:text-stone-300"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-      {/* Elegant Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 mb-6 border-b border-[var(--border)]/35 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {filterTabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`shrink-0 border-b-2 px-5 py-3 text-sm font-black transition-all ${
-              activeTab === tab
-                ? "border-[var(--brand)] text-[var(--brand)]"
-                : "border-transparent text-stone-500 hover:text-[var(--brand)]"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+            {/* Elegant Filter Tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-1 border-b border-[var(--border)]/35 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`shrink-0 border-b-2 px-5 py-3 text-sm font-black transition-all ${
+                    activeTab === tab
+                      ? "border-[var(--brand)] text-[var(--brand)]"
+                      : "border-transparent text-stone-500 hover:text-[var(--brand)]"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-      {/* Main Section */}
-      <main className="w-full">
+            {/* Main Section */}
+            <main className="w-full">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-stone-400">
             <Loader2 className="animate-spin text-[var(--brand)]" size={32} />
@@ -327,7 +331,7 @@ export default function DiscoverPage() {
             </section>
           </div>
         ) : (
-          <div className="space-y-6 text-left max-w-3xl mx-auto">
+          <div className="space-y-6 text-left w-full">
             {filteredMemories.length > 0 ? (
               filteredMemories.map((memory) => (
                 <FeedCard key={memory.id} memory={memory} />
@@ -342,6 +346,40 @@ export default function DiscoverPage() {
           </div>
         )}
       </main>
+          </div>
+
+          {/* RIGHT COLUMN: Trending Themes (Desktop Only) */}
+          <div className="hidden lg:flex flex-col sticky top-6">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm text-left flex flex-col justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ink)] dark:text-white">
+                  <TrendingUp size={18} className="text-[var(--brand)]" />
+                  Trending Themes
+                </h2>
+                <p className="mt-1 text-xs text-stone-500 font-semibold">Filter public posts by topic.</p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {topics.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => {
+                      setSelectedTheme(item);
+                      setActiveTab("Themes");
+                    }}
+                    className={`rounded-full border px-3 py-2 text-xs font-black transition ${
+                      selectedTheme === item && activeTab === "Themes"
+                        ? "border-[var(--brand)] bg-[var(--brand)] text-white"
+                        : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--brand)] text-stone-600 dark:text-stone-300"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
     </WavesBackground>
   );

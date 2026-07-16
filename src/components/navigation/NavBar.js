@@ -5,33 +5,25 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
-import { getStoredUserProfile } from "@/data/userProfile";
 import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings } from "lucide-react";
 
 export default function NavBar() {
   const pathname = usePathname();
-  const { isAuthenticated, profile } = useAuth();
-  const [userProfile, setUserProfile] = useState(null);
-  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const { isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    function loadProfile() {
-      setUserProfile(getStoredUserProfile());
-    }
-    loadProfile();
-    window.addEventListener("profileUpdated", loadProfile);
-    return () => window.removeEventListener("profileUpdated", loadProfile);
-  }, [pathname, profile]);
-
+  // We map the icons to Lucide icons for a clean look, or use the resolveGlass3DIcon if we want 3D.
+  // The prompt asks for "proffesional icons". Lucide icons are professional and clean.
   const navItems = [
-    // { name: "Home", href: "/home", icon: "home" },
-    { name: "Home", href: "/profile", icon: "home" },
-    { name: "Discover", href: "/feed", icon: "feed" },
-    { name: "Record", href: "/record", icon: "plus", isPrimary: true },
-    { name: "Family", href: "/family", icon: "family" },
-    { name: "Setting", href: "/settings", icon: "settings" },
+    { name: "Home", href: "/home", icon: Home },
+    { name: "My Archive", href: "/memories", icon: Archive },
+    { name: "Timeline", href: "/timeline", icon: Clock },
+    { name: "Albums", href: "/albums", icon: ImageIcon },
+    { name: "Family", href: "/family", icon: Users, badge: 2 },
+    { name: "AI Insights", href: "/insights", icon: Sparkles },
+    { name: "Discover", href: "/feed", icon: Globe },
+    { name: "Settings", href: "/settings", icon: Settings },
   ];
 
   if (isPublicRoute(pathname) || !isAuthenticated) {
@@ -40,24 +32,11 @@ export default function NavBar() {
 
   return (
     <>
+      {/* Mobile Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-white/90 pb-safe shadow-lg backdrop-blur-md md:hidden">
         <div className="relative flex items-center justify-around px-1 py-2.5">
-          {navItems.map((item) => {
+          {navItems.slice(0, 4).map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
-
-            if (item.isPrimary) {
-              return (
-                <div key={item.name} className="relative -top-3.5 flex flex-col items-center">
-                  <button
-                    onClick={() => setShowPlusMenu(true)}
-                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5e4eff] dark:bg-[#6366f1] text-white shadow-lg shadow-[#5e4eff]/25 transition-all active:scale-90 cursor-pointer"
-                    aria-label={item.name}
-                  >
-                    <Plus size={28} strokeWidth={2.5} />
-                  </button>
-                </div>
-              );
-            }
 
             return (
               <Link
@@ -69,154 +48,99 @@ export default function NavBar() {
                 )}
               >
                 {isActive && <span className="absolute -top-2.5 h-1 w-6 rounded-full bg-[var(--brand)]" />}
-                <div className="scale-75 transition-transform duration-300 -my-2">{resolveGlass3DIcon(item.icon)}</div>
-                <span className="mt-0.5 text-[8px] font-black tracking-wide">{item.name}</span>
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className="mb-1" />
+                <span className="mt-0.5 text-[8px] font-black tracking-wide truncate max-w-[50px] text-center">{item.name}</span>
               </Link>
             );
           })}
-        </div>
-      </nav>
-
-      <nav className="fixed bottom-0 left-0 top-0 z-50 hidden w-20 flex-col border-r border-[var(--border)] bg-white transition-all duration-300 md:flex lg:w-64">
-        <div className="mb-4 hidden items-center gap-3 p-6 lg:flex">
-          <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-9 w-auto object-contain" />
-        </div>
-
-        <div className="mb-4 mt-2 flex justify-center p-4 lg:hidden">
-          <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-9 w-auto object-contain" />
-        </div>
-
-        <div className="mt-2 flex w-full flex-1 flex-col items-center gap-2.5 px-3 lg:items-start lg:px-4">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
-
-            if (item.isPrimary) {
-              return (
-                <button
-                  key={item.name}
-                  onClick={() => setShowPlusMenu(true)}
-                  className="group relative flex w-full items-center justify-center gap-3 rounded-lg border border-transparent p-2 transition-all lg:justify-start text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-900/40 hover:text-[var(--ink)] cursor-pointer"
-                >
-                  <div className="shrink-0 scale-75 transition-transform -my-1 -ml-1">
-                    <div className="relative w-14 h-14 flex items-center justify-center text-white bg-[#5e4eff] dark:bg-[#6366f1] rounded-2xl shadow-md transition-all">
-                      <Plus size={28} strokeWidth={2.5} />
-                    </div>
-                  </div>
-                  <span className="hidden text-sm font-black lg:block">{item.name}</span>
-                </button>
-              );
-            }
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={clsx(
-                  "group relative flex w-full items-center justify-center gap-3 rounded-lg border p-2 transition-all lg:justify-start",
-                  isActive
-                    ? "border-[var(--border)] bg-[var(--brand-soft)] font-extrabold text-[var(--brand)] shadow-sm"
-                    : "border-transparent text-stone-600 hover:bg-stone-50 hover:text-[var(--ink)]"
-                )}
-              >
-                {isActive && <div className="absolute bottom-2 left-0 top-2 w-1 rounded-r-md bg-[var(--brand)] shadow-sm" />}
-                <div className="shrink-0 scale-75 transition-transform -my-1 -ml-1">
-                  {item.isPrimary ? (
-                    <div className="relative w-14 h-14 flex items-center justify-center text-current transition-all">
-                      <Plus size={28} strokeWidth={2} />
-                    </div>
-                  ) : (
-                    resolveGlass3DIcon(item.icon)
-                  )}
-                </div>
-                <span className="hidden text-sm font-black lg:block">{item.name}</span>
-              </Link>
-            );
-          })}
-        </div>
-
-        <Link
-          href="/profile"
-          className="mt-auto flex items-center justify-center gap-3 border-t border-[var(--border)] p-4 transition-colors hover:bg-stone-50 lg:justify-start lg:p-6"
-        >
-          {userProfile?.avatar ? (
-            <img src={userProfile.avatar} alt={userProfile.name} className="h-10 w-10 shrink-0 rounded-full object-cover border border-stone-200 shadow-sm" />
-          ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-[var(--brand)] text-lg font-bold text-white shadow-sm">
-              {userProfile?.name?.charAt(0) || "A"}
-            </div>
-          )}
-          <div className="hidden flex-col overflow-hidden text-left lg:flex">
-            <span className="truncate text-sm font-black text-[var(--ink)]">{userProfile?.name?.split(" ")[0] || "Alexander"}</span>
-            <span className="truncate text-[10px] font-extrabold uppercase tracking-wide text-stone-400">View Profile</span>
-          </div>
-        </Link>
-      </nav>
-
-      {/* Global Wavy Glassmorphic Overlay Menu */}
-      {showPlusMenu && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-fade-in"
-          onClick={() => setShowPlusMenu(false)}
-        >
-          <div 
-            className="relative grid grid-cols-2 gap-5 max-w-sm sm:max-w-md w-full p-6 animate-scale-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close button on bottom center */}
+          <div className="relative -top-3.5 flex flex-col items-center">
             <button
-              onClick={() => setShowPlusMenu(false)}
-              className="absolute -bottom-20 left-1/2 -translate-x-1/2 flex h-14 w-14 items-center justify-center rounded-full bg-[#5e4eff] dark:bg-[#6366f1] text-white shadow-xl shadow-[#5e4eff]/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              onClick={() => window.dispatchEvent(new Event("openPublishModal"))}
+              className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--brand)] text-white shadow-lg shadow-[var(--brand)]/30 transition-all active:scale-90 cursor-pointer floating-button"
+              aria-label="Publish Memory"
             >
-              <X size={28} strokeWidth={2.5} />
+              <Plus size={28} strokeWidth={2.5} />
             </button>
-
-            {/* 4 Cards */}
-            {[
-              { 
-                title: "Spoken", 
-                subtitle: "Record your voice", 
-                icon: "voice", 
-                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
-                href: "/record?mode=Spoken" 
-              },
-              { 
-                title: "Visual", 
-                subtitle: "Upload photos/videos", 
-                icon: "photo", 
-                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
-                href: "/record?mode=Visual" 
-              },
-              { 
-                title: "Written", 
-                subtitle: "Write your story", 
-                icon: "text", 
-                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
-                href: "/record?mode=Written" 
-              },
-              { 
-                title: "Milestone", 
-                subtitle: "Mark an achievement", 
-                icon: "milestone", 
-                color: "bg-[#5e4eff] dark:bg-[#6366f1]",
-                href: "/record?mode=Milestone" 
-              }
-            ].map((item) => (
-              <Link
-                key={item.title}
-                href={item.href}
-                onClick={() => setShowPlusMenu(false)}
-                className="flex flex-col items-center justify-center bg-white dark:bg-stone-900 border border-stone-150/40 dark:border-stone-800/40 rounded-3xl p-6 shadow-xl hover:scale-102 hover:shadow-2xl transition-all duration-300 group cursor-pointer text-center min-h-[170px]"
-              >
-                <div className={`mb-3 flex h-14 w-14 items-center justify-center rounded-2xl ${item.color} text-white shadow-md shadow-black/10 transition group-hover:scale-105`}>
-                  {resolveGlass3DIcon(item.icon)}
-                </div>
-                <h3 className="text-base font-black text-stone-850 dark:text-white mb-0.5">{item.title}</h3>
-                <p className="text-[10px] font-bold text-stone-400 dark:text-stone-500 leading-tight">{item.subtitle}</p>
-              </Link>
-            ))}
           </div>
         </div>
-      )}
+      </nav>
+
+      {/* Desktop Sidebar */}
+      <nav className="fixed bottom-0 left-0 top-0 z-50 hidden w-20 flex-col bg-[#F4F5FF]/15 backdrop-blur-lg border-r border-[#C7D2FE]/30 transition-all duration-300 md:flex lg:w-[260px]">
+        {/* Logo */}
+        <div className="mb-8 hidden items-center gap-3 p-6 pb-2 lg:flex">
+          <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-7 w-auto object-contain" />
+        </div>
+        <div className="mb-6 mt-2 flex justify-center p-4 lg:hidden">
+          <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-9 w-auto object-contain" />
+        </div>
+
+        {/* Publish Memory Button */}
+        <div className="px-4 mb-8">
+          <button
+            onClick={() => window.dispatchEvent(new Event("openPublishModal"))}
+            className="w-full flex items-center justify-center lg:justify-start gap-2 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-[14px] p-3 lg:px-5 transition-all active:scale-95 group"
+          >
+            <Plus size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+            <span className="hidden lg:block font-bold text-sm">Publish Memory</span>
+          </button>
+        </div>
+
+        {/* Navigation Links */}
+        <div className="flex w-full flex-1 flex-col overflow-y-auto hide-scrollbar pb-4 pr-4">
+          <div className="w-full mb-2 lg:mb-4">
+            {navItems.slice(0, 5).map((item) => {
+              const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={clsx(
+                    "group relative flex items-center justify-center lg:justify-start gap-4 py-3 px-4 lg:px-5 lg:mx-3 transition-all mb-1.5 rounded-[14px] w-[calc(100%-24px)] mx-auto",
+                    isActive
+                      ? "bg-gradient-to-b from-[#EEF2FF] to-[#E5E9FF] shadow-[inset_0_2px_4px_rgba(255,255,255,1),_0_4px_10px_-4px_rgba(74,58,255,0.2)] border border-[#ffffff] text-[var(--brand)] font-bold"
+                      : "text-stone-500 hover:bg-[#EAEBFF]/40 font-medium border border-transparent"
+                  )}
+                >
+                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2.5} className={clsx(isActive ? "text-[var(--brand)] drop-shadow-sm" : "text-stone-400 group-hover:text-stone-600")} />
+                  <span className="hidden text-[14px] lg:block">{item.name}</span>
+                  {item.badge && (
+                    <span className="hidden lg:flex ml-auto mr-4 h-5 w-5 items-center justify-center rounded-full bg-[#4A3AFF] text-[10px] font-bold text-white">
+                      {item.badge}
+                    </span>
+                  )}
+                  {item.badge && (
+                    <span className="lg:hidden absolute top-2 right-2 h-2 w-2 rounded-full bg-[var(--brand)]" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="w-full">
+            {navItems.slice(5).map((item) => {
+              const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={clsx(
+                    "group relative flex items-center justify-center lg:justify-start gap-4 py-3 px-4 lg:px-5 lg:mx-3 transition-all mb-1.5 rounded-[14px] w-[calc(100%-24px)] mx-auto",
+                    isActive
+                      ? "bg-gradient-to-b from-[#EEF2FF] to-[#E5E9FF] shadow-[inset_0_2px_4px_rgba(255,255,255,1),_0_4px_10px_-4px_rgba(74,58,255,0.2)] border border-[#ffffff] text-[var(--brand)] font-bold"
+                      : "text-stone-500 hover:bg-[#EAEBFF]/40 font-medium border border-transparent"
+                  )}
+                >
+                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2.5} className={clsx(isActive ? "text-[var(--brand)] drop-shadow-sm" : "text-stone-400 group-hover:text-stone-600")} />
+                  <span className="hidden text-[14px] lg:block">{item.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
+
     </>
   );
 }
+

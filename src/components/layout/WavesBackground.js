@@ -16,9 +16,7 @@ import React from "react";
  */
 export default function WavesBackground({ children, className = "" }) {
   return (
-    <div
-      className={`relative min-h-screen w-full overflow-hidden -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 py-6 pb-24 text-[var(--foreground)] ${className}`}
-    >
+    <div className={`relative min-h-screen w-full text-[var(--foreground)] ${className}`}>
       {/* Content wrapper */}
       <div className="relative z-10 w-full h-full">
         {children}

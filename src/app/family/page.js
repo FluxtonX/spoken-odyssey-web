@@ -43,7 +43,7 @@ export default function FamilyDashboard() {
 
   return (
     <WavesBackground>
-      <div className="w-full max-w-3xl mx-auto relative pb-24">
+      <div className="w-full relative pb-24">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in flex items-center gap-2 bg-green-700 text-white px-4 py-3 rounded-xl shadow-2xl">

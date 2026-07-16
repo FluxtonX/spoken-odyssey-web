@@ -78,7 +78,7 @@ export default function ProfileSetup() {
 
       await updateProfileOnBackend(token, formData);
       await refreshProfile();
-      router.replace("/profile");
+      router.replace("/home");
     } catch (err) {
       console.error("Save Profile Error:", err);
       setErrorMsg(err.message || "Failed to complete profile setup. Please try again.");
@@ -99,7 +99,7 @@ export default function ProfileSetup() {
 
       await updateProfileOnBackend(token, formData);
       await refreshProfile();
-      router.replace("/profile");
+      router.replace("/home");
     } catch (err) {
       console.error("Skip Profile Error:", err);
       setErrorMsg(err.message || "Failed to skip onboarding. Please try again.");

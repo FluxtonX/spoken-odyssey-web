@@ -30,5 +30,5 @@ export function getPostAuthRoute(profile) {
   if (!profile?.onboardingCompleted) {
     return "/profile-setup";
   }
-  return "/profile";
+  return "/home";
 }
