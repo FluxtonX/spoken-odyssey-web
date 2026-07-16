@@ -45,8 +45,15 @@ export default function AlbumsGallery() {
           privacy: album.privacy || "Private",
           cover: album.coverImageUrl || album.coverImageKey || COVER_PRESETS[0].url,
           created: new Date(album.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+          tags: album.tags,
+          memoryCount: album.memoryCount
         }));
-        setAlbumsList(mapped);
+        
+        if (mapped.length > 0) {
+          setAlbumsList(mapped);
+        } else {
+          setAlbumsList(getStoredAlbums());
+        }
       } catch (error) {
         console.warn("Failed to load albums from backend, using local fallback:", getBackendErrorMessage(error));
         setAlbumsList(getStoredAlbums());

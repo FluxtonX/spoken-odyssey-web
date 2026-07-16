@@ -149,7 +149,14 @@ export default function Home() {
             getAlbumsFromBackend(token),
             getMemoriesFromBackend(token)
           ]);
-          setMemoriesList(backendMemories || []);
+          
+          if (backendMemories && backendMemories.length > 0) {
+            setMemoriesList(backendMemories);
+          } else {
+            seedInitialMemoriesIfNeeded();
+            const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+            setMemoriesList(saved ? JSON.parse(saved) : memories);
+          }
           return;
         } catch (error) {
           console.warn("Failed to load backend data", error);
