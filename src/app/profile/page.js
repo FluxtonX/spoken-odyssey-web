@@ -65,7 +65,7 @@ import {
 import CreateAlbumModal from "@/components/ui/CreateAlbumModal";
 
 export default function ProfilePage() {
-  const { firebaseUser, loading: authLoading } = useAuth();
+  const { firebaseUser, loading: authLoading, getToken} = useAuth();
   const [userProfile, setUserProfile] = useState(null);
   const [localMemories, setLocalMemories] = useState([]);
   const [activeTab, setActiveTab] = useState("memories"); // "memories", "albums"
@@ -133,7 +133,7 @@ export default function ProfilePage() {
     setLoadingData(true);
     setErrorMsg("");
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const profile = await getProfileFromBackend(token);
       setUserProfile(profile);
       setFormData({
@@ -204,7 +204,7 @@ export default function ProfilePage() {
   // Save inline profile info
   async function handleSaveInlineInfo() {
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const sendData = new FormData();
       sendData.append("displayName", formData.name.trim());
       sendData.append("profession", formData.role.trim());
@@ -257,7 +257,7 @@ export default function ProfilePage() {
   async function handleSaveAvatar(url) {
     if (!url || !url.trim()) return;
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formDataToSend = new FormData();
       formDataToSend.append("photoURL", url.trim());
 
@@ -277,7 +277,7 @@ export default function ProfilePage() {
   async function handleSaveCover(url) {
     if (!url || !url.trim()) return;
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formDataToSend = new FormData();
       formDataToSend.append("coverURL", url.trim());
 
@@ -298,7 +298,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formDataToSend = new FormData();
       formDataToSend.append("profileImage", file);
 
@@ -319,7 +319,7 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formDataToSend = new FormData();
       formDataToSend.append("coverImage", file);
 
@@ -339,7 +339,7 @@ export default function ProfilePage() {
   async function handleDeleteMemory(id) {
     if (!confirm("Are you sure you want to delete this memory forever?")) return;
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       await deleteMemoryOnBackend(token, id);
       await loadProfileAndMemories();
       triggerNotice("Memory deleted.");
@@ -364,7 +364,7 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!editingMemory) return;
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formDataToSend = new FormData();
       formDataToSend.append("title", memoryEditData.title.trim());
       formDataToSend.append("description", memoryEditData.description.trim());

@@ -3,20 +3,14 @@
 import { Plus, Search, ChevronRight, X, Lock, Users, Globe, Upload, Loader2, FolderHeart } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getStoredAlbums, saveStoredAlbums } from "@/data/userProfile";
+import { getStoredAlbums, saveStoredAlbums, COVER_PRESETS } from "@/data/userProfile";
 import { useAuth } from "@/context/AuthProvider";
 import { getAlbumsFromBackend, createAlbumOnBackend, getBackendErrorMessage } from "@/services/backend";
-
-const COVER_PRESETS = [
-  { name: "Ocean", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80" },
-  { name: "Mountain", url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80" },
-  { name: "Forest", url: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80" },
-  { name: "Library", url: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=800&q=80" },
-  { name: "Retro", url: "https://images.unsplash.com/photo-1517971071642-34a2d3ecc9cd?auto=format&fit=crop&w=800&q=80" }
-];
+import { motion } from "framer-motion";
+import { staggerContainer, fadeInUp } from "@/lib/animations";
 
 export default function AlbumsGallery() {
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken} = useAuth();
   const [albumsList, setAlbumsList] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -36,7 +30,7 @@ export default function AlbumsGallery() {
     setIsLoading(true);
     if (isAuthenticated && firebaseUser) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const backendAlbums = await getAlbumsFromBackend(token);
         const mapped = backendAlbums.map(album => ({
           id: album.id,
@@ -78,7 +72,7 @@ export default function AlbumsGallery() {
 
     if (isAuthenticated && firebaseUser) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const formData = new FormData();
         formData.append("title", newAlbumTitle.trim());
         formData.append("subtitle", newAlbumSubtitle.trim());
@@ -171,10 +165,15 @@ export default function AlbumsGallery() {
   return (
     <div className="w-full relative min-h-screen">
       {/* If WavesBackground causes layout issues, it can be added around this div. Based on screenshot, background is plain with slight purple shapes, which LayoutShell handles. */}
-      <div className="w-full px-4 md:px-6 lg:px-8 max-w-7xl mx-auto pb-24">
+      <motion.div 
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+        className="w-full px-4 md:px-6 lg:px-8 max-w-7xl mx-auto pb-24"
+      >
         
         {/* Header Section */}
-        <div className="flex justify-between items-center mb-8 pt-8">
+        <motion.div variants={fadeInUp} className="flex justify-between items-center mb-8 pt-8">
           <div>
             <h1 className="text-[36px] font-bold text-stone-900 tracking-tight mb-1">Albums</h1>
             <p className="text-stone-500 font-medium text-[15px]">
@@ -188,10 +187,10 @@ export default function AlbumsGallery() {
             <Plus size={18} strokeWidth={2.5} />
             <span className="text-[14px]">New Album</span>
           </button>
-        </div>
+        </motion.div>
 
         {/* Filter Tags Row */}
-        <div className="flex items-center gap-3 mb-10 overflow-x-auto pb-2 w-full mask-edges [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <motion.div variants={fadeInUp} className="flex items-center gap-3 mb-10 overflow-x-auto pb-2 w-full mask-edges [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="relative min-w-[260px] shrink-0">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
             <input 
@@ -208,22 +207,23 @@ export default function AlbumsGallery() {
               {tag}
             </button>
           ))}
-        </div>
+        </motion.div>
 
         {/* Albums Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+        <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
           
           {/* Create New Album Card */}
-          <button 
+          <motion.div 
+            variants={fadeInUp}
             onClick={() => setIsCreateModalOpen(true)}
-            className="relative w-full aspect-[4/4.5] rounded-[32px] border border-[#4A3AFF] bg-[#EAEBFF] flex flex-col items-center justify-center hover:bg-[#E0E7FF] hover:border-[#4A3AFF] transition-all cursor-pointer group active:scale-95 text-left shadow-sm"
+            className="relative w-full aspect-[4/4.5] figma-card flex flex-col items-center justify-center cursor-pointer group active:scale-95 text-left"
           >
             <div className="w-16 h-16 rounded-full bg-white border border-[#C7D2FE]/50 text-[#4A3AFF] flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#4A3AFF] group-hover:text-white transition-all duration-300 shadow-sm">
               <Plus size={32} />
             </div>
             <h3 className="font-bold text-lg text-stone-800">New Album</h3>
             <p className="text-sm text-stone-500 mt-1 font-medium">Organize new memories</p>
-          </button>
+          </motion.div>
 
           {isLoading ? (
             <div className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col items-center justify-center py-20">
@@ -238,8 +238,9 @@ export default function AlbumsGallery() {
             </div>
           ) : (
             filteredAlbums.map((album) => (
-              <Link href={`/albums/${album.id}`} key={album.id} className="group cursor-pointer">
-                <div className="relative w-full rounded-[32px] overflow-hidden bg-[#EAEBFF] border border-[#4A3AFF] shadow-sm hover:shadow-[0_12px_40px_rgb(74,58,255,0.12)] transition-all duration-300 hover:-translate-y-1 flex flex-col aspect-[4/4.5]">
+              <motion.div variants={fadeInUp} key={album.id}>
+                <Link href={`/albums/${album.id}`} className="group cursor-pointer">
+                  <div className="relative w-full overflow-hidden figma-card flex flex-col aspect-[4/4.5] cursor-pointer">
                   
                   {/* Image Top Half */}
                   <div className="relative w-full h-[60%] overflow-hidden bg-stone-200 shrink-0">
@@ -261,7 +262,7 @@ export default function AlbumsGallery() {
                   
                   {/* Card Body */}
                   <div className="p-7 flex flex-col flex-1 justify-between bg-[#EAEBFF]">
-                    <p className="text-stone-700 text-[16px] leading-relaxed font-medium line-clamp-2 pr-2">
+                    <p className="text-stone-700 text-[16px] leading-relaxed font-medium line-clamp-1 pr-2">
                       {album.subtitle || "No description provided."}
                     </p>
                     
@@ -282,11 +283,12 @@ export default function AlbumsGallery() {
                   </div>
                   
                 </div>
-              </Link>
+                </Link>
+              </motion.div>
             ))
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Album Creation Modal */}
       {isCreateModalOpen && (

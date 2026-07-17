@@ -1,386 +1,275 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
-import {
-  Compass,
-  Filter,
-  Heart,
-  MessageCircle,
-  Play,
-  Search,
-  Sparkles,
-  TrendingUp,
-  UserPlus,
-  Users,
-  Check,
-  UserCheck,
-  UserMinus,
-  Loader2,
-  AlertCircle
-} from "lucide-react";
-import FeedCard from "@/components/ui/FeedCard";
-import { useAuth } from "@/context/AuthProvider";
+import { useState, useEffect } from "react";
+import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import {
-  getDiscoveryMemories,
-  getSuggestedPeople,
-  getFamilyMembers,
-  connectFamilyMember,
-  disconnectFamilyMember,
-  getBackendErrorMessage
-} from "@/services/backend";
+import { Search, Loader2, Headphones, Heart } from "lucide-react";
+import { getDiscoveryMemories } from "@/services/backend";
+import { motion } from "framer-motion";
+import { staggerContainer, fadeInUp, fadeIn } from "@/lib/animations";
+import { useAuth } from "@/context/AuthProvider";
 
-const filterTabs = ["For You", "Family", "Public", "Themes", "People"];
-const topics = ["All", "Family Heritage", "Travel", "Recipes", "Milestones", "Voice Notes"];
+const FILTER_PILLS = [
+  "All Stories", "Family", "Immigration", "Heritage", "Love", "Career", "Loss", "Adventure"
+];
+
+// Fallback Figma data
+const FEATURED_STORY = {
+  id: "feat-1",
+  author: "Amara Diallo",
+  years: "1998 - 2024",
+  avatarUrl: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=150&auto=format&fit=crop",
+  title: "Leaving Dakar at nineteen",
+  description: "I left with my grandmother's recipe book and my father's blessing. Everything else I built from scratch.",
+  tags: ["immigration", "resilience", "family"],
+  listeners: "12.4k",
+  mediaUrl: "https://images.unsplash.com/photo-1502481851512-e9e2529bfbf9?q=80&w=1200&auto=format&fit=crop"
+};
+
+const GRID_STORIES = [
+  {
+    id: "story-1",
+    author: "Thomas Wren",
+    years: "1944 - Present",
+    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop",
+    title: "The farm. The war. The letters.",
+    description: "My grandfather never spoke about the war. After he died, we found 400 letters. I'm reading them all.",
+    tags: ["war", "heritage"],
+    listeners: "34.1k",
+    mediaUrl: "https://images.unsplash.com/photo-1449247666642-264389f5f5b1?q=80&w=600&auto=format&fit=crop"
+  },
+  {
+    id: "story-2",
+    author: "Yuki Tanaka",
+    years: "2009 - 2024",
+    avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop",
+    title: "From Kyoto to Oslo",
+    description: "A graphic novel designer who fell in love with fjords and a Norwegian fisherman.",
+    tags: ["love", "travel"],
+    listeners: "8.9k",
+    mediaUrl: "https://images.unsplash.com/photo-1522276498395-f4f68f7f8454?q=80&w=600&auto=format&fit=crop"
+  },
+  {
+    id: "story-3",
+    author: "Samuel Achebe",
+    years: "1982 - 2022",
+    avatarUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=150&auto=format&fit=crop",
+    title: "The classroom that changed everything",
+    description: "A teacher in Lagos for forty years. 2,400 students. A few of them changed the world.",
+    tags: ["education", "teaching"],
+    listeners: "19.2k",
+    mediaUrl: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=600&auto=format&fit=crop"
+  }
+];
 
 export default function DiscoverPage() {
-  const { firebaseUser, isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState("For You");
-  const [selectedTheme, setSelectedTheme] = useState("All");
+  const { firebaseUser, isAuthenticated, getToken } = useAuth();
+  
+  const [activeFilter, setActiveFilter] = useState("All Stories");
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Data states
-  const [memories, setMemories] = useState([]);
-  const [suggestedPeople, setSuggestedPeople] = useState([]);
-  const [familyMembers, setFamilyMembers] = useState([]);
-  
-  // Loading & error states
   const [isLoading, setIsLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [actioningId, setActioningId] = useState(""); // tracks which connection button is processing
-
-  const loadData = async () => {
-    setIsLoading(true);
-    setErrorMsg("");
-    
-    if (!isAuthenticated || !firebaseUser) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const token = await firebaseUser.getIdToken();
-
-      if (activeTab === "People") {
-        const [suggestions, family] = await Promise.all([
-          getSuggestedPeople(token),
-          getFamilyMembers(token)
-        ]);
-        setSuggestedPeople(suggestions);
-        setFamilyMembers(family);
-      } else {
-        const backendFilter = activeTab.toLowerCase().replace(" ", "-");
-        const themeFilter = activeTab === "Themes" ? selectedTheme : "";
-        const data = await getDiscoveryMemories(token, backendFilter, themeFilter);
-        setMemories(data);
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg(getBackendErrorMessage(err) || "Failed to load content.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [memories, setMemories] = useState([]);
 
   useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      if (!isAuthenticated || !firebaseUser) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const token = await getToken();
+        // Just fetch public memories, we will use mock data for the UI showcase if empty
+        const data = await getDiscoveryMemories(token, "public", "");
+        setMemories(data || []);
+      } catch (err) {
+        console.error("Discover API Error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
     loadData();
-  }, [activeTab, selectedTheme, isAuthenticated, firebaseUser]);
-
-  const handleConnect = async (targetUid) => {
-    if (!isAuthenticated || !firebaseUser) return;
-    setActioningId(targetUid);
-    try {
-      const token = await firebaseUser.getIdToken();
-      await connectFamilyMember(token, targetUid);
-      // Reload people & family
-      const [suggestions, family] = await Promise.all([
-        getSuggestedPeople(token),
-        getFamilyMembers(token)
-      ]);
-      setSuggestedPeople(suggestions);
-      setFamilyMembers(family);
-    } catch (err) {
-      console.error("Connection error:", err);
-      alert(getBackendErrorMessage(err) || "Failed to establish family connection.");
-    } finally {
-      setActioningId("");
-    }
-  };
-
-  const handleDisconnect = async (targetUid) => {
-    if (!isAuthenticated || !firebaseUser) return;
-    if (!confirm("Are you sure you want to remove this family member?")) return;
-    setActioningId(targetUid);
-    try {
-      const token = await firebaseUser.getIdToken();
-      await disconnectFamilyMember(token, targetUid);
-      // Reload people & family
-      const [suggestions, family] = await Promise.all([
-        getSuggestedPeople(token),
-        getFamilyMembers(token)
-      ]);
-      setSuggestedPeople(suggestions);
-      setFamilyMembers(family);
-    } catch (err) {
-      console.error("Disconnection error:", err);
-      alert(getBackendErrorMessage(err) || "Failed to remove family connection.");
-    } finally {
-      setActioningId("");
-    }
-  };
-
-  const filteredMemories = useMemo(() => {
-    if (!searchQuery.trim()) return memories;
-    const query = searchQuery.toLowerCase().trim();
-    return memories.filter(m => 
-      m.title?.toLowerCase().includes(query) || 
-      m.description?.toLowerCase().includes(query) ||
-      m.ownerDisplayName?.toLowerCase().includes(query) ||
-      m.tags?.some(t => t.toLowerCase().includes(query))
-    );
-  }, [memories, searchQuery]);
-
-  const filteredPeople = useMemo(() => {
-    if (!searchQuery.trim()) return suggestedPeople;
-    const query = searchQuery.toLowerCase().trim();
-    return suggestedPeople.filter(p => 
-      p.name?.toLowerCase().includes(query) || 
-      p.role?.toLowerCase().includes(query) ||
-      p.bio?.toLowerCase().includes(query)
-    );
-  }, [suggestedPeople, searchQuery]);
-
+  }, [isAuthenticated, firebaseUser]);
+  
   return (
     <WavesBackground>
-      <div className="w-full">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
+      <motion.div 
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+        className="w-full relative pb-24 min-h-screen"
+      >
+        <DashboardHeader />
+
+        <div className="w-full mt-2 md:mt-6 px-4 md:px-8 max-w-6xl mx-auto">
           
-          {/* LEFT COLUMN: Header + Tabs + Content */}
-          <div className="flex flex-col min-w-0 gap-5">
-            {/* Main Header Card */}
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-6 text-left">
-              <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-black uppercase tracking-wide text-[var(--brand)]">
-                <Compass size={14} />
-                Discover
-              </p>
-              <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] dark:text-white md:text-5xl">
-                Explore Odyssey
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-stone-600 dark:text-stone-300">
-                Browse public memories, family archives, and suggested connections. Experience heritage through voice and story.
-              </p>
-
-              <div className="mt-5 flex gap-2">
-                <div className="relative flex-1">
-                  <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-                  <input
-                    placeholder={activeTab === "People" ? "Search suggested profiles" : "Search public memories"}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] pl-9 pr-3 text-sm font-bold outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
-                  />
-                </div>
-                <button className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-stone-600 dark:text-stone-300">
-                  <Filter size={17} />
-                </button>
+          {/* Header & Search */}
+          <motion.div variants={fadeInUp} className="flex flex-col mb-8">
+            <h1 className="text-[32px] md:text-[40px] font-black text-stone-900 tracking-tight leading-tight mb-2">Discover</h1>
+            <p className="text-stone-500 font-medium text-[15px] mb-8">
+              Explore extraordinary lives, shared publicly
+            </p>
+            
+            {/* Search Input */}
+            <div className="relative max-w-2xl">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search size={18} className="text-stone-400" />
               </div>
+              <input
+                type="text"
+                placeholder="Search stories, authors..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-3.5 bg-white border border-[#C7D2FE] rounded-full text-[15px] font-medium text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#4A3AFF]/20 transition-all shadow-sm"
+              />
             </div>
+          </motion.div>
 
-            {/* Trending Themes (Mobile Only) */}
-            <div className="lg:hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm text-left flex flex-col justify-between">
-              <div>
-                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ink)] dark:text-white">
-                  <TrendingUp size={18} className="text-[var(--brand)]" />
-                  Trending Themes
-                </h2>
-                <p className="mt-1 text-xs text-stone-500 font-semibold">Filter public posts by topic.</p>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {topics.map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => {
-                      setSelectedTheme(item);
-                      setActiveTab("Themes");
-                    }}
-                    className={`rounded-full border px-3 py-2 text-xs font-black transition ${
-                      selectedTheme === item && activeTab === "Themes"
-                        ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-                        : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--brand)] text-stone-600 dark:text-stone-300"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
+          {/* Filter Pills */}
+          <motion.div variants={fadeInUp} className="flex overflow-x-auto hide-scrollbar gap-3 mb-10 pb-2">
+            {FILTER_PILLS.map(filter => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`shrink-0 px-5 py-2.5 rounded-full text-[14px] font-bold transition-all ${
+                  activeFilter === filter
+                    ? "bg-transparent border border-[#4A3AFF] text-[#4A3AFF]"
+                    : "bg-white border border-transparent text-stone-500 hover:text-stone-800 shadow-sm"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </motion.div>
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 size={36} className="animate-spin text-[#4A3AFF] mb-4" />
+              <p className="text-stone-500 font-bold tracking-wide uppercase text-[12px]">Loading Discover...</p>
             </div>
-
-            {/* Elegant Filter Tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-1 border-b border-[var(--border)]/35 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {filterTabs.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`shrink-0 border-b-2 px-5 py-3 text-sm font-black transition-all ${
-                    activeTab === tab
-                      ? "border-[var(--brand)] text-[var(--brand)]"
-                      : "border-transparent text-stone-500 hover:text-[var(--brand)]"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {/* Main Section */}
-            <main className="w-full">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-stone-400">
-            <Loader2 className="animate-spin text-[var(--brand)]" size={32} />
-            <p className="text-xs font-black uppercase tracking-widest">Loading content...</p>
-          </div>
-        ) : errorMsg ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-rose-500 border border-rose-100 rounded-2xl bg-rose-50/20 max-w-lg mx-auto">
-            <AlertCircle size={32} />
-            <p className="text-sm font-bold text-center px-4">{errorMsg}</p>
-            <button onClick={loadData} className="mt-2 h-9 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition">Retry</button>
-          </div>
-        ) : activeTab === "People" ? (
-          <div className="space-y-8">
-            {/* Suggested Connections */}
-            <section className="text-left">
-              <h2 className="text-xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-1">Suggested Connections</h2>
-              <p className="text-xs text-stone-500 font-semibold mb-5">Connect with other family members and archivists on Spoken Odyssey.</p>
+          ) : (
+            <motion.div variants={staggerContainer} className="flex flex-col gap-8">
               
-              {filteredPeople.length > 0 ? (
-                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredPeople.map((person) => (
-                    <div key={person.id} className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm flex flex-col justify-between p-5">
-                      <div className="flex items-start gap-4 mb-4">
-                        <img src={person.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(person.name)}`} alt={person.name} className="h-14 w-14 rounded-xl border border-stone-200 object-cover shrink-0" />
-                        <div className="min-w-0">
-                          <h3 className="truncate text-base font-black text-[var(--ink)] dark:text-white leading-tight">{person.name}</h3>
-                          <p className="mt-0.5 truncate text-xs font-bold text-[var(--brand)]">{person.role}</p>
-                          <p className="mt-2 text-xs font-medium text-stone-500 line-clamp-2 leading-relaxed">{person.bio || "No bio added yet."}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleConnect(person.id)}
-                        disabled={actioningId === person.id}
-                        className="w-full h-10 rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-hover)] transition-all font-black text-xs uppercase tracking-wide flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        {actioningId === person.id ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <UserPlus size={14} />
-                        )}
-                        Connect Family
-                      </button>
+              {/* Featured Banner */}
+              <motion.div variants={fadeInUp} className="w-full flex flex-col md:flex-row rounded-[24px] overflow-hidden shadow-lg border border-[#C7D2FE]/30 bg-[#4A3AFF] min-h-[360px]">
+                {/* Left Side: Content */}
+                <div className="w-full md:w-[55%] p-8 md:p-10 lg:p-12 flex flex-col justify-center text-white relative z-10">
+                  <div className="text-[11px] font-bold tracking-widest text-white/80 uppercase mb-8">
+                    Featured Story
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mb-6">
+                    <img 
+                      src={FEATURED_STORY.avatarUrl} 
+                      alt={FEATURED_STORY.author} 
+                      className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-bold text-[14px] leading-tight">{FEATURED_STORY.author}</span>
+                      <span className="text-[12px] text-white/70">{FEATURED_STORY.years}</span>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-[var(--border)] p-12 text-center text-stone-400">
-                  <Sparkles className="mx-auto mb-2 text-stone-300" size={24} />
-                  <p className="text-xs font-bold">No suggested connections found.</p>
-                </div>
-              )}
-            </section>
+                  </div>
 
-            {/* Connected Family */}
-            <section className="text-left mt-8">
-              <h2 className="text-xl font-black tracking-tight text-[var(--ink)] dark:text-white mb-1">Your Connected Family</h2>
-              <p className="text-xs text-stone-500 font-semibold mb-5">Members in your circle who can access family-only memories.</p>
+                  <h2 className="text-[28px] md:text-[36px] font-black leading-tight mb-4 text-white">
+                    {FEATURED_STORY.title}
+                  </h2>
+                  <p className="text-[15px] text-white/90 font-medium mb-8 max-w-md leading-relaxed">
+                    {FEATURED_STORY.description}
+                  </p>
 
-              {familyMembers.length > 0 ? (
-                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                  {familyMembers.map((person) => (
-                    <div key={person.id} className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm flex flex-col justify-between p-5">
-                      <div className="flex items-start gap-4 mb-4">
-                        <img src={person.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(person.name)}`} alt={person.name} className="h-14 w-14 rounded-xl border border-stone-200 object-cover shrink-0" />
-                        <div className="min-w-0">
-                          <h3 className="truncate text-base font-black text-[var(--ink)] dark:text-white leading-tight">{person.name}</h3>
-                          <p className="mt-0.5 truncate text-xs font-bold text-stone-500 flex items-center gap-1">
-                            <UserCheck size={12} className="text-green-600" /> Connected Member
-                          </p>
-                          <p className="mt-2 text-xs font-medium text-stone-500 line-clamp-2 leading-relaxed">{person.bio || "No bio added yet."}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDisconnect(person.id)}
-                        disabled={actioningId === person.id}
-                        className="w-full h-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 dark:bg-stone-800 dark:hover:bg-stone-750 dark:text-stone-300 transition-all font-black text-xs uppercase tracking-wide flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        {actioningId === person.id ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <UserMinus size={14} className="text-rose-600" />
-                        )}
-                        Disconnect
-                      </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {FEATURED_STORY.tags.map(tag => (
+                      <span key={tag} className="px-3 py-1 bg-white/20 rounded-md text-[12px] font-bold tracking-wide">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mt-8 flex items-center gap-4">
+                    <button className="flex items-center gap-2 bg-white text-[#4A3AFF] px-6 py-2.5 rounded-xl font-bold text-[14px] hover:bg-stone-50 transition-colors shadow-sm">
+                      <Headphones size={16} />
+                      Listen
+                    </button>
+                    <span className="text-[13px] font-medium text-white/80">{FEATURED_STORY.listeners} listeners</span>
+                  </div>
+                </div>
+
+                {/* Right Side: Image */}
+                <div className="w-full md:w-[45%] h-[250px] md:h-auto relative">
+                  <img 
+                    src={FEATURED_STORY.mediaUrl} 
+                    alt="Featured" 
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  {/* Gradient Overlay for mobile blending */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#4A3AFF] to-transparent md:hidden" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#4A3AFF] via-[#4A3AFF]/20 to-transparent hidden md:block" />
+                </div>
+              </motion.div>
+
+              {/* Grid Stories */}
+              <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {GRID_STORIES.map(story => (
+                  <motion.div variants={fadeInUp} key={story.id} className="figma-card flex flex-col overflow-hidden bg-[#F4F5FF] border border-[#C7D2FE] group cursor-pointer h-full">
+                    
+                    {/* Image Top Half */}
+                    <div className="w-full h-[180px] overflow-hidden shrink-0 relative border-b border-[#C7D2FE]/50">
+                      <img 
+                        src={story.mediaUrl} 
+                        alt={story.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-[var(--border)] p-12 text-center text-stone-400">
-                  <Users className="mx-auto mb-2 text-stone-300" size={24} />
-                  <p className="text-xs font-bold">You haven't connected with any family members yet.</p>
-                </div>
-              )}
-            </section>
-          </div>
-        ) : (
-          <div className="space-y-6 text-left w-full">
-            {filteredMemories.length > 0 ? (
-              filteredMemories.map((memory) => (
-                <FeedCard key={memory.id} memory={memory} />
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-[var(--border)] p-16 text-center text-stone-400">
-                <Compass className="mx-auto mb-2 text-stone-300" size={32} />
-                <p className="text-sm font-bold">No memories found matching this filter.</p>
-                <p className="text-xs text-stone-500 mt-1 font-semibold">Try switching filters or adjusting your search.</p>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-          </div>
 
-          {/* RIGHT COLUMN: Trending Themes (Desktop Only) */}
-          <div className="hidden lg:flex flex-col sticky top-6">
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm text-left flex flex-col justify-between">
-              <div>
-                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ink)] dark:text-white">
-                  <TrendingUp size={18} className="text-[var(--brand)]" />
-                  Trending Themes
-                </h2>
-                <p className="mt-1 text-xs text-stone-500 font-semibold">Filter public posts by topic.</p>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {topics.map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => {
-                      setSelectedTheme(item);
-                      setActiveTab("Themes");
-                    }}
-                    className={`rounded-full border px-3 py-2 text-xs font-black transition ${
-                      selectedTheme === item && activeTab === "Themes"
-                        ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-                        : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--brand)] text-stone-600 dark:text-stone-300"
-                    }`}
-                  >
-                    {item}
-                  </button>
+                    {/* Bottom Content */}
+                    <div className="p-6 flex flex-col grow bg-[#EAEBFF]/50 backdrop-blur-sm">
+                      {/* Author Header */}
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={story.avatarUrl} 
+                            alt={story.author} 
+                            className="w-10 h-10 rounded-full object-cover border border-[#C7D2FE]"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-bold text-[13px] text-stone-900 leading-tight">{story.author}</span>
+                            <span className="text-[11px] text-stone-500 font-medium">{story.years}</span>
+                          </div>
+                        </div>
+                        <button className="text-[#C7D2FE] hover:text-[#4A3AFF] transition-colors">
+                          <Heart size={18} strokeWidth={2.5} />
+                        </button>
+                      </div>
+
+                      {/* Title & Desc */}
+                      <h3 className="text-[18px] font-black text-stone-900 leading-tight mb-2">
+                        {story.title}
+                      </h3>
+                      <p className="text-[14px] text-stone-600 font-medium leading-relaxed mb-6 line-clamp-3">
+                        {story.description}
+                      </p>
+
+                      {/* Footer: Tags & Listeners */}
+                      <div className="mt-auto flex items-center justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {story.tags.map(tag => (
+                            <span key={tag} className="px-2.5 py-1 bg-[#4A3AFF] text-white rounded-md text-[11px] font-bold tracking-wide">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <span className="text-[12px] font-bold text-stone-500 shrink-0">{story.listeners}</span>
+                      </div>
+                    </div>
+                  </motion.div>
                 ))}
-              </div>
-            </div>
-          </div>
+              </motion.div>
+
+            </motion.div>
+          )}
 
         </div>
-      </div>
+      </motion.div>
     </WavesBackground>
   );
 }

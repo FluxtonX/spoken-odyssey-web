@@ -180,7 +180,7 @@ function RecordMemoryContent() {
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
-      router.push("/feed");
+      router.push("/home");
     }
   };
   const [savedMemories, setSavedMemories] = useState([]);
@@ -193,7 +193,7 @@ function RecordMemoryContent() {
   const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken} = useAuth();
 
   const albumDropdownRef = useRef(null);
   const audienceDropdownRef = useRef(null);
@@ -236,7 +236,7 @@ function RecordMemoryContent() {
     const fetchAlbums = async () => {
       if (isAuthenticated && firebaseUser) {
         try {
-          const token = await firebaseUser.getIdToken();
+          const token = await getToken();
           const backendAlbums = await getAlbumsFromBackend(token);
           const mapped = backendAlbums.map(album => ({
             id: album.id,
@@ -477,7 +477,7 @@ function RecordMemoryContent() {
 
     if (isAuthenticated && firebaseUser) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const formData = new FormData();
         formData.append("title", cleanTitle);
         formData.append("description", storyText.trim());

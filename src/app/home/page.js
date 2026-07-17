@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { getAlbumsFromBackend, getMemoriesFromBackend } from "@/services/backend";
 import { memories } from "@/data/mockApp";
 import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COVER_PRESETS } from "@/data/userProfile";
+import { motion } from "framer-motion";
+import { staggerContainer, fadeInUp, fadeInScale } from "@/lib/animations";
 
 function MemoryCard({ memory, index }) {
   const type = memory.type?.toLowerCase() || "voice";
@@ -109,7 +111,7 @@ function MemoryCard({ memory, index }) {
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, loading, profile, firebaseUser, logout } = useAuth();
+  const { isAuthenticated, loading, profile, firebaseUser, logout, getToken} = useAuth();
   
   const [memoriesList, setMemoriesList] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
@@ -144,7 +146,7 @@ export default function Home() {
     const loadHomeData = async () => {
       if (isAuthenticated && firebaseUser) {
         try {
-          const token = await firebaseUser.getIdToken();
+          const token = await getToken();
           const [backendAlbums, backendMemories] = await Promise.all([
             getAlbumsFromBackend(token),
             getMemoriesFromBackend(token)
@@ -181,12 +183,17 @@ export default function Home() {
   const fullName = firebaseUser?.displayName || profile?.displayName || firebaseUser?.email?.split("@")[0] || profile?.email?.split("@")[0] || userProfile?.name || "Explorer";
 
   return (
-    <div className="w-full pb-24 animate-fade-in">
+    <motion.div 
+      variants={staggerContainer}
+      initial="hidden"
+      animate="show"
+      className="w-full pb-24"
+    >
       {/* TOP HEADER BAR */}
       <DashboardHeader />
 
       {/* WELCOME BANNER */}
-      <div className="mb-10 animate-fade-in-up stagger-1">
+      <motion.div variants={fadeInUp} className="mb-10">
         <p className="text-stone-400 font-semibold text-sm mb-1">{currentDate}</p>
         <h1 className="text-4xl md:text-5xl font-black text-stone-900 tracking-tight mb-2 leading-none">
           {greeting}, {fullName}.
@@ -194,7 +201,7 @@ export default function Home() {
         <p className="text-stone-500 text-sm font-medium">
           Your archive has <span className="font-bold text-[var(--brand)]">247 memories</span> and is growing.
         </p>
-      </div>
+      </motion.div>
 
       {/* TOP STAT CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
@@ -258,7 +265,7 @@ export default function Home() {
           </div>
 
           {/* AI Insight */}
-          <div className="figma-card p-7 bg-white relative overflow-hidden transition-colors animate-fade-in-up stagger-3">
+          <div className="figma-card p-7 relative overflow-hidden transition-colors animate-fade-in-up stagger-3">
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles size={16} className="text-[#4A3AFF]" />
@@ -274,7 +281,7 @@ export default function Home() {
           </div>
 
           {/* Activity Chart (This Week) */}
-          <div className="figma-card p-7 bg-[#E8E9FF] animate-fade-in-up stagger-4">
+          <div className="figma-card p-7 animate-fade-in-up stagger-4">
             <h3 className="font-bold text-stone-900 mb-6">This week</h3>
             <div className="space-y-4">
               {[
@@ -302,7 +309,7 @@ export default function Home() {
 
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

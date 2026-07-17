@@ -15,7 +15,7 @@ import {
 } from "@/services/backend";
 
 export default function FollowersPage() {
-  const { firebaseUser, isAuthenticated, loading: authLoading } = useAuth();
+  const { firebaseUser, isAuthenticated, loading: authLoading, getToken} = useAuth();
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -29,7 +29,7 @@ export default function FollowersPage() {
     setIsLoading(true);
     setErrorMsg("");
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const [followersList, followingList, suggestionsList] = await Promise.all([
         getFollowers(token),
         getFollowing(token),
@@ -61,7 +61,7 @@ export default function FollowersPage() {
     if (!firebaseUser) return;
     setActioningId(targetUid);
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       if (isFollowing(targetUid)) {
         await unfollowUser(token, targetUid);
       } else {
@@ -120,7 +120,7 @@ export default function FollowersPage() {
       {/* Header */}
       <header className="mb-6 flex items-start gap-4">
         <Link
-          href="/feed"
+          href="/discover"
           className="mt-1 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm transition active:scale-95"
           aria-label="Back to feed"
         >

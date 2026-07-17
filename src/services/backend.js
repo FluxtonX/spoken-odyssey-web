@@ -46,7 +46,32 @@ async function backendFetch(path, { method = "GET", body, token, isFormData = fa
   return payload;
 }
 
-/** Sync Firebase user → MongoDB (spokenOdessie_backend auth.controller syncUser) */
+/** Custom JWT Auth endpoints */
+export async function loginWithBackend(email, password) {
+  const response = await backendFetch("/api/auth/login", { 
+    method: "POST", 
+    body: { email, password } 
+  });
+  return response; // Contains token and data
+}
+
+export async function registerWithBackend(userData) {
+  const response = await backendFetch("/api/auth/register", { 
+    method: "POST", 
+    body: userData 
+  });
+  return response; // Contains token and data
+}
+
+export async function googleLoginWithBackend(googleToken) {
+  const response = await backendFetch("/api/auth/google", { 
+    method: "POST", 
+    body: { googleToken } 
+  });
+  return response; // Contains token and data
+}
+
+/** Sync Firebase user → MongoDB (deprecated logic but kept for backward compatibility) */
 export async function syncUserWithBackend(token) {
   const response = await backendFetch("/api/auth/sync", { method: "POST", token });
   return response.data;

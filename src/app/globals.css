@@ -99,17 +99,14 @@
 @layer utilities {
   /* Flat SaaS Figma Card Looks - Glassy bluish-purple with 3D reflection border & deep shadows */
   .figma-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(240, 242, 255, 0.8) 100%);
-    backdrop-filter: blur(14px);
+    background: linear-gradient(180deg, rgba(243, 244, 255, 0.9) 0%, rgba(229, 232, 255, 0.9) 100%);
+    backdrop-filter: blur(12px);
     border-radius: 24px;
-    border: 1.5px solid rgba(165, 180, 252, 0.6);
+    border: 1px solid #D1D9FF;
     box-shadow: 
-      0 12px 30px -10px rgba(74, 58, 255, 0.16), 
-      0 4px 10px -4px rgba(74, 58, 255, 0.08), 
-      inset 0 2px 6px rgba(255, 255, 255, 1), 
-      inset 0 -12px 30px rgba(145, 137, 255, 0.12),
-      inset 18px 0 26px rgba(145, 137, 255, 0.08); /* 3D depth and interior fades */
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      inset 0 2px 4px rgba(118, 136, 255, 0.6),
+      0 10px 30px rgba(74, 58, 255, 0.12);
+    transition: all 0.3s ease;
   }
   
   .dark .figma-card {
@@ -118,20 +115,15 @@
     box-shadow: 
       0 12px 30px -10px rgba(0, 0, 0, 0.3), 
       0 4px 10px -4px rgba(0, 0, 0, 0.2), 
-      inset 0 2px 4px rgba(255, 255, 255, 0.08),
+      inset 0 2px 4px rgba(118, 136, 255, 0.4),
       inset 0 -12px 30px rgba(74, 58, 255, 0.1);
   }
   
   .figma-card:hover {
-    border-color: rgba(165, 180, 252, 0.95);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(235, 238, 255, 0.9) 100%);
-    transform: translateY(-5px); /* Elevated float */
+    transform: translateY(-4px); /* Elevated float */
     box-shadow: 
-      0 20px 40px -12px rgba(74, 58, 255, 0.25), 
-      0 6px 14px -4px rgba(74, 58, 255, 0.12), 
-      inset 0 2px 8px rgba(255, 255, 255, 1), 
-      inset 0 -12px 30px rgba(145, 137, 255, 0.18),
-      inset 18px 0 30px rgba(145, 137, 255, 0.15);
+      inset 0 2px 4px rgba(118, 136, 255, 0.9),
+      0 20px 50px rgba(74, 58, 255, 0.22);
   }
 
   /* Specific solid cards from Figma */

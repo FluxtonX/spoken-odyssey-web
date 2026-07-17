@@ -6,112 +6,56 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { syncUserWithBackend, sendHeartbeat } from "@/services/backend";
-import { BackendError } from "@/services/backend";
+import { 
+  loginWithBackend, 
+  registerWithBackend, 
+  googleLoginWithBackend,
+  getProfileFromBackend,
+  sendHeartbeat 
+} from "@/services/backend";
 import {
-  getFirebaseAuth,
-  signInWithEmail,
   signInWithGoogle,
   signOutUser,
-  signUpWithEmail,
   sendPasswordReset,
   resendVerificationEmail,
 } from "@/services/firebase";
 
-import { getStoredUserProfile } from "@/data/userProfile";
-
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [jwtToken, setJwtToken] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const syncInFlight = useRef(null);
 
-  const syncProfile = useCallback(async (user, forceRefresh = false) => {
-    if (!user) {
-      setProfile(null);
-      return null;
+  // Initialize token from localStorage on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem("spokenOdysseyToken");
+    if (storedToken) {
+      setJwtToken(storedToken);
+      getProfileFromBackend(storedToken)
+        .then(data => setProfile(data))
+        .catch(() => {
+           localStorage.removeItem("spokenOdysseyToken");
+           setJwtToken(null);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
-    if (syncInFlight.current) return syncInFlight.current;
-
-    const task = (async () => {
-      setSyncing(true);
-      try {
-        const token = await user.getIdToken(forceRefresh);
-        const syncedProfile = await syncUserWithBackend(token);
-        setProfile(syncedProfile);
-        return syncedProfile;
-      } catch (error) {
-        if (error instanceof BackendError && error.status === 401) {
-          await signOutUser();
-          setFirebaseUser(null);
-          setProfile(null);
-          throw error;
-        }
-        
-        console.warn("Backend sync failed. Falling back to local storage profile:", error);
-        try {
-          const localProfile = getStoredUserProfile();
-          const fallbackProfile = {
-            ...localProfile,
-            email: user.email,
-            uid: user.uid,
-            profileCompleted: !!(localProfile.name && localProfile.name.trim()),
-            onboardingCompleted: true,
-          };
-          setProfile(fallbackProfile);
-          return fallbackProfile;
-        } catch (fallbackError) {
-          console.error("Local fallback failed:", fallbackError);
-          throw error;
-        }
-      } finally {
-        setSyncing(false);
-        syncInFlight.current = null;
-      }
-    })();
-
-    syncInFlight.current = task;
-    return task;
   }, []);
 
-  useEffect(() => {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      setTimeout(() => setLoading(false), 0);
-      return undefined;
-    }
-
-    return onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
-      if (!user) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-      try {
-        await syncProfile(user);
-      } catch {
-        // Handled in login actions.
-      } finally {
-        setLoading(false);
-      }
-    });
-  }, [syncProfile]);
+  const getToken = useCallback(async () => {
+    return jwtToken || localStorage.getItem("spokenOdysseyToken");
+  }, [jwtToken]);
 
   useEffect(() => {
-    if (!firebaseUser) return undefined;
+    if (!jwtToken) return undefined;
 
     const pingHeartbeat = async () => {
       try {
-        const token = await firebaseUser.getIdToken();
-        await sendHeartbeat(token);
+        await sendHeartbeat(jwtToken);
       } catch (err) {
         console.warn("Heartbeat ping failed:", err.message);
       }
@@ -121,31 +65,42 @@ export function AuthProvider({ children }) {
     const intervalId = setInterval(pingHeartbeat, 60000);
 
     return () => clearInterval(intervalId);
-  }, [firebaseUser]);
+  }, [jwtToken]);
 
-  const login = useCallback(
-    async (email, password) => {
-      const user = await signInWithEmail(email.trim(), password);
-      setFirebaseUser(user);
-      return syncProfile(user, true);
-    },
-    [syncProfile]
-  );
+  const login = useCallback(async (email, password) => {
+    const response = await loginWithBackend(email.trim(), password);
+    const token = response.token;
+    localStorage.setItem("spokenOdysseyToken", token);
+    setJwtToken(token);
+    setProfile(response.data);
+    return response.data;
+  }, []);
 
   const signup = useCallback(async ({ name, email, password }) => {
-    return signUpWithEmail({ name, email: email.trim(), password });
+    const response = await registerWithBackend({ displayName: name, email: email.trim(), password });
+    const token = response.token;
+    localStorage.setItem("spokenOdysseyToken", token);
+    setJwtToken(token);
+    setProfile(response.data);
+    return response.data;
   }, []);
 
   const loginWithGoogle = useCallback(async () => {
-    const user = await signInWithGoogle();
-    setFirebaseUser(user);
-    return syncProfile(user, true);
-  }, [syncProfile]);
+    const firebaseUser = await signInWithGoogle();
+    const googleToken = await firebaseUser.getIdToken();
+    const response = await googleLoginWithBackend(googleToken);
+    const token = response.token;
+    localStorage.setItem("spokenOdysseyToken", token);
+    setJwtToken(token);
+    setProfile(response.data);
+    return response.data;
+  }, []);
 
   const logout = useCallback(async () => {
-    await signOutUser();
-    setFirebaseUser(null);
+    localStorage.removeItem("spokenOdysseyToken");
+    setJwtToken(null);
     setProfile(null);
+    await signOutUser();
   }, []);
 
   const sendResetEmail = useCallback(async (email) => {
@@ -157,17 +112,22 @@ export function AuthProvider({ children }) {
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (!firebaseUser) return null;
-    return syncProfile(firebaseUser, true);
-  }, [firebaseUser, syncProfile]);
+    if (!jwtToken) return null;
+    try {
+      const data = await getProfileFromBackend(jwtToken);
+      setProfile(data);
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }, [jwtToken]);
 
   const value = useMemo(
     () => ({
-      firebaseUser,
+      jwtToken,
       profile,
       loading,
-      syncing,
-      isAuthenticated: !!firebaseUser,
+      isAuthenticated: !!jwtToken,
       login,
       signup,
       loginWithGoogle,
@@ -175,12 +135,19 @@ export function AuthProvider({ children }) {
       sendResetEmail,
       resendVerification,
       refreshProfile,
+      getToken,
+      // Temporarily polyfill firebaseUser to prevent immediate crashes during refactor
+      firebaseUser: jwtToken ? { 
+        getIdToken: async () => jwtToken,
+        email: profile?.email,
+        uid: profile?.id,
+        displayName: profile?.displayName,
+      } : null,
     }),
     [
-      firebaseUser,
+      jwtToken,
       profile,
       loading,
-      syncing,
       login,
       signup,
       loginWithGoogle,
@@ -188,6 +155,7 @@ export function AuthProvider({ children }) {
       sendResetEmail,
       resendVerification,
       refreshProfile,
+      getToken,
     ]
   );
 

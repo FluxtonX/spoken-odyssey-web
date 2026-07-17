@@ -31,7 +31,7 @@ const isMockId = (id) => {
 };
 
 export default function MemoryDetailModal({ memory, userProfile, onClose }) {
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken} = useAuth();
   
   // States copied from FeedCard for realism
   const [reaction, setReaction] = useState(memory.userReaction || null);
@@ -100,7 +100,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
     setCommentsOpen(nextOpen);
     const isMock = isMockId(memory.id);
     if (nextOpen && isAuthenticated && firebaseUser && !isMock) {
-      firebaseUser.getIdToken().then((token) => {
+      getToken().then((token) => {
         interactWithMemoryOnBackend(token, memory.id, "view").catch(console.error);
       });
     }
@@ -132,7 +132,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
 
     if (!isMockId(memory.id) && isAuthenticated && firebaseUser) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         await reactToMemory(token, memory.id, reaction === reactionId ? "remove" : reactionId);
       } catch (err) {
         console.error("Failed to react to memory", err);

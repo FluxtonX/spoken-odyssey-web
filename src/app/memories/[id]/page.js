@@ -86,7 +86,7 @@ export default function MemoryDetailPage() {
   const [commentsOpen, setCommentsOpen] = useState(true);
   const [showShareToast, setShowShareToast] = useState(false);
 
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken} = useAuth();
   const [isLoading, setIsLoading] = useState(true);
 
   const loadMemoryDetails = async () => {
@@ -94,7 +94,7 @@ export default function MemoryDetailPage() {
     const isMock = isMockId(id);
     if (isAuthenticated && firebaseUser && id && !isMock) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const backendMemory = await getMemoryDetailsFromBackend(token, id);
         
         const mappedMemory = {
@@ -317,7 +317,7 @@ export default function MemoryDetailPage() {
 
     const isMock = isMockId(id);
     if (isAuthenticated && firebaseUser && id && !isMock) {
-      firebaseUser.getIdToken().then(async (token) => {
+      getToken().then(async (token) => {
         try {
           const res = await reactToMemory(token, id, nextReaction);
           setLikesCount(res.likes);
@@ -354,7 +354,7 @@ export default function MemoryDetailPage() {
 
     const isMock = isMockId(id);
     if (isAuthenticated && firebaseUser && id && !isMock) {
-      firebaseUser.getIdToken().then(async (token) => {
+      getToken().then(async (token) => {
         try {
           const res = await reactToMemory(token, id, nextReaction);
           setLikesCount(res.likes);
@@ -387,7 +387,7 @@ export default function MemoryDetailPage() {
     const isMock = isMockId(id);
     if (isAuthenticated && firebaseUser && id && !isMock) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const res = await shareMemoryOnBackend(token, id);
         setSharesCount(res.shares);
       } catch (err) {
@@ -434,8 +434,8 @@ export default function MemoryDetailPage() {
         ? "/profile"
         : from === "profile"
           ? "/profile"
-          : from === "feed"
-            ? "/feed"
+          : from === "feed" || from === "discover"
+            ? "/discover"
             : from === "search"
               ? "/search"
               : from === "people" && personIdFromQuery
@@ -713,7 +713,7 @@ function InfoRow({ icon: Icon, label, value }) {
 }
 
 function EditSheet({ memory, onClose, onUpdate }) {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, getToken} = useAuth();
   const [title, setTitle] = useState(memory.title);
   const [description, setDescription] = useState(memory.description);
   const [backgroundId, setBackgroundId] = useState(memory.backgroundId || "none");
@@ -755,7 +755,7 @@ function EditSheet({ memory, onClose, onUpdate }) {
     setErrorNotice("");
 
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formData = new FormData();
       formData.append("title", title.trim());
       formData.append("description", description.trim());

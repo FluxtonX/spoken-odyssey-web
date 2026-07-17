@@ -6,7 +6,7 @@ import { createAlbumOnBackend, getBackendErrorMessage } from "@/services/backend
 import { useAuth } from "@/context/AuthProvider";
 
 export default function CreateAlbumModal({ onClose, onSuccess }) {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, getToken} = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [coverFile, setCoverFile] = useState(null);
@@ -33,7 +33,7 @@ export default function CreateAlbumModal({ onClose, onSuccess }) {
     setIsSubmitting(true);
     setErrorMsg("");
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formData = new FormData();
       formData.append("title", title.trim());
       formData.append("description", description.trim());

@@ -9,7 +9,7 @@ import { updateProfileOnBackend } from "@/services/backend";
 
 export default function ProfileSetup() {
   const router = useRouter();
-  const { firebaseUser, profile, loading, refreshProfile, isAuthenticated } = useAuth();
+  const { firebaseUser, profile, loading, refreshProfile, isAuthenticated, getToken} = useAuth();
   
   const [displayName, setDisplayName] = useState("");
   const [privacy, setPrivacy] = useState("Family Only");
@@ -67,7 +67,7 @@ export default function ProfileSetup() {
     setErrorMsg("");
 
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formData = new FormData();
       formData.append("displayName", displayName.trim() || "User");
       formData.append("defaultEntryPrivacy", privacy);
@@ -93,7 +93,7 @@ export default function ProfileSetup() {
     setErrorMsg("");
 
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const formData = new FormData();
       formData.append("onboardingCompleted", "true");
 

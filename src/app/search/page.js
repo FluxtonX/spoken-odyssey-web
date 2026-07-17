@@ -18,7 +18,7 @@ export default function SearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromPage = searchParams.get("from");
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken} = useAuth();
 
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("All");
@@ -35,7 +35,7 @@ export default function SearchPage() {
       if (typeof window !== "undefined" && window.history.length > 1) {
         router.back();
       } else {
-        router.push("/feed");
+        router.push("/discover");
       }
     }
   };
@@ -43,7 +43,7 @@ export default function SearchPage() {
   const loadFollowing = async () => {
     if (isAuthenticated && firebaseUser) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const followingList = await getFollowing(token);
         setFollowedIds(followingList.map(f => f.id || f.firebaseUid));
       } catch (err) {
@@ -64,7 +64,7 @@ export default function SearchPage() {
       setIsLoading(true);
       setErrorMsg("");
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const data = await searchOnBackend(token, query);
         if (active) {
           setResults({
@@ -94,7 +94,7 @@ export default function SearchPage() {
   const toggleFollow = async (targetUid) => {
     if (!isAuthenticated || !firebaseUser) return;
     try {
-      const token = await firebaseUser.getIdToken();
+      const token = await getToken();
       const isFollowing = followedIds.includes(targetUid);
       if (isFollowing) {
         await unfollowUser(token, targetUid);

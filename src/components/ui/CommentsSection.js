@@ -23,7 +23,7 @@ const isMockId = (id) => {
 };
 
 export default function CommentsSection({ memoryId, initialComments = [] }) {
-  const { firebaseUser, isAuthenticated, profile: authProfile } = useAuth();
+  const { firebaseUser, isAuthenticated, profile: authProfile, getToken} = useAuth();
   const [comments, setComments] = useState([]);
   const [commentInput, setCommentInput] = useState("");
   const [replyInputMap, setReplyInputMap] = useState({}); // { [commentId]: string }
@@ -40,7 +40,7 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     const isMock = isMockId(memoryId);
     if (isAuthenticated && firebaseUser && memoryId && !isMock) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const backendComments = await getComments(token, memoryId);
         setComments(backendComments);
         return;
@@ -163,7 +163,7 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     const isMock = isMockId(memoryId);
     if (isAuthenticated && firebaseUser && memoryId && !isMock) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         await addComment(token, memoryId, cleanText);
         setCommentInput("");
         const backendComments = await getComments(token, memoryId);
@@ -199,7 +199,7 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     const isMock = isMockId(memoryId);
     if (isAuthenticated && firebaseUser && memoryId && !isMock) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         await addComment(token, memoryId, text, commentId);
         setReplyInputMap(prev => ({ ...prev, [commentId]: "" }));
         setActiveReplyId(null);
@@ -246,7 +246,7 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     const isMock = isMockId(memoryId);
     if (isAuthenticated && firebaseUser && memoryId && !isMock) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         await reactToComment(token, memoryId, targetCommentId, reactionId);
         setHoveredItemId(null);
         const backendComments = await getComments(token, memoryId);

@@ -38,11 +38,11 @@ export default function PersonDetailPage() {
   const [isFollowing, setIsFollowing] = useState(false);
 
   const from = searchParams.get("from");
-  const backHref = from === "feed"
-    ? "/feed"
+  const backHref = from === "feed" || from === "discover"
+    ? "/discover"
     : from === "search"
       ? "/search"
-      : "/feed";
+      : "/discover";
 
   const handleBack = (e) => {
     e.preventDefault();

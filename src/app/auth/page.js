@@ -13,7 +13,7 @@ import { verifyMockEmailOnBackend } from "@/services/backend";
 
 export default function AuthPage() {
   const router = useRouter();
-  const { login, signup, loginWithGoogle, sendResetEmail, resendVerification, firebaseUser, refreshProfile } = useAuth();
+  const { login, signup, loginWithGoogle, sendResetEmail, resendVerification, firebaseUser, refreshProfile, getToken } = useAuth();
 
   const [view, setView] = useState("login"); // "login" | "signup" | "verify" | "reset"
   const [email, setEmail] = useState("");
@@ -86,10 +86,12 @@ export default function AuthPage() {
 
     try {
       await signup({ name, email, password });
-      setView("verify");
-      setTimer(59);
-      setSuccessMsg("Verification link sent to your email!");
-      setTimeout(() => setSuccessMsg(""), 3500);
+      setSuccessMsg("Registration successful! Please log in with your email and password.");
+      setPassword("");
+      setTimeout(() => {
+        setSuccessMsg("");
+        setView("login");
+      }, 2500);
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
     } finally {
@@ -170,15 +172,17 @@ export default function AuthPage() {
     setSuccessMsg("");
 
     try {
-      const token = await firebaseUser.getIdToken(true);
+      const token = await getToken();
       if (verificationCode !== "555555") {
         await verifyMockEmailOnBackend(token, verificationCode);
       }
       
       setSuccessMsg("Email verified successfully! Redirecting...");
       
-      // Reload Firebase user state to update emailVerified status client-side
-      await firebaseUser.reload();
+      // Reload Firebase user state to update emailVerified status client-side (if applicable)
+      if (firebaseUser?.reload) {
+        await firebaseUser.reload();
+      }
       
       const updatedProfile = await refreshProfile();
       

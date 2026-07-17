@@ -13,7 +13,7 @@ const WAVEFORM_BARS = [
 ];
 
 export default function VoicePlayer({ memory }) {
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken} = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [animFrame, setAnimFrame] = useState(0);
@@ -227,7 +227,7 @@ export default function VoicePlayer({ memory }) {
         });
       }
       if (isAuthenticated && firebaseUser) {
-        firebaseUser.getIdToken().then((token) => {
+        getToken().then((token) => {
           interactWithMemoryOnBackend(token, memory.id, "view").catch(console.error);
         });
       }

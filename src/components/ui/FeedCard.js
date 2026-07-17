@@ -62,7 +62,7 @@ const formatMemoryDate = (rawDate) => {
 };
 
 export default function FeedCard({ memory, onEdit, onDelete, isProfileView = false, onClickDetail }) {
-  const { firebaseUser, isAuthenticated, profile: authProfile } = useAuth();
+  const { firebaseUser, isAuthenticated, profile: authProfile, getToken} = useAuth();
   const [reaction, setReaction] = useState(memory.userReaction || null);
   const [likesCount, setLikesCount] = useState(memory.likes || 0);
   const [sharesCount, setSharesCount] = useState(memory.shares || 0);
@@ -77,7 +77,7 @@ export default function FeedCard({ memory, onEdit, onDelete, isProfileView = fal
     setCommentsOpen(nextOpen);
     const isMock = isMockId(memory.id);
     if (nextOpen && isAuthenticated && firebaseUser && !isMock) {
-      firebaseUser.getIdToken().then((token) => {
+      getToken().then((token) => {
         interactWithMemoryOnBackend(token, memory.id, "view").catch(console.error);
       });
     }
@@ -200,7 +200,7 @@ export default function FeedCard({ memory, onEdit, onDelete, isProfileView = fal
     
     const isMock = isMockId(memory.id);
     if (isAuthenticated && firebaseUser && memory.id && !isMock) {
-      firebaseUser.getIdToken().then(async (token) => {
+      getToken().then(async (token) => {
         try {
           const res = await reactToMemory(token, memory.id, nextReaction);
           setLikesCount(res.likes);
@@ -235,7 +235,7 @@ export default function FeedCard({ memory, onEdit, onDelete, isProfileView = fal
     
     const isMock = isMockId(memory.id);
     if (isAuthenticated && firebaseUser && memory.id && !isMock) {
-      firebaseUser.getIdToken().then(async (token) => {
+      getToken().then(async (token) => {
         try {
           const res = await reactToMemory(token, memory.id, nextReaction);
           setLikesCount(res.likes);
@@ -279,7 +279,7 @@ export default function FeedCard({ memory, onEdit, onDelete, isProfileView = fal
     const isMock = isMockId(memory.id);
     if (isAuthenticated && firebaseUser && memory.id && !isMock) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const res = await shareMemoryOnBackend(token, memory.id);
         setSharesCount(res.shares);
       } catch (err) {

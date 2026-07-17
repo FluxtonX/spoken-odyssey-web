@@ -56,7 +56,7 @@ export default function AlbumDetailPage() {
   const router = useRouter();
   const id = pathname.split("/").filter(Boolean).at(-1);
 
-  const { firebaseUser, isAuthenticated } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken} = useAuth();
   const [album, setAlbum] = useState(null);
   const [albumMemories, setAlbumMemories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,7 +112,7 @@ export default function AlbumDetailPage() {
     setIsLoading(true);
     if (isAuthenticated && firebaseUser && id && !id.startsWith("album-")) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const backendAlbum = await getAlbumDetailsFromBackend(token, id);
         
         const mappedAlbum = {
@@ -204,7 +204,7 @@ export default function AlbumDetailPage() {
 
     if (isAuthenticated && firebaseUser && id && !id.startsWith("album-")) {
       try {
-        const token = await firebaseUser.getIdToken();
+        const token = await getToken();
         const formData = new FormData();
         formData.append("title", editTitle.trim());
         formData.append("subtitle", editSubtitle.trim());

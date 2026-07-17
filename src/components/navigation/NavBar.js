@@ -7,24 +7,30 @@ import { useEffect, useState } from "react";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
-import { Plus, X, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings } from "lucide-react";
+import { Plus, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings, CreditCard, User } from "lucide-react";
 
 export default function NavBar() {
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
 
-  // We map the icons to Lucide icons for a clean look, or use the resolveGlass3DIcon if we want 3D.
-  // The prompt asks for "proffesional icons". Lucide icons are professional and clean.
-  const navItems = [
+  const menuItems = [
     { name: "Home", href: "/home", icon: Home },
-    { name: "My Archive", href: "/memories", icon: Archive },
+    { name: "Memories", href: "/memories", icon: Archive },
     { name: "Timeline", href: "/timeline", icon: Clock },
     { name: "Albums", href: "/albums", icon: ImageIcon },
     { name: "Family", href: "/family", icon: Users, badge: 2 },
+    { name: "Discover", href: "/discover", icon: Globe },
     { name: "AI Insights", href: "/insights", icon: Sparkles },
-    { name: "Discover", href: "/feed", icon: Globe },
-    { name: "Settings", href: "/settings", icon: Settings },
   ];
+
+  const accountItems = [
+    { name: "Subscription", href: "/subscription", icon: CreditCard },
+    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "My Profile", href: "/profile", icon: User },
+  ];
+
+  // For the mobile bottom nav, we just take the first 4 main items
+  const mobileNavItems = menuItems.slice(0, 4);
 
   if (isPublicRoute(pathname) || !isAuthenticated) {
     return null;
@@ -35,7 +41,7 @@ export default function NavBar() {
       {/* Mobile Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-white/90 pb-safe shadow-lg backdrop-blur-md md:hidden">
         <div className="relative flex items-center justify-around px-1 py-2.5">
-          {navItems.slice(0, 4).map((item) => {
+          {mobileNavItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
 
             return (
@@ -88,21 +94,24 @@ export default function NavBar() {
 
         {/* Navigation Links */}
         <div className="flex w-full flex-1 flex-col overflow-y-auto hide-scrollbar pb-4 pr-4">
-          <div className="w-full mb-2 lg:mb-4">
-            {navItems.slice(0, 5).map((item) => {
+          
+          {/* MENU Section */}
+          <div className="w-full mb-6">
+            <div className="hidden lg:block text-[11px] font-bold text-stone-500 tracking-wider pl-8 mb-3 uppercase">MENU</div>
+            {menuItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={clsx(
-                    "group relative flex items-center justify-center lg:justify-start gap-4 py-3 px-4 lg:px-5 lg:mx-3 transition-all mb-1.5 rounded-[14px] w-[calc(100%-24px)] mx-auto",
+                    "group relative flex items-center justify-center lg:justify-start gap-4 py-2.5 px-4 lg:px-5 lg:mx-3 transition-all mb-1 rounded-[14px] w-[calc(100%-24px)] mx-auto",
                     isActive
-                      ? "bg-gradient-to-b from-[#EEF2FF] to-[#E5E9FF] shadow-[inset_0_2px_4px_rgba(255,255,255,1),_0_4px_10px_-4px_rgba(74,58,255,0.2)] border border-[#ffffff] text-[var(--brand)] font-bold"
+                      ? "figma-card text-[var(--brand)] font-bold"
                       : "text-stone-500 hover:bg-[#EAEBFF]/40 font-medium border border-transparent"
                   )}
                 >
-                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2.5} className={clsx(isActive ? "text-[var(--brand)] drop-shadow-sm" : "text-stone-400 group-hover:text-stone-600")} />
+                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={clsx(isActive ? "text-[var(--brand)] drop-shadow-sm" : "text-stone-400 group-hover:text-stone-600")} />
                   <span className="hidden text-[14px] lg:block">{item.name}</span>
                   {item.badge && (
                     <span className="hidden lg:flex ml-auto mr-4 h-5 w-5 items-center justify-center rounded-full bg-[#4A3AFF] text-[10px] font-bold text-white">
@@ -117,21 +126,23 @@ export default function NavBar() {
             })}
           </div>
 
+          {/* ACCOUNT Section */}
           <div className="w-full">
-            {navItems.slice(5).map((item) => {
+            <div className="hidden lg:block text-[11px] font-bold text-stone-500 tracking-wider pl-8 mb-3 uppercase">ACCOUNT</div>
+            {accountItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={clsx(
-                    "group relative flex items-center justify-center lg:justify-start gap-4 py-3 px-4 lg:px-5 lg:mx-3 transition-all mb-1.5 rounded-[14px] w-[calc(100%-24px)] mx-auto",
+                    "group relative flex items-center justify-center lg:justify-start gap-4 py-2.5 px-4 lg:px-5 lg:mx-3 transition-all mb-1 rounded-[14px] w-[calc(100%-24px)] mx-auto",
                     isActive
-                      ? "bg-gradient-to-b from-[#EEF2FF] to-[#E5E9FF] shadow-[inset_0_2px_4px_rgba(255,255,255,1),_0_4px_10px_-4px_rgba(74,58,255,0.2)] border border-[#ffffff] text-[var(--brand)] font-bold"
+                      ? "figma-card text-[var(--brand)] font-bold"
                       : "text-stone-500 hover:bg-[#EAEBFF]/40 font-medium border border-transparent"
                   )}
                 >
-                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2.5} className={clsx(isActive ? "text-[var(--brand)] drop-shadow-sm" : "text-stone-400 group-hover:text-stone-600")} />
+                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={clsx(isActive ? "text-[var(--brand)] drop-shadow-sm" : "text-stone-400 group-hover:text-stone-600")} />
                   <span className="hidden text-[14px] lg:block">{item.name}</span>
                 </Link>
               );
@@ -139,7 +150,6 @@ export default function NavBar() {
           </div>
         </div>
       </nav>
-
     </>
   );
 }

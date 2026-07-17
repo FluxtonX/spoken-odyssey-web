@@ -18,7 +18,7 @@ const MOODS = [
 ];
 
 export default function PublishWizard() {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, getToken} = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [memoryType, setMemoryType] = useState(""); // "voice", "written", "visual", "milestone"
@@ -669,7 +669,7 @@ export default function PublishWizard() {
                       }
                       
                       if (firebaseUser) {
-                        const token = await firebaseUser.getIdToken();
+                        const token = await getToken();
                         await createMemoryOnBackend(token, formData);
                         window.dispatchEvent(new CustomEvent("memoryPublished"));
                       }
