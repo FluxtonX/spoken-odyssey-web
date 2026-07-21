@@ -9,6 +9,71 @@ import { getAlbumsFromBackend, createAlbumOnBackend, getBackendErrorMessage } fr
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 
+const getAlbumTags = (album) => {
+  if (album.tags && album.tags.length > 0) return album.tags;
+  const words = (album.title + " " + (album.subtitle || "")).toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !["with", "from", "that", "this", "your", "their", "album", "odyssey", "spoken"].includes(w));
+  return words.length > 0 ? Array.from(new Set(words)).slice(0, 2) : ["album"];
+};
+
+function AlbumCard({ album }) {
+  const [imgSrc, setImgSrc] = useState(album.cover);
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <Link href={`/albums/${album.id}`} className="group cursor-pointer h-full block">
+      <div className="relative w-full overflow-hidden figma-card flex flex-col h-full cursor-pointer">
+        
+        {/* Image Top Half */}
+        <div className="relative w-full aspect-[4/2.4] sm:aspect-[4/2.2] overflow-hidden bg-stone-200 dark:bg-slate-700 shrink-0">
+          <img 
+            src={hasError ? COVER_PRESETS[0].url : imgSrc} 
+            alt="" 
+            onError={() => {
+              setHasError(true);
+              setImgSrc(COVER_PRESETS[0].url);
+            }}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+          />
+          {/* Gradient Overlay for text */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent opacity-95" />
+          
+          {/* Title */}
+          <div className="absolute bottom-3 left-4 right-4 text-white z-10">
+            <h3 className="font-bold text-[15px] sm:text-[17px] md:text-[18px] leading-snug filter drop-shadow-md tracking-tight">
+              {album.title}
+            </h3>
+          </div>
+        </div>
+        
+        {/* Card Body */}
+        <div className="p-4 sm:p-5 flex flex-col flex-grow justify-between bg-[#E8E9FF]/90 dark:bg-slate-800/90">
+          <p className="text-stone-700 dark:text-stone-300 text-[13px] sm:text-[14px] leading-relaxed font-medium line-clamp-2 pr-1 mb-4">
+            {album.subtitle || "No description provided."}
+          </p>
+          
+          {/* Footer row: Tags and Memory Count */}
+          <div className="flex items-center justify-between mt-auto">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {getAlbumTags(album).map((tag, idx) => (
+                <span key={idx} className="px-2.5 py-1 bg-[#5C5CFC] text-white rounded-[8px] text-[11px] sm:text-[12px] font-semibold lowercase tracking-wide shadow-sm">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <span className="text-[12px] sm:text-[13px] font-medium text-stone-600 dark:text-stone-400 whitespace-nowrap">
+              {album.memoryCount || 0} memories
+            </span>
+          </div>
+        </div>
+        
+      </div>
+    </Link>
+  );
+}
+
 export default function AlbumsGallery() {
   const { firebaseUser, isAuthenticated, getToken} = useAuth();
   const [albumsList, setAlbumsList] = useState([]);
@@ -203,26 +268,26 @@ export default function AlbumsGallery() {
           </div>
           
           {["childhood", "ireland", "nostalgia", "london", "career", "growth", "family", "parenthood"].map(tag => (
-            <button key={tag} className="px-5 py-2 rounded-full border border-[#C7D2FE] text-stone-700 text-[13px] font-bold bg-white hover:bg-[#EEF2FF] transition-colors whitespace-nowrap shadow-sm shrink-0 cursor-pointer">
+            <button key={tag} className="px-4 py-1.5 rounded-full border border-[#C7D2FE] text-stone-700 text-[12px] sm:text-[13px] font-bold bg-white hover:bg-[#EEF2FF] transition-colors whitespace-nowrap shadow-sm shrink-0 cursor-pointer">
               {tag}
             </button>
           ))}
         </motion.div>
 
         {/* Albums Grid */}
-        <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+        <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8 items-stretch">
           
           {/* Create New Album Card */}
           <motion.div 
             variants={fadeInUp}
             onClick={() => setIsCreateModalOpen(true)}
-            className="relative w-full aspect-[4/4.5] figma-card flex flex-col items-center justify-center cursor-pointer group active:scale-95 text-left"
+            className="relative w-full figma-card flex flex-col items-center justify-center cursor-pointer group active:scale-95 text-left h-full min-h-[260px] p-6"
           >
-            <div className="w-16 h-16 rounded-full bg-white border border-[#C7D2FE]/50 text-[#4A3AFF] flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#4A3AFF] group-hover:text-white transition-all duration-300 shadow-sm">
-              <Plus size={32} />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-[#C7D2FE]/50 text-[#4A3AFF] flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-[#4A3AFF] group-hover:text-white transition-all duration-300 shadow-sm">
+              <Plus size={24} />
             </div>
-            <h3 className="font-bold text-lg text-stone-800">New Album</h3>
-            <p className="text-sm text-stone-500 mt-1 font-medium">Organize new memories</p>
+            <h3 className="font-bold text-base sm:text-lg text-stone-850 dark:text-white">New Album</h3>
+            <p className="text-xs sm:text-sm text-stone-500 mt-0.5 font-medium">Organize new memories</p>
           </motion.div>
 
           {isLoading ? (
@@ -238,52 +303,8 @@ export default function AlbumsGallery() {
             </div>
           ) : (
             filteredAlbums.map((album) => (
-              <motion.div variants={fadeInUp} key={album.id}>
-                <Link href={`/albums/${album.id}`} className="group cursor-pointer">
-                  <div className="relative w-full overflow-hidden figma-card flex flex-col aspect-[4/4.5] cursor-pointer">
-                  
-                  {/* Image Top Half */}
-                  <div className="relative w-full h-[60%] overflow-hidden bg-stone-200 shrink-0">
-                    <img 
-                      src={album.cover} 
-                      alt={album.title} 
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                    />
-                    {/* Gradient Overlay for text */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
-                    
-                    {/* Title */}
-                    <div className="absolute bottom-6 left-7 right-7 text-white">
-                      <h3 className="font-bold text-[28px] leading-tight filter drop-shadow-md tracking-tight">
-                        {album.title}
-                      </h3>
-                    </div>
-                  </div>
-                  
-                  {/* Card Body */}
-                  <div className="p-7 flex flex-col flex-1 justify-between bg-[#EAEBFF]">
-                    <p className="text-stone-700 text-[16px] leading-relaxed font-medium line-clamp-1 pr-2">
-                      {album.subtitle || "No description provided."}
-                    </p>
-                    
-                    {/* Footer row: Tags and Memory Count */}
-                    <div className="flex items-center justify-between mt-6">
-                      <div className="flex items-center gap-2.5">
-                        {album.tags?.slice(0, 2).map((tag, idx) => (
-                          <span key={idx} className="px-4 py-1.5 bg-[#6B4EFF] text-white rounded-[10px] text-[14px] font-medium tracking-wide">
-                            {tag}
-                          </span>
-                        ))}
-                        {!album.tags && <span className="px-4 py-1.5 bg-[#6B4EFF] text-white rounded-[10px] text-[14px] font-medium tracking-wide">album</span>}
-                      </div>
-                      <span className="text-[15px] font-medium text-stone-700">
-                        {album.memoryCount || 0} memories
-                      </span>
-                    </div>
-                  </div>
-                  
-                </div>
-                </Link>
+              <motion.div variants={fadeInUp} key={album.id} className="h-full">
+                <AlbumCard album={album} />
               </motion.div>
             ))
           )}

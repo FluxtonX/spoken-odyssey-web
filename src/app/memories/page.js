@@ -144,7 +144,7 @@ export default function MyArchive() {
             <button onClick={() => router.back()} className="flex items-center gap-1.5 text-stone-500 hover:text-stone-800 font-bold text-[13px] mb-4 transition-colors w-max">
               <ArrowLeft size={16} strokeWidth={2.5} /> Back
             </button>
-            <h1 className="text-4xl font-black text-stone-900 tracking-tight mb-2">My Archive</h1>
+            <h1 className="text-4xl font-black text-stone-900 tracking-tight mb-2">My Odyssey</h1>
             <p className="text-stone-500 font-medium">
               You have <span className="font-bold text-[var(--brand)]">{filteredMemories.length} memories</span> matching your criteria.
             </p>
