@@ -199,7 +199,7 @@ export default function Home() {
           {greeting}, {fullName}.
         </h1>
         <p className="text-stone-500 text-sm font-medium">
-          Your archive has <span className="font-bold text-[var(--brand)]">247 memories</span> and is growing.
+          Your archive has <span className="font-bold text-[var(--brand)]">{memoriesList.length} memories</span> and is growing.
         </p>
       </motion.div>
 

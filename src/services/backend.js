@@ -221,10 +221,10 @@ export async function getFamilyMembers(token) {
 }
 
 /** Bidirectionally connect family member */
-export async function connectFamilyMember(token, targetUid) {
+export async function connectFamilyMember(token, { targetUid, email, relationship } = {}) {
   const response = await backendFetch("/api/users/family", {
     method: "POST",
-    body: { firebaseUid: targetUid },
+    body: { firebaseUid: targetUid, email, relationship },
     token,
   });
   return response.data;
@@ -234,6 +234,30 @@ export async function connectFamilyMember(token, targetUid) {
 export async function disconnectFamilyMember(token, targetUid) {
   const response = await backendFetch(`/api/users/family/${targetUid}`, {
     method: "DELETE",
+    token,
+  });
+  return response.data;
+}
+
+/** Get pending family invitations */
+export async function getFamilyInvitations(token) {
+  const response = await backendFetch("/api/users/family/invitations", { token });
+  return response.data;
+}
+
+/** Accept family invitation */
+export async function acceptFamilyInvitation(token, invitationId) {
+  const response = await backendFetch(`/api/users/family/invitations/${invitationId}/accept`, {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+/** Decline family invitation */
+export async function declineFamilyInvitation(token, invitationId) {
+  const response = await backendFetch(`/api/users/family/invitations/${invitationId}/decline`, {
+    method: "POST",
     token,
   });
   return response.data;

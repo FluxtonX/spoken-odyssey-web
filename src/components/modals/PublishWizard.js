@@ -587,26 +587,35 @@ export default function PublishWizard() {
 
           {/* STEP 5: SUCCESS */}
           {step === 5 && (
-            <div className="animate-scale-up flex flex-col items-center justify-center h-full py-16">
+            <div className="animate-scale-up flex flex-col items-center justify-center h-full py-12 text-center">
               
-              {/* Graphic */}
-              <div className="relative mb-12">
-                <div className="w-32 h-32 bg-[#4A3AFF] rounded-full flex items-center justify-center shadow-[0_12px_30px_-10px_rgba(74,58,255,0.6)] animate-pulse-slow">
-                  <Check size={64} strokeWidth={3} className="text-white" />
+              {/* Green Checkmark Graphic */}
+              <div className="relative mb-6">
+                <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/40 animate-pulse-slow">
+                  <Check size={48} strokeWidth={3.5} className="text-white" />
                 </div>
-                {/* Decorative floating elements */}
-                <div className="absolute -top-4 right-2 text-pink-400 animate-float"><Heart size={24} fill="currentColor" /></div>
-                <div className="absolute top-10 -left-6 text-yellow-400 animate-float" style={{ animationDelay: '0.5s' }}><Star size={24} fill="currentColor" /></div>
-                <div className="absolute bottom-4 -right-4 text-[#A5B4FC] animate-float" style={{ animationDelay: '1s' }}><Award size={28} /></div>
+                {/* Floating elements */}
+                <div className="absolute -top-2 right-0 text-pink-400 animate-float"><Heart size={20} fill="currentColor" /></div>
+                <div className="absolute top-6 -left-3 text-amber-400 animate-float" style={{ animationDelay: '0.5s' }}><Star size={20} fill="currentColor" /></div>
               </div>
+
+              {/* Status Header */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-600 font-extrabold text-xs mb-3 border border-emerald-200 shadow-xs">
+                <Check size={14} strokeWidth={3} />
+                <span>New memory successfully created!</span>
+              </div>
+              <h3 className="text-2xl font-bold text-stone-900 mb-2">Memory Saved & Published</h3>
+              <p className="text-stone-500 text-sm font-medium max-w-md mb-8">
+                Your memory has been added to your album, archive, and family timeline.
+              </p>
 
               {/* Action Buttons */}
               <div className="flex gap-4">
                 <button 
                   onClick={handleClose}
-                  className="px-6 py-3 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-[14px] font-bold transition-all shadow-md active:scale-95"
+                  className="px-6 py-3 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-[14px] font-bold transition-all shadow-md active:scale-95 text-xs cursor-pointer"
                 >
-                  Back to Home
+                  Done
                 </button>
                 <button 
                   onClick={() => {
@@ -615,7 +624,7 @@ export default function PublishWizard() {
                     setTitle("");
                     setMood("");
                   }}
-                  className="px-6 py-3 bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 rounded-[14px] font-bold transition-all active:scale-95 shadow-sm"
+                  className="px-6 py-3 bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 rounded-[14px] font-bold transition-all active:scale-95 shadow-sm text-xs cursor-pointer"
                 >
                   Publish Another
                 </button>
@@ -651,36 +660,48 @@ export default function PublishWizard() {
                 <button 
                   onClick={async () => {
                     setIsPublishing(true);
-                    try {
-                      const formData = new FormData();
-                      formData.append("type", memoryType);
-                      if (title) formData.append("title", title);
-                      if (mood) formData.append("mood", mood);
-                      if (visibility) formData.append("visibility", visibility);
-                      if (tags) formData.append("tags", tags);
-                      
-                      if (memoryType === "milestone") {
-                        formData.append("significance", significance);
-                        formData.append("lifeChapter", lifeChapter);
-                      }
+                    
+                    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+                    const pathAlbumId = currentPath.startsWith("/albums/") ? currentPath.split("/")[2] : "";
 
-                      if (memoryType === "visual" && visualFiles.length > 0) {
-                        visualFiles.forEach((file) => formData.append("media", file));
-                      }
-                      
+                    const newMem = {
+                      id: `mem-${Date.now()}`,
+                      title: title.trim() || "Untitled Memory",
+                      description: memoryType === "written" ? "Written memory reflection" : "Voice recording memory",
+                      type: memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : "Voice",
+                      date: new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+                      albumId: pathAlbumId || targetAlbumId || "career-craft",
+                      albums: [pathAlbumId || targetAlbumId || "career-craft"],
+                      privacy: visibility || "Private",
+                      tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["memory"],
+                      image: visualFiles.length > 0 ? URL.createObjectURL(visualFiles[0]) : undefined
+                    };
+
+                    try {
+                      // Save local memory
+                      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+                      const existing = saved ? JSON.parse(saved) : [];
+                      localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify([newMem, ...existing]));
+
                       if (firebaseUser) {
                         const token = await getToken();
-                        await createMemoryOnBackend(token, formData);
-                        window.dispatchEvent(new CustomEvent("memoryPublished"));
+                        const formData = new FormData();
+                        formData.append("type", memoryType);
+                        if (title) formData.append("title", title);
+                        if (mood) formData.append("mood", mood);
+                        if (visibility) formData.append("visibility", visibility);
+                        if (tags) formData.append("tags", tags);
+                        
+                        if (memoryType === "visual" && visualFiles.length > 0) {
+                          visualFiles.forEach((file) => formData.append("media", file));
+                        }
+                        await createMemoryOnBackend(token, formData).catch(() => null);
                       }
-                      setStep(5);
                     } catch (err) {
                       console.error("Failed to publish memory", err);
-                      // Fallback: still show success if backend fails for UI demo purposes, or keep it real:
-                      // setStep(5);
                     } finally {
                       setIsPublishing(false);
-                      // In a real app we might only set step 5 on success, but for the demo we can just proceed:
+                      window.dispatchEvent(new CustomEvent("memoryPublished", { detail: { memory: newMem } }));
                       setStep(5);
                     }
                   }}

@@ -7,18 +7,38 @@ import { useEffect, useState } from "react";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
-import { Plus, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings, CreditCard, User } from "lucide-react";
+import { Plus, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings, CreditCard, User, ChevronRight } from "lucide-react";
+
+import { getFamilyInvitations } from "@/services/backend";
 
 export default function NavBar() {
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
+  const [pendingFamilyCount, setPendingFamilyCount] = useState(0);
+
+  useEffect(() => {
+    async function loadInvitationsCount() {
+      try {
+        const token = localStorage.getItem("token");
+        if (token) {
+          const invites = await getFamilyInvitations(token);
+          if (Array.isArray(invites)) {
+            setPendingFamilyCount(invites.length);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load invitations count for NavBar:", err);
+      }
+    }
+    loadInvitationsCount();
+  }, [pathname]);
 
   const menuItems = [
     { name: "Home", href: "/home", icon: Home },
     { name: "Memories", href: "/memories", icon: Archive },
     { name: "Timeline", href: "/timeline", icon: Clock },
     { name: "Albums", href: "/albums", icon: ImageIcon },
-    { name: "Family", href: "/family", icon: Users, badge: 2 },
+    { name: "Family", href: "/family", icon: Users, badge: pendingFamilyCount > 0 ? pendingFamilyCount : undefined },
     { name: "Discover", href: "/discover", icon: Globe },
     { name: "AI Insights", href: "/insights", icon: Sparkles },
   ];
@@ -149,6 +169,43 @@ export default function NavBar() {
             })}
           </div>
         </div>
+
+        {/* Free Plan Card & Bottom User Profile Bar (Pixel Perfect Screenshot Match) */}
+        <div className="hidden lg:block px-3 pb-4 pt-2 border-t border-[#C7D2FE]/30 dark:border-slate-800/60 mt-auto">
+          {/* Free Plan Card */}
+          <div className="bg-[#EAEBFF]/60 dark:bg-slate-800/60 border border-[#C7D2FE]/60 dark:border-slate-700/80 p-3.5 rounded-2xl mb-3 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-bold text-[#4A3AFF] dark:text-indigo-400">Free Plan</span>
+              <Link href="/subscription" className="text-[12px] font-bold text-[#4A3AFF] hover:underline cursor-pointer">
+                Upgrade &rarr;
+              </Link>
+            </div>
+            <div className="w-full h-1.5 bg-[#C7D2FE]/60 dark:bg-slate-700 rounded-full my-2 overflow-hidden">
+              <div className="h-full bg-[#4A3AFF] rounded-full w-[49%]" />
+            </div>
+            <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">7.4 GB of 15 GB used</p>
+          </div>
+
+          {/* User Profile Bar */}
+          <Link 
+            href="/profile" 
+            className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#EAEBFF]/40 dark:hover:bg-slate-800/50 transition cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <img 
+                src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80" 
+                alt="Seán O'Brien" 
+                className="w-9 h-9 rounded-full object-cover border border-[#C7D2FE] shrink-0" 
+              />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-[13px] text-stone-900 dark:text-white truncate leading-tight">Seán O'Brien</p>
+                <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate mt-0.5">sean@spokenodyssey.co</p>
+              </div>
+            </div>
+            <ChevronRight size={14} className="text-stone-400 group-hover:text-stone-600 transition shrink-0 ml-1" />
+          </Link>
+        </div>
+
       </nav>
     </>
   );

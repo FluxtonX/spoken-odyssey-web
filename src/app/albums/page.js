@@ -9,6 +9,8 @@ import { getAlbumsFromBackend, createAlbumOnBackend, getBackendErrorMessage } fr
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 
+import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
+
 const getAlbumTags = (album) => {
   if (album.tags && album.tags.length > 0) return album.tags;
   const words = (album.title + " " + (album.subtitle || "")).toLowerCase()
@@ -93,38 +95,68 @@ export default function AlbumsGallery() {
 
   const loadAlbums = async () => {
     setIsLoading(true);
+    let allMemories = [];
+    try {
+      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+      if (saved) allMemories = JSON.parse(saved);
+    } catch {}
+
     if (isAuthenticated && firebaseUser) {
       try {
         const token = await getToken();
         const backendAlbums = await getAlbumsFromBackend(token);
-        const mapped = backendAlbums.map(album => ({
-          id: album.id,
-          title: album.title,
-          subtitle: album.subtitle,
-          privacy: album.privacy || "Private",
-          cover: album.coverImageUrl || album.coverImageKey || COVER_PRESETS[0].url,
-          created: new Date(album.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-          tags: album.tags,
-          memoryCount: album.memoryCount
-        }));
+        const mapped = backendAlbums.map(album => {
+          const matchingUserMemories = allMemories.filter(m => 
+            m.albumId === album.id || 
+            (m.albums && m.albums.includes(album.id)) ||
+            (m.albumTitle && m.albumTitle.toLowerCase() === album.title.toLowerCase())
+          );
+          const mapCount = ALBUM_MEMORIES_MAP[album.id]?.length;
+          const baseCount = album.entries !== undefined ? album.entries : (mapCount !== undefined ? mapCount : 4);
+          return {
+            id: album.id,
+            title: album.title,
+            subtitle: album.subtitle,
+            privacy: album.privacy || "Private",
+            cover: album.coverImageUrl || album.coverImageKey || COVER_PRESETS[0].url,
+            created: new Date(album.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+            tags: album.tags,
+            memoryCount: baseCount + matchingUserMemories.length
+          };
+        });
         
         if (mapped.length > 0) {
           setAlbumsList(mapped);
-        } else {
-          setAlbumsList(getStoredAlbums());
+          setIsLoading(false);
+          return;
         }
       } catch (error) {
         console.warn("Failed to load albums from backend, using local fallback:", getBackendErrorMessage(error));
-        setAlbumsList(getStoredAlbums());
       }
-    } else {
-      setAlbumsList(getStoredAlbums());
     }
+
+    const stored = getStoredAlbums().map(album => {
+      const matchingUserMemories = allMemories.filter(m => 
+        m.albumId === album.id || 
+        (m.albumId === "career-craft" && (album.id === "career-and-craft" || album.id === "career-craft")) ||
+        (m.albums && m.albums.includes(album.id)) ||
+        (m.albumTitle && m.albumTitle.toLowerCase() === album.title.toLowerCase())
+      );
+      const mapCount = ALBUM_MEMORIES_MAP[album.id]?.length;
+      const baseCount = mapCount !== undefined ? mapCount : 4;
+      return {
+        ...album,
+        memoryCount: baseCount + matchingUserMemories.length
+      };
+    });
+    setAlbumsList(stored);
     setIsLoading(false);
   };
 
   useEffect(() => {
     loadAlbums();
+    window.addEventListener("memoryPublished", loadAlbums);
+    return () => window.removeEventListener("memoryPublished", loadAlbums);
   }, [isAuthenticated, firebaseUser]);
 
   const handleCreateAlbum = async (e) => {

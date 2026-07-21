@@ -87,27 +87,40 @@ export default function DashboardHeader({ onSearchChange }) {
           </button>
           
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 dropdown-menu animate-fade-in z-50">
-              <div className="p-4 border-b border-stone-100">
-                <h3 className="font-bold text-stone-800 text-[15px]">Notifications</h3>
+            <div className="absolute right-0 mt-2 w-84 dropdown-menu animate-fade-in z-50 bg-white dark:bg-slate-900 border border-[#C7D2FE]/70 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+              <div className="p-4 border-b border-stone-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="font-bold text-stone-900 dark:text-white text-[15px]">Notifications</h3>
+                <button 
+                  onClick={() => setShowNotifications(false)}
+                  className="text-xs text-[#4A3AFF] dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+                >
+                  Mark all read
+                </button>
               </div>
-              <div className="max-h-[300px] overflow-y-auto">
+              <div className="max-h-[300px] overflow-y-auto divide-y divide-stone-100 dark:divide-slate-800/60">
                 {[
                   { text: "Sarah shared 3 new memories with your Family Circle", time: "2h ago", unread: true },
-                  { text: "Your monthly AI Life Summary is ready", time: "Yesterday", unread: true },
+                  { text: "Your monthly AI Life Summary is ready to view", time: "Yesterday", unread: true },
                   { text: "Brigid accepted your Family Circle invitation", time: "3 days ago", unread: false }
                 ].map((notif, i) => (
-                  <div key={i} className="flex gap-3 p-4 border-b border-stone-100/50 hover:bg-stone-50 transition cursor-pointer">
+                  <div key={i} className="flex gap-3 p-4 hover:bg-stone-50/80 dark:hover:bg-slate-800/60 transition cursor-pointer">
                     <div className="pt-1.5 shrink-0">
-                      <div className={`h-2 w-2 rounded-full ${notif.unread ? 'bg-[var(--brand)]' : 'bg-transparent'}`} />
+                      <div className={`h-2 w-2 rounded-full ${notif.unread ? 'bg-[#4A3AFF]' : 'bg-transparent'}`} />
                     </div>
                     <div>
-                      <p className={`text-[13px] leading-snug ${notif.unread ? 'text-stone-700 font-medium' : 'text-stone-600'}`}>{notif.text}</p>
+                      <p className={`text-[13px] leading-snug ${notif.unread ? 'text-stone-800 dark:text-stone-200 font-semibold' : 'text-stone-600 dark:text-stone-400'}`}>{notif.text}</p>
                       <p className="text-[11px] text-stone-400 mt-1">{notif.time}</p>
                     </div>
                   </div>
                 ))}
               </div>
+              <Link 
+                href="/notifications" 
+                onClick={() => setShowNotifications(false)}
+                className="block w-full py-3 text-center text-xs font-bold text-[#4A3AFF] hover:text-[#3b2dd1] dark:text-indigo-400 hover:bg-[#EEF2FF]/40 dark:hover:bg-slate-800 border-t border-stone-100 dark:border-slate-800 transition cursor-pointer"
+              >
+                View all notifications &rarr;
+              </Link>
             </div>
           )}
         </div>

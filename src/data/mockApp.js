@@ -270,9 +270,255 @@ export function getPersonById(id) {
 }
 
 export function getAlbumMemories(albumId) {
+  if (ALBUM_MEMORIES_MAP[albumId]) {
+    return ALBUM_MEMORIES_MAP[albumId];
+  }
   return memories.filter((memory) => memory.albumId === albumId);
 }
 
 export function getPersonMemories(personId) {
   return memories.filter((memory) => memory.ownerId === personId);
 }
+
+export const ALBUM_MEMORIES_MAP = {
+  "career-craft": [
+    {
+      id: "mem-cc-1",
+      type: "Voice",
+      title: "The day I knew I'd found home",
+      description: "I recorded this on the roof of my new apartment, watching the city lights come on at dusk. I realized in that moment that I'd stopped looking for somewhere else to be....",
+      date: "Tuesday, 14 March",
+      duration: "4:32",
+      tags: ["home", "belonging", "london"],
+      privacy: "Private",
+      albumId: "career-craft"
+    },
+    {
+      id: "mem-cc-2",
+      type: "Photo",
+      title: "Grandma's 80th birthday",
+      description: "The whole family came together. 43 people in one backyard....",
+      date: "Monday, 7 June",
+      image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1200&q=80",
+      tags: ["family", "celebration", "grandma"],
+      privacy: "Family",
+      albumId: "career-craft"
+    },
+    {
+      id: "mem-cc-3",
+      type: "Written",
+      title: "Why I quit my job",
+      description: "After seven years at the firm, I walked into my manager's office and handed in my notice. What followed was the most terrifying — and clarifying — six months of my adult life. This is that story....",
+      date: "Sunday, 12 January",
+      tags: ["career", "courage", "change"],
+      privacy: "Private",
+      albumId: "career-craft"
+    },
+    {
+      id: "mem-cc-4",
+      type: "Voice",
+      title: "Sunday mornings in Cork",
+      description: "I recorded this when I visited my parents. Dad was making bread in the kitchen and I just pressed record....",
+      date: "Tuesday, 3 September",
+      duration: "7:14",
+      tags: ["childhood", "ireland", "nostalgia"],
+      privacy: "Family",
+      albumId: "career-craft"
+    }
+  ],
+  "career-and-craft": [
+    {
+      id: "mem-cc-1",
+      type: "Voice",
+      title: "The day I knew I'd found home",
+      description: "I recorded this on the roof of my new apartment, watching the city lights come on at dusk. I realized in that moment that I'd stopped looking for somewhere else to be....",
+      date: "Tuesday, 14 March",
+      duration: "4:32",
+      tags: ["home", "belonging", "london"],
+      privacy: "Private",
+      albumId: "career-and-craft"
+    },
+    {
+      id: "mem-cc-2",
+      type: "Photo",
+      title: "Grandma's 80th birthday",
+      description: "The whole family came together. 43 people in one backyard....",
+      date: "Monday, 7 June",
+      image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1200&q=80",
+      tags: ["family", "celebration", "grandma"],
+      privacy: "Family",
+      albumId: "career-and-craft"
+    },
+    {
+      id: "mem-cc-3",
+      type: "Written",
+      title: "Why I quit my job",
+      description: "After seven years at the firm, I walked into my manager's office and handed in my notice. What followed was the most terrifying — and clarifying — six months of my adult life. This is that story....",
+      date: "Sunday, 12 January",
+      tags: ["career", "courage", "change"],
+      privacy: "Private",
+      albumId: "career-and-craft"
+    },
+    {
+      id: "mem-cc-4",
+      type: "Voice",
+      title: "Sunday mornings in Cork",
+      description: "I recorded this when I visited my parents. Dad was making bread in the kitchen and I just pressed record....",
+      date: "Tuesday, 3 September",
+      duration: "7:14",
+      tags: ["childhood", "ireland", "nostalgia"],
+      privacy: "Family",
+      albumId: "career-and-craft"
+    }
+  ],
+  "childhood-summers": [
+    {
+      id: "mem-cs-1",
+      type: "Voice",
+      title: "July evenings in Cork",
+      description: "The long July evenings in Cork. The smell of cut grass and sea air coming off the bay.",
+      date: "Friday, 12 July",
+      duration: "5:12",
+      tags: ["childhood", "cork", "summer"],
+      privacy: "Private",
+      albumId: "childhood-summers"
+    },
+    {
+      id: "mem-cs-2",
+      type: "Photo",
+      title: "Dad's Wooden Boat",
+      description: "We built this little dinghy in the garage over three months. First sail out near Kinsale.",
+      date: "August 15, 2019",
+      image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+      tags: ["sailing", "father", "summer"],
+      privacy: "Family",
+      albumId: "childhood-summers"
+    },
+    {
+      id: "mem-cs-3",
+      type: "Written",
+      title: "First swim in the Atlantic",
+      description: "Freezing cold water, but we ran in screaming. Best feeling in the world.",
+      date: "June 20, 2018",
+      tags: ["swimming", "ocean", "courage"],
+      privacy: "Private",
+      albumId: "childhood-summers"
+    }
+  ],
+  "years-in-london": [
+    {
+      id: "mem-yl-1",
+      type: "Photo",
+      title: "Arriving at Paddington Station",
+      description: "Two heavy suitcases and no idea where I was going to live. Rain pouring down outside.",
+      date: "September 1, 2015",
+      image: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1200&q=80",
+      tags: ["london", "arrival", "newbeginnings"],
+      privacy: "Private",
+      albumId: "years-in-london"
+    },
+    {
+      id: "mem-yl-2",
+      type: "Voice",
+      title: "Hackney Studio Session",
+      description: "Late night recording session in the cold studio on Mare Street. Pure magic.",
+      date: "October 14, 2017",
+      duration: "8:45",
+      tags: ["music", "hackney", "studio"],
+      privacy: "Family",
+      albumId: "years-in-london"
+    },
+    {
+      id: "mem-yl-3",
+      type: "Written",
+      title: "London Fog & Coffee",
+      description: "Finding my favorite corner table at the local cafe. London became home that winter.",
+      date: "November 5, 2018",
+      tags: ["coffee", "winter", "london"],
+      privacy: "Private",
+      albumId: "years-in-london"
+    }
+  ],
+  "family-of-my-own": [
+    {
+      id: "mem-fo-1",
+      type: "Photo",
+      title: "First steps in the garden",
+      description: "Sarah took her first three steps towards the apple tree today. We were both crying laughing.",
+      date: "May 4, 2022",
+      image: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=1200&q=80",
+      tags: ["baby", "firststeps", "family"],
+      privacy: "Family",
+      albumId: "family-of-my-own"
+    },
+    {
+      id: "mem-fo-2",
+      type: "Voice",
+      title: "Sunday Family Dinner Chat",
+      description: "Recorded around the kitchen table. Laughter, clinking forks, and stories about Nana.",
+      date: "November 18, 2023",
+      duration: "12:30",
+      tags: ["dinner", "family", "stories"],
+      privacy: "Family",
+      albumId: "family-of-my-own"
+    },
+    {
+      id: "mem-fo-3",
+      type: "Written",
+      title: "The Year Everything Changed",
+      description: "Reflecting on moving into our forever home and building our family circle.",
+      date: "December 31, 2023",
+      tags: ["milestone", "home", "gratitude"],
+      privacy: "Private",
+      albumId: "family-of-my-own"
+    }
+  ],
+  "places-that-shaped-me": [
+    {
+      id: "mem-ps-1",
+      type: "Photo",
+      title: "Cliffs of Moher Sunrise",
+      description: "Sunrise over the Atlantic ocean. Cold wind, breaking waves, absolute silence.",
+      date: "April 10, 2021",
+      image: "https://images.unsplash.com/photo-1473496169904-658ba37448eb?auto=format&fit=crop&w=1200&q=80",
+      tags: ["ireland", "travel", "cliffs"],
+      privacy: "Public",
+      albumId: "places-that-shaped-me"
+    },
+    {
+      id: "mem-ps-2",
+      type: "Voice",
+      title: "Night Market in Bangkok",
+      description: "Street food sounds, sizzling woks, and neon signs in Chinatown.",
+      date: "January 19, 2023",
+      duration: "6:20",
+      tags: ["travel", "bangkok", "soundscape"],
+      privacy: "Public",
+      albumId: "places-that-shaped-me"
+    }
+  ],
+  "mum": [
+    {
+      id: "mem-mum-1",
+      type: "Voice",
+      title: "Mum's Soda Bread Recipe",
+      description: "Mum explaining her secret trick to getting the crust crispy and soft inside.",
+      date: "Mother's Day 2020",
+      duration: "3:40",
+      tags: ["mum", "recipe", "family"],
+      privacy: "Private",
+      albumId: "mum"
+    },
+    {
+      id: "mem-mum-2",
+      type: "Photo",
+      title: "Teatime in the Garden",
+      description: "Mum with her favorite teacup under the cherry blossom tree.",
+      date: "May 12, 2021",
+      image: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1200&q=80",
+      tags: ["mum", "garden", "love"],
+      privacy: "Private",
+      albumId: "mum"
+    }
+  ]
+};
