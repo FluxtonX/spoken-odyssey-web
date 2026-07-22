@@ -7,7 +7,7 @@ import DashboardHeader from "@/components/layout/DashboardHeader";
 import LandingPage from "@/app/landing/page";
 import { useAuth } from "@/context/AuthProvider";
 import { useRouter } from "next/navigation";
-import { getAlbumsFromBackend, getMemoriesFromBackend } from "@/services/backend";
+import { getAlbumsFromBackend, getMemoriesFromBackend, getFamilyMembers } from "@/services/backend";
 import { memories } from "@/data/mockApp";
 import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COVER_PRESETS } from "@/data/userProfile";
 import { motion } from "framer-motion";
@@ -118,6 +118,14 @@ export default function Home() {
   const [currentDate, setCurrentDate] = useState("Loading date...");
   const [greeting, setGreeting] = useState("Hello");
 
+  // Dynamic API Database Stats State
+  const [stats, setStats] = useState({
+    totalMemories: 0,
+    voiceRecordings: 0,
+    familyMembers: 0,
+    thisYearCount: 0
+  });
+
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -144,29 +152,67 @@ export default function Home() {
     window.addEventListener("profileUpdated", loadProfile);
 
     const loadHomeData = async () => {
+      let fetchedMemories = [];
+      let familyCount = 0;
+
       if (isAuthenticated && firebaseUser) {
         try {
           const token = await getToken();
-          const [backendAlbums, backendMemories] = await Promise.all([
+          const [backendAlbums, backendMemories, backendFamily] = await Promise.allSettled([
             getAlbumsFromBackend(token),
-            getMemoriesFromBackend(token)
+            getMemoriesFromBackend(token),
+            getFamilyMembers(token)
           ]);
           
-          if (backendMemories && backendMemories.length > 0) {
-            setMemoriesList(backendMemories);
+          if (backendMemories.status === "fulfilled" && Array.isArray(backendMemories.value) && backendMemories.value.length > 0) {
+            fetchedMemories = backendMemories.value;
           } else {
             seedInitialMemoriesIfNeeded();
             const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-            setMemoriesList(saved ? JSON.parse(saved) : memories);
+            fetchedMemories = saved ? JSON.parse(saved) : memories;
           }
-          return;
+
+          if (backendFamily.status === "fulfilled" && Array.isArray(backendFamily.value)) {
+            familyCount = backendFamily.value.length;
+          } else {
+            const storedFam = localStorage.getItem("spokenOdysseyFamilyMembers");
+            familyCount = storedFam ? JSON.parse(storedFam).length : 4;
+          }
         } catch (error) {
           console.warn("Failed to load backend data", error);
+          seedInitialMemoriesIfNeeded();
+          const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+          fetchedMemories = saved ? JSON.parse(saved) : memories;
         }
+      } else {
+        seedInitialMemoriesIfNeeded();
+        const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+        fetchedMemories = saved ? JSON.parse(saved) : memories;
       }
-      seedInitialMemoriesIfNeeded();
-      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-      setMemoriesList(saved ? JSON.parse(saved) : memories);
+
+      setMemoriesList(fetchedMemories);
+
+      // Compute exact dynamic stats from database / API
+      const currentYear = new Date().getFullYear();
+      const voiceCount = fetchedMemories.filter(m => 
+        m.type?.toLowerCase() === "voice" || 
+        m.type?.toLowerCase() === "audio" || 
+        !!m.audioUrl || 
+        !!m.audio
+      ).length;
+
+      const thisYearCount = fetchedMemories.filter(m => {
+        const dateStr = (m.occurredAt || m.createdAt || m.date || "").toString();
+        if (!dateStr) return false;
+        return dateStr.includes(currentYear.toString()) || new Date(dateStr).getFullYear() === currentYear;
+      }).length;
+
+      setStats({
+        totalMemories: fetchedMemories.length,
+        voiceRecordings: voiceCount,
+        familyMembers: familyCount,
+        thisYearCount: thisYearCount
+      });
     };
 
     loadHomeData();
@@ -199,17 +245,17 @@ export default function Home() {
           {greeting}, {fullName}.
         </h1>
         <p className="text-stone-500 text-sm font-medium">
-          Your archive has <span className="font-bold text-[var(--brand)]">{memoriesList.length} memories</span> and is growing.
+          Your archive has <span className="font-bold text-[var(--brand)]">{stats.totalMemories} memories</span> and is growing.
         </p>
       </motion.div>
 
-      {/* TOP STAT CARDS */}
+      {/* TOP STAT CARDS (Dynamic Database Values) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
         {[
-          { icon: BookOpen, count: 247, label: "Memories", iconColor: "text-[#4A3AFF]", delay: "stagger-1" },
-          { icon: Mic, count: 89, label: "Voice recordings", iconColor: "text-[#f59e0b]", delay: "stagger-2" },
-          { icon: Users, count: 5, label: "Family members", iconColor: "text-[#0ea5e9]", delay: "stagger-3" },
-          { icon: TrendingUp, count: 34, label: "This year", iconColor: "text-[#10b981]", delay: "stagger-4" }
+          { icon: BookOpen, count: stats.totalMemories, label: "Memories", iconColor: "text-[#4A3AFF]", delay: "stagger-1" },
+          { icon: Mic, count: stats.voiceRecordings, label: "Voice recordings", iconColor: "text-[#f59e0b]", delay: "stagger-2" },
+          { icon: Users, count: stats.familyMembers, label: "Family members", iconColor: "text-[#0ea5e9]", delay: "stagger-3" },
+          { icon: TrendingUp, count: stats.thisYearCount, label: "This year", iconColor: "text-[#10b981]", delay: "stagger-4" }
         ].map((stat, idx) => (
           <div key={idx} className={`figma-card p-6 relative group hover:scale-[1.02] cursor-pointer animate-fade-in-up ${stat.delay}`}>
             <div className={`w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center mb-5 ${stat.iconColor} group-hover:scale-110 transition-transform border border-[#E5E7EB]`}>

@@ -35,7 +35,7 @@ export default function NavBar() {
 
   const menuItems = [
     { name: "Home", href: "/home", icon: Home },
-    { name: "Memories", href: "/memories", icon: Archive },
+    { name: "Odyssey", href: "/memories", icon: Archive },
     { name: "Timeline", href: "/timeline", icon: Clock },
     { name: "Albums", href: "/albums", icon: ImageIcon },
     { name: "Family", href: "/family", icon: Users, badge: pendingFamilyCount > 0 ? pendingFamilyCount : undefined },

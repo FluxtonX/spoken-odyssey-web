@@ -22,61 +22,90 @@ export default function MyArchive() {
   const types = ["All", "Voice", "Photos", "Written"];
   const years = ["All", "2026", "2025", "2024", "2023", "2022"];
   
-  const { isAuthenticated, firebaseUser, getToken} = useAuth();
-  const [backendMemories, setBackendMemories] = useState([]);
+  const { isAuthenticated, firebaseUser, getToken } = useAuth();
+  const [userMemories, setUserMemories] = useState([]);
+  const [isLoadingMemories, setIsLoadingMemories] = useState(true);
 
   useEffect(() => {
     const loadMemories = async () => {
+      setIsLoadingMemories(true);
+      let fetched = null;
+
       if (isAuthenticated && firebaseUser) {
         try {
           const token = await getToken();
           const mems = await getMemoriesFromBackend(token);
-          setBackendMemories(mems || []);
+          if (Array.isArray(mems) && mems.length > 0) {
+            fetched = mems;
+          }
         } catch (error) {
-          console.error("Failed to load backend memories", error);
+          console.warn("Could not load backend memories, checking local storage:", error.message);
         }
       }
+
+      if (!fetched) {
+        try {
+          const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              fetched = parsed;
+            }
+          }
+        } catch (e) {
+          console.warn("Could not read local memories:", e);
+        }
+      }
+
+      // If neither database nor local user memories exist, use static memories
+      setUserMemories(fetched && fetched.length > 0 ? fetched : memories);
+      setIsLoadingMemories(false);
     };
+
     loadMemories();
     window.addEventListener("memoryPublished", loadMemories);
     return () => window.removeEventListener("memoryPublished", loadMemories);
-  }, [isAuthenticated, firebaseUser]);
+  }, [isAuthenticated, firebaseUser, getToken]);
 
-  // Filter and sort the memories locally
+  // Filter and sort memories dynamically
   const filteredMemories = useMemo(() => {
-    let result = backendMemories.length > 0 ? [...backendMemories] : [...memories];
+    let result = [...userMemories];
 
     // Filter by type
     if (activeType !== "All") {
-      const typeMap = {
-        Voice: "Voice",
-        Photos: "Photo",
-        Written: "Text",
-      };
-      result = result.filter((m) => m.type === typeMap[activeType]);
+      result = result.filter((m) => {
+        const t = (m.type || "").toLowerCase();
+        if (activeType === "Voice") return t === "voice" || t === "audio" || !!m.audioUrl || !!m.audio;
+        if (activeType === "Photos") return t === "photo" || t === "image" || !!m.image || !!m.cover;
+        if (activeType === "Written") return t === "text" || t === "written" || t === "milestone" || t === "thought";
+        return true;
+      });
     }
 
     // Filter by year
     if (activeYear !== "All") {
-      result = result.filter((m) => m.date.includes(activeYear));
+      result = result.filter((m) => {
+        const dateStr = (m.date || m.occurredAt || m.createdAt || "").toString();
+        if (!dateStr) return false;
+        return dateStr.includes(activeYear) || new Date(dateStr).getFullYear().toString() === activeYear;
+      });
     }
 
     // Filter by search query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (m) =>
-          m.title.toLowerCase().includes(q) ||
-          m.description.toLowerCase().includes(q)
-      );
+      result = result.filter((m) => {
+        const titleMatch = (m.title || "").toLowerCase().includes(q);
+        const descMatch = (m.description || "").toLowerCase().includes(q);
+        const tagMatch = (m.tags || []).some((t) => t.toLowerCase().includes(q));
+        return titleMatch || descMatch || tagMatch;
+      });
     }
 
     // Sort
     result.sort((a, b) => {
-      // In a real app, parse the date properly. For now, simple string compare or assume mock data order.
-      // Mock data dates like "April 18, 2026". We can parse it.
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
+      const dateA = new Date(a.date || a.createdAt || a.occurredAt || 0).getTime();
+      const dateB = new Date(b.date || b.createdAt || b.occurredAt || 0).getTime();
       if (sortOrder === "newest") {
         return dateB - dateA;
       } else {
@@ -85,7 +114,7 @@ export default function MyArchive() {
     });
 
     return result;
-  }, [searchQuery, activeType, activeYear, sortOrder]);
+  }, [userMemories, searchQuery, activeType, activeYear, sortOrder]);
 
   const openPublishModal = () => {
     window.dispatchEvent(new Event("openPublishModal"));

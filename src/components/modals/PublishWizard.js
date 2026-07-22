@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Mic, PenTool, Image as ImageIcon, Award, Check, Lock, Users, Globe, Smile, Frown, Heart, Cloud, Clock, Eye, Zap, ArrowLeft, Star, Upload, Loader2 } from "lucide-react";
+import { X, Mic, PenTool, Image as ImageIcon, Award, Check, Lock, Users, Globe, Smile, Frown, Heart, Cloud, Clock, Eye, Zap, ArrowLeft, Star, Upload, Loader2, Play, Pause, Square, RotateCcw, Volume2 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
 import { createMemoryOnBackend } from "@/services/backend";
@@ -27,9 +27,25 @@ export default function PublishWizard() {
   const [visibility, setVisibility] = useState("Private");
   const [tags, setTags] = useState(""); // Simple string for now
   const [shares, setShares] = useState({ family: true, friends: true, self: false });
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
   
+  // Voice Recording & Playback States
+  const [recordingState, setRecordingState] = useState("idle"); // "idle" | "recording" | "paused" | "stopped"
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1); // 1, 1.25, 1.5, 1.75, 2
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const audioPlayerRef = useRef(null);
+  
+  // Written specific state
+  const [writtenContent, setWrittenContent] = useState("");
+
   // Milestone specific state
   const [significance, setSignificance] = useState(0);
   const [lifeChapter, setLifeChapter] = useState("");
@@ -41,6 +57,98 @@ export default function PublishWizard() {
 
   // Publish state
   const [isPublishing, setIsPublishing] = useState(false);
+
+  // Voice recording handlers using MediaRecorder API
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setAudioBlob(blob);
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setRecordingState("recording");
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access error:", err);
+      alert("Could not access microphone. Please enable microphone permissions in your browser.");
+    }
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && recordingState === "recording") {
+      mediaRecorderRef.current.pause();
+      setRecordingState("paused");
+      clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && recordingState === "paused") {
+      mediaRecorderRef.current.resume();
+      setRecordingState("recording");
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && (recordingState === "recording" || recordingState === "paused")) {
+      mediaRecorderRef.current.stop();
+      setRecordingState("stopped");
+      clearInterval(recordingTimerRef.current);
+    }
+  };
+
+  const resetRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try { mediaRecorderRef.current.stop(); } catch (e) {}
+    }
+    clearInterval(recordingTimerRef.current);
+    setRecordingState("idle");
+    setRecordingTime(0);
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setIsPlayingAudio(false);
+    setAudioCurrentTime(0);
+  };
+
+  const togglePlayAudio = () => {
+    if (!audioPlayerRef.current) return;
+    if (isPlayingAudio) {
+      audioPlayerRef.current.pause();
+      setIsPlayingAudio(false);
+    } else {
+      audioPlayerRef.current.playbackRate = playbackSpeed;
+      audioPlayerRef.current.play();
+      setIsPlayingAudio(true);
+    }
+  };
+
+  const handleSpeedChange = (speed) => {
+    setPlaybackSpeed(speed);
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.playbackRate = speed;
+    }
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -67,26 +175,16 @@ export default function PublishWizard() {
   };
 
   useEffect(() => {
-    let interval;
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingTime(t => t + 1);
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isRecording]);
-
-  useEffect(() => {
     const handleOpen = () => {
       setStep(1);
       setMemoryType("");
       setTitle("");
+      setWrittenContent("");
       setMood("");
       setVisibility("Private");
       setTags("");
       setVisualFiles([]);
+      resetRecording();
       setIsOpen(true);
     };
     window.addEventListener("openPublishModal", handleOpen);
@@ -237,44 +335,159 @@ export default function PublishWizard() {
 
           {/* STEP 2: CAPTURE (VOICE) */}
           {step === 2 && memoryType === "voice" && (
-            <div className="animate-fade-in flex flex-col items-center justify-center h-full py-10">
-              <p className="text-stone-500 font-medium mb-12">
-                {isRecording ? "Recording in progress..." : "Click the microphone to start recording"}
-              </p>
-              
-              {/* Decorative / Visualizer */}
-              {isRecording ? (
-                <div className="flex items-center justify-center gap-1 h-[2px] mb-12 min-w-[200px]">
-                  {[...Array(16)].map((_, i) => (
-                    <div 
-                      key={i} 
-                      className="w-1.5 bg-[#4A3AFF] rounded-full animate-pulse" 
-                      style={{ height: `${Math.max(8, Math.random() * 40)}px`, animationDelay: `${i * 0.1}s` }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="w-full max-w-[300px] border-t-2 border-dashed border-stone-200 mb-12 relative"></div>
+            <div className="animate-fade-in flex flex-col items-center justify-center h-full py-8">
+              {recordingState === "idle" && (
+                <>
+                  <p className="text-stone-500 font-medium mb-10">
+                    Click the microphone to start recording your story in your voice.
+                  </p>
+                  <div className="w-full max-w-[300px] border-t-2 border-dashed border-stone-200 mb-12"></div>
+                  <h1 className="text-5xl font-black tracking-tight mb-8 text-stone-900">00:00</h1>
+                  <button 
+                    onClick={startRecording}
+                    className="w-20 h-20 rounded-full bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white shadow-[0_8px_20px_-4px_rgba(74,58,255,0.4)] flex items-center justify-center transition-all mb-4 active:scale-95 cursor-pointer"
+                  >
+                    <Mic size={32} strokeWidth={2.5} />
+                  </button>
+                  <p className="text-stone-400 font-medium text-sm">Tap to start recording</p>
+                </>
               )}
 
-              <h1 className={clsx("text-5xl font-black tracking-tight mb-8 transition-colors", isRecording ? "text-[#4A3AFF]" : "text-stone-900")}>
-                {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
-              </h1>
-              
-              <button 
-                onClick={() => setIsRecording(!isRecording)}
-                className={clsx(
-                  "w-20 h-20 rounded-full flex items-center justify-center transition-all mb-4",
-                  isRecording 
-                    ? "bg-red-500 hover:bg-red-600 text-white shadow-[0_8px_20px_-4px_rgba(239,68,68,0.4)] animate-pulse" 
-                    : "bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white shadow-[0_8px_20px_-4px_rgba(74,58,255,0.4)] active:scale-95"
-                )}
-              >
-                {isRecording ? <div className="w-6 h-6 bg-white rounded-sm" /> : <Mic size={32} strokeWidth={2.5} />}
-              </button>
-              <p className="text-stone-400 font-medium text-sm">
-                {isRecording ? "Tap to stop" : "Tap to start"}
-              </p>
+              {(recordingState === "recording" || recordingState === "paused") && (
+                <>
+                  <p className="text-stone-500 font-medium mb-8">
+                    {recordingState === "recording" ? "Recording in progress..." : "Recording paused"}
+                  </p>
+                  
+                  <div className="flex items-center justify-center gap-1.5 h-10 mb-8 min-w-[220px]">
+                    {[...Array(18)].map((_, i) => (
+                      <div 
+                        key={i} 
+                        className={clsx(
+                          "w-1.5 rounded-full transition-all duration-200",
+                          recordingState === "recording" ? "bg-[#4A3AFF] animate-pulse" : "bg-amber-400"
+                        )}
+                        style={{ 
+                          height: recordingState === "recording" ? `${Math.max(10, Math.random() * 45)}px` : "12px", 
+                          animationDelay: `${i * 0.1}s` 
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <h1 className={clsx("text-5xl font-black tracking-tight mb-8 transition-colors", recordingState === "recording" ? "text-[#4A3AFF]" : "text-amber-500")}>
+                    {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                  </h1>
+                  
+                  <div className="flex items-center gap-4 mb-4">
+                    {recordingState === "recording" ? (
+                      <button 
+                        onClick={pauseRecording}
+                        className="w-14 h-14 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-md flex items-center justify-center transition-all active:scale-95"
+                        title="Pause Recording"
+                      >
+                        <Pause size={24} strokeWidth={2.5} />
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={resumeRecording}
+                        className="w-14 h-14 rounded-full bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white shadow-md flex items-center justify-center transition-all active:scale-95"
+                        title="Resume Recording"
+                      >
+                        <Play size={24} fill="currentColor" />
+                      </button>
+                    )}
+
+                    <button 
+                      onClick={stopRecording}
+                      className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-md flex items-center justify-center transition-all active:scale-95"
+                      title="Stop Recording"
+                    >
+                      <Square size={22} fill="currentColor" />
+                    </button>
+                  </div>
+
+                  <p className="text-stone-400 font-medium text-xs">
+                    {recordingState === "recording" ? "Tap pause or stop when finished" : "Tap play to resume or stop to complete"}
+                  </p>
+                </>
+              )}
+
+              {recordingState === "stopped" && audioUrl && (
+                <div className="w-full max-w-md bg-white border border-[#C7D2FE]/60 rounded-3xl p-6 shadow-md flex flex-col items-center">
+                  <audio 
+                    ref={audioPlayerRef} 
+                    src={audioUrl} 
+                    onEnded={() => setIsPlayingAudio(false)} 
+                    onTimeUpdate={(e) => setAudioCurrentTime(e.target.currentTime)} 
+                    onLoadedMetadata={(e) => setAudioDuration(e.target.duration)} 
+                  />
+
+                  <div className="flex items-center gap-2 text-[#10b981] font-bold text-xs uppercase tracking-widest mb-4">
+                    <Check size={14} strokeWidth={3} /> Recording Ready
+                  </div>
+
+                  <h2 className="text-3xl font-black text-stone-900 mb-6">
+                    {Math.floor(audioCurrentTime / 60)}:{(Math.floor(audioCurrentTime) % 60).toString().padStart(2, '0')} / {Math.floor((audioDuration || recordingTime) / 60)}:{(Math.floor(audioDuration || recordingTime) % 60).toString().padStart(2, '0')}
+                  </h2>
+
+                  {/* Dynamic Playback Waveform */}
+                  <div className="w-full flex items-center gap-1 h-12 bg-[#EEF2FF] rounded-2xl px-4 mb-6 overflow-hidden">
+                    {[...Array(24)].map((_, i) => (
+                      <div 
+                        key={i} 
+                        className={clsx(
+                          "flex-1 rounded-full transition-all duration-300",
+                          (i / 24) <= (audioCurrentTime / (audioDuration || recordingTime || 1))
+                            ? "bg-[#4A3AFF]"
+                            : "bg-[#C7D2FE]"
+                        )}
+                        style={{ height: `${Math.max(20, (Math.sin(i) * 0.5 + 0.5) * 100)}%` }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Play & Speed Controls */}
+                  <div className="flex items-center justify-between w-full mb-6 gap-4">
+                    <button 
+                      onClick={togglePlayAudio}
+                      className="h-12 w-12 rounded-2xl bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white flex items-center justify-center shadow-md transition-all active:scale-95 cursor-pointer"
+                    >
+                      {isPlayingAudio ? <Pause size={20} strokeWidth={2.5} /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
+                    </button>
+
+                    {/* Speed Selector (1x, 1.25x, 1.5x, 1.75x, 2x) */}
+                    <div className="flex items-center gap-1.5 bg-stone-100 p-1.5 rounded-2xl">
+                      {[1, 1.25, 1.5, 1.75, 2].map((spd) => (
+                        <button
+                          key={spd}
+                          onClick={() => handleSpeedChange(spd)}
+                          className={clsx(
+                            "px-2.5 py-1 rounded-xl text-xs font-bold transition-all",
+                            playbackSpeed === spd
+                              ? "bg-[#4A3AFF] text-white shadow-xs"
+                              : "text-stone-600 hover:text-stone-900"
+                          )}
+                        >
+                          {spd}x
+                        </button>
+                      ))}
+                    </div>
+
+                    <button 
+                      onClick={resetRecording}
+                      className="h-10 w-10 rounded-2xl border border-stone-200 text-stone-500 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all cursor-pointer"
+                      title="Re-record Audio"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                  </div>
+
+                  <p className="text-stone-400 text-xs font-medium text-center">
+                    Listen back or adjust playback speed. Click continue when ready.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -663,17 +876,23 @@ export default function PublishWizard() {
                     
                     const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
                     const pathAlbumId = currentPath.startsWith("/albums/") ? currentPath.split("/")[2] : "";
+                    const targetAlbum = pathAlbumId || "career-craft";
+                    const formattedDuration = recordingTime > 0 
+                      ? `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` 
+                      : "01:30";
 
                     const newMem = {
                       id: `mem-${Date.now()}`,
-                      title: title.trim() || "Untitled Memory",
-                      description: memoryType === "written" ? "Written memory reflection" : "Voice recording memory",
+                      title: title.trim() || (memoryType === "voice" ? "Voice Note Memory" : "Untitled Memory"),
+                      description: writtenContent?.trim() || (memoryType === "written" ? "Written memory reflection" : "Voice recording memory"),
                       type: memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : "Voice",
                       date: new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-                      albumId: pathAlbumId || targetAlbumId || "career-craft",
-                      albums: [pathAlbumId || targetAlbumId || "career-craft"],
+                      albumId: targetAlbum,
+                      albums: [targetAlbum],
                       privacy: visibility || "Private",
                       tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["memory"],
+                      duration: formattedDuration,
+                      audioUrl: audioUrl || undefined,
                       image: visualFiles.length > 0 ? URL.createObjectURL(visualFiles[0]) : undefined
                     };
 
@@ -688,10 +907,14 @@ export default function PublishWizard() {
                         const formData = new FormData();
                         formData.append("type", memoryType);
                         if (title) formData.append("title", title);
+                        if (writtenContent) formData.append("description", writtenContent);
                         if (mood) formData.append("mood", mood);
                         if (visibility) formData.append("visibility", visibility);
                         if (tags) formData.append("tags", tags);
                         
+                        if (memoryType === "voice" && audioBlob) {
+                          formData.append("audio", audioBlob, `voice_recording_${Date.now()}.webm`);
+                        }
                         if (memoryType === "visual" && visualFiles.length > 0) {
                           visualFiles.forEach((file) => formData.append("media", file));
                         }
