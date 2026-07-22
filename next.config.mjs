@@ -1,4 +1,8 @@
-/** @type {import('next').NextConfig} */
+const backendUrl = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  'http://ec2-13-206-196-136.ap-south-1.compute.amazonaws.com:5001'
+).replace(/\/$/, '');
+
 const nextConfig = {
   reactStrictMode: true,
   generateEtags: false, // Prevents browser from caching 304 responses when files change
@@ -6,7 +10,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://ec2-13-206-196-136.ap-south-1.compute.amazonaws.com/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
