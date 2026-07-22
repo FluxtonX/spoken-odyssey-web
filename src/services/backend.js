@@ -13,9 +13,19 @@ export class BackendError extends Error {
   }
 }
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  (process.env.NODE_ENV === "production" ? "" : "http://localhost:5001");
+const BACKEND_URL = (() => {
+  const customUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+  // If page is loaded over HTTPS in browser, insecure http:// calls are blocked by browser Mixed Content policy.
+  // Route through Next.js proxy rewrites ("") server-side instead to avoid browser security blocking.
+  if (
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:" &&
+    customUrl?.startsWith("http://")
+  ) {
+    return "";
+  }
+  return customUrl || (process.env.NODE_ENV === "production" ? "" : "http://localhost:5001");
+})();
 
 async function backendFetch(path, { method = "GET", body, token, isFormData = false } = {}) {
   const headers = {};
