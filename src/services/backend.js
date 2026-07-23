@@ -27,6 +27,31 @@ const BACKEND_URL = (() => {
   return customUrl || (process.env.NODE_ENV === "production" ? "" : "http://localhost:5001");
 })();
 
+export function getBackendBaseUrl() {
+  return BACKEND_URL;
+}
+
+export function normalizeMediaUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  // Data URLs (base64) & full http(s) URLs are returned as-is
+  if (trimmed.startsWith("data:") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  // Blob URLs
+  if (trimmed.startsWith("blob:")) {
+    return trimmed;
+  }
+
+  // Relative backend upload path (e.g. "/uploads/..." or "uploads/...")
+  const base = getBackendBaseUrl();
+  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return base ? `${base}${path}` : path;
+}
+
 async function backendFetch(path, { method = "GET", body, token, isFormData = false } = {}) {
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -199,6 +224,51 @@ export async function interactWithMemoryOnBackend(token, memoryId, type) {
   return response.data;
 }
 
+/** Track memory share on backend */
+export async function shareMemoryOnBackend(token, memoryId) {
+  const response = await backendFetch(`/api/memories/${memoryId}/share`, {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+/** React to memory with specific emotion (heart, like, laugh, angry, care) */
+export async function reactToMemoryOnBackend(token, memoryId, reactionType) {
+  const response = await backendFetch(`/api/memories/${memoryId}/react`, {
+    method: "POST",
+    body: { reactionType },
+    token,
+  });
+  return response.data;
+}
+
+/** Fetch comments for a specific memory */
+export async function getMemoryCommentsFromBackend(token, memoryId) {
+  const response = await backendFetch(`/api/memories/${memoryId}/comments`, { token });
+  return response.data;
+}
+
+/** Add a new comment or reply to a memory */
+export async function addMemoryCommentOnBackend(token, memoryId, text, parentCommentId = null) {
+  const response = await backendFetch(`/api/memories/${memoryId}/comments`, {
+    method: "POST",
+    body: { text, parentCommentId },
+    token,
+  });
+  return response.data;
+}
+
+/** React to a comment on a memory */
+export async function reactToCommentOnBackend(token, memoryId, commentId, type = "like") {
+  const response = await backendFetch(`/api/memories/${memoryId}/comments/${commentId}/react`, {
+    method: "POST",
+    body: { type },
+    token,
+  });
+  return response.data;
+}
+
 export async function getMemoryDetailsFromBackend(token, memoryId) {
   const response = await backendFetch(`/api/memories/${memoryId}`, { token });
   return response.data;
@@ -309,14 +379,6 @@ export async function reactToMemory(token, memoryId, type) {
   return response.data;
 }
 
-/** Increment share count */
-export async function shareMemoryOnBackend(token, memoryId) {
-  const response = await backendFetch(`/api/memories/${memoryId}/share`, {
-    method: "POST",
-    token,
-  });
-  return response.data;
-}
 
 export async function followUser(token, targetUid) {
   const response = await backendFetch(`/api/users/follow/${targetUid}`, {

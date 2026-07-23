@@ -55,11 +55,13 @@ export default function PublishWizard() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Publish state
+  // Publish & Validation state
   const [isPublishing, setIsPublishing] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   // Voice recording handlers using MediaRecorder API
   const startRecording = async () => {
+    setValidationError("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
@@ -161,11 +163,13 @@ export default function PublishWizard() {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
+    setValidationError("");
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       setVisualFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
     }
   };
   const handleFileSelect = (e) => {
+    setValidationError("");
     if (e.target.files && e.target.files.length > 0) {
       setVisualFiles((prev) => [...prev, ...Array.from(e.target.files)]);
     }
@@ -180,10 +184,11 @@ export default function PublishWizard() {
       setMemoryType("");
       setTitle("");
       setWrittenContent("");
-      setMood("");
+      setMood("Reflective");
       setVisibility("Private");
       setTags("");
       setVisualFiles([]);
+      setValidationError("");
       resetRecording();
       setIsOpen(true);
     };
@@ -194,13 +199,50 @@ export default function PublishWizard() {
   if (!isOpen) return null;
 
   const handleClose = () => setIsOpen(false);
-  const handleNext = () => setStep((s) => Math.min(s + 1, 5));
-  const handleBack = () => setStep((s) => Math.max(s - 1, 1));
+
+  const validateStep = (currentStep) => {
+    setValidationError("");
+    if (currentStep === 1 && !memoryType) {
+      setValidationError("Please select a memory type to proceed.");
+      return false;
+    }
+    if (currentStep === 2) {
+      if (memoryType === "voice" && recordingState !== "stopped" && !audioBlob) {
+        setValidationError("Please record your voice memory before proceeding.");
+        return false;
+      }
+      if (memoryType === "visual" && visualFiles.length === 0) {
+        setValidationError("Please add at least one photo or video.");
+        return false;
+      }
+      if (memoryType === "written" && !writtenContent.trim()) {
+        setValidationError("Please write your memory content before proceeding.");
+        return false;
+      }
+    }
+    if (currentStep === 3) {
+      if (!title.trim()) {
+        setValidationError("Memory title is required. Please give your memory a name.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (validateStep(step)) {
+      setStep((s) => Math.min(s + 1, 5));
+    }
+  };
+  const handleBack = () => {
+    setValidationError("");
+    setStep((s) => Math.max(s - 1, 1));
+  };
 
   const getStepTitle = () => {
     if (step === 1) return "Record a Memory";
-    if (step === 2) return "Capture";
-    if (step === 3) return "Add Details";
+    if (step === 2) return "Capture Content";
+    if (step === 3) return "Add Details & Title";
     if (step === 4) return "Review & Publish";
     return "";
   };
@@ -238,13 +280,19 @@ export default function PublishWizard() {
                   key={s} 
                   className={clsx(
                     "rounded-full transition-all duration-300",
-                    s === step ? "w-6 h-1.5 bg-[#4A3AFF]" : 
-                    s < step ? "w-1.5 h-1.5 bg-[#4A3AFF]/40" : 
-                    "w-1.5 h-1.5 bg-stone-200"
+                    step === s ? "w-6 h-2 bg-[#4A3AFF]" : s < step ? "w-2 h-2 bg-[#4A3AFF]/40" : "w-2 h-2 bg-stone-200"
                   )}
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Validation Warning Alert */}
+        {validationError && (
+          <div className="mx-8 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2 animate-shake">
+            <X size={16} className="shrink-0" />
+            <span>{validationError}</span>
           </div>
         )}
 
@@ -259,7 +307,7 @@ export default function PublishWizard() {
                 
                 {/* Option 1 */}
                 <button
-                  onClick={() => setMemoryType("voice")}
+                  onClick={() => { setMemoryType("voice"); setValidationError(""); }}
                   className={clsx(
                     "text-left p-6 rounded-[20px] border-2 transition-all flex flex-col relative overflow-hidden",
                     memoryType === "voice" ? "border-[#4A3AFF] bg-[linear-gradient(135deg,rgba(255,255,255,1)_0%,rgba(240,242,255,0.8)_100%)] shadow-[inset_18px_0_26px_rgba(145,137,255,0.12),_0_8px_20px_-4px_rgba(74,58,255,0.15)] ring-1 ring-[#4A3AFF]" : "border-stone-100 hover:border-[#A5B4FC] bg-white shadow-[inset_0_0_15px_rgba(0,0,0,0.02)] hover:shadow-[inset_18px_0_26px_rgba(145,137,255,0.05)]"
@@ -277,7 +325,7 @@ export default function PublishWizard() {
 
                 {/* Option 2 */}
                 <button
-                  onClick={() => setMemoryType("written")}
+                  onClick={() => { setMemoryType("written"); setValidationError(""); }}
                   className={clsx(
                     "text-left p-6 rounded-[20px] border-2 transition-all flex flex-col relative overflow-hidden",
                     memoryType === "written" ? "border-[#4A3AFF] bg-[linear-gradient(135deg,rgba(255,255,255,1)_0%,rgba(240,242,255,0.8)_100%)] shadow-[inset_18px_0_26px_rgba(145,137,255,0.12),_0_8px_20px_-4px_rgba(74,58,255,0.15)] ring-1 ring-[#4A3AFF]" : "border-stone-100 hover:border-[#A5B4FC] bg-white shadow-[inset_0_0_15px_rgba(0,0,0,0.02)] hover:shadow-[inset_18px_0_26px_rgba(145,137,255,0.05)]"
@@ -295,7 +343,7 @@ export default function PublishWizard() {
 
                 {/* Option 3 */}
                 <button
-                  onClick={() => setMemoryType("visual")}
+                  onClick={() => { setMemoryType("visual"); setValidationError(""); }}
                   className={clsx(
                     "text-left p-6 rounded-[20px] border-2 transition-all flex flex-col relative overflow-hidden",
                     memoryType === "visual" ? "border-[#4A3AFF] bg-[linear-gradient(135deg,rgba(255,255,255,1)_0%,rgba(240,242,255,0.8)_100%)] shadow-[inset_18px_0_26px_rgba(145,137,255,0.12),_0_8px_20px_-4px_rgba(74,58,255,0.15)] ring-1 ring-[#4A3AFF]" : "border-stone-100 hover:border-[#A5B4FC] bg-white shadow-[inset_0_0_15px_rgba(0,0,0,0.02)] hover:shadow-[inset_18px_0_26px_rgba(145,137,255,0.05)]"
@@ -305,7 +353,7 @@ export default function PublishWizard() {
                     <ImageIcon size={24} strokeWidth={2.5} />
                   </div>
                   <h3 className="font-bold text-stone-900 mb-1">Visual Memory</h3>
-                  <p className="text-[13px] text-stone-500 mb-6">Upload photos with captions</p>
+                  <p className="text-[13px] text-stone-500 mb-6">Upload photos and videos</p>
                   <div className={clsx("flex items-center gap-1 text-[#4A3AFF] font-bold text-xs mt-auto transition-opacity", memoryType === "visual" ? "opacity-100" : "opacity-0")}>
                     <Check size={14} strokeWidth={3} /> Selected
                   </div>
@@ -313,7 +361,7 @@ export default function PublishWizard() {
 
                 {/* Option 4 */}
                 <button
-                  onClick={() => setMemoryType("milestone")}
+                  onClick={() => { setMemoryType("milestone"); setValidationError(""); }}
                   className={clsx(
                     "text-left p-6 rounded-[20px] border-2 transition-all flex flex-col relative overflow-hidden",
                     memoryType === "milestone" ? "border-[#4A3AFF] bg-[linear-gradient(135deg,rgba(255,255,255,1)_0%,rgba(240,242,255,0.8)_100%)] shadow-[inset_18px_0_26px_rgba(145,137,255,0.12),_0_8px_20px_-4px_rgba(74,58,255,0.15)] ring-1 ring-[#4A3AFF]" : "border-stone-100 hover:border-[#A5B4FC] bg-white shadow-[inset_0_0_15px_rgba(0,0,0,0.02)] hover:shadow-[inset_18px_0_26px_rgba(145,137,255,0.05)]"
@@ -496,16 +544,20 @@ export default function PublishWizard() {
             <div className="animate-fade-in flex flex-col h-full">
               <div className="flex justify-between items-end mb-4">
                 <p className="text-stone-500 font-medium text-[15px]">Write your memory freely — don&apos;t worry about perfection.</p>
-                <span className="text-stone-400 text-xs font-bold whitespace-nowrap">5 words</span>
+                <span className="text-stone-400 text-xs font-bold whitespace-nowrap">
+                  {writtenContent.trim().split(/\s+/).filter(Boolean).length} words
+                </span>
               </div>
               <textarea 
+                value={writtenContent}
+                onChange={(e) => { setWrittenContent(e.target.value); setValidationError(""); }}
                 className="flex-1 w-full border-2 border-[#4A3AFF] rounded-3xl p-6 text-stone-700 resize-none focus:outline-none focus:ring-4 focus:ring-[#4A3AFF]/10 shadow-[0_4px_20px_-4px_rgba(74,58,255,0.08)] transition-all min-h-[240px]"
                 placeholder="Start writing your memory here..."
               ></textarea>
             </div>
           )}
 
-          {/* STEP 2: CAPTURE (VISUAL) */}
+          {/* STEP 2: CAPTURE (VISUAL - PHOTOS & VIDEOS) */}
           {step === 2 && memoryType === "visual" && (
             <div className="animate-fade-in flex flex-col h-full py-2">
               <div 
@@ -514,7 +566,7 @@ export default function PublishWizard() {
                 onDrop={handleDrop}
                 className={clsx(
                   "w-full rounded-[32px] flex flex-col transition-all relative overflow-hidden",
-                  visualFiles.length === 0 ? "h-full min-h-[300px] border-2 border-dashed flex-col items-center justify-center p-8 cursor-pointer" : "min-h-[120px] border-2 border-dashed p-6 items-center justify-center mb-6",
+                  visualFiles.length === 0 ? "h-full min-h-[280px] border-2 border-dashed flex-col items-center justify-center p-8 cursor-pointer" : "min-h-[120px] border-2 border-dashed p-6 items-center justify-center mb-6",
                   isDragging ? "border-[#4A3AFF] bg-[#EEF2FF] scale-[1.02]" : "border-[#C7D2FE] bg-white hover:border-[#4A3AFF] hover:bg-[#F8F9FF]"
                 )}
                 onClick={() => visualFiles.length === 0 && fileInputRef.current?.click()}
@@ -534,7 +586,7 @@ export default function PublishWizard() {
                       <ImageIcon size={32} strokeWidth={2.5} />
                     </div>
                     <h3 className="text-xl font-bold text-stone-900 mb-2">Drop photos or videos here</h3>
-                    <p className="text-[15px] text-stone-400 font-medium mb-8">or click to browse your files</p>
+                    <p className="text-[15px] text-stone-400 font-medium mb-8">Upload multiple pictures and videos for your memory</p>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -542,17 +594,17 @@ export default function PublishWizard() {
                       }}
                       className="px-6 py-2.5 rounded-[14px] font-bold text-[#4A3AFF] border-2 border-[#4A3AFF] hover:bg-[#EEF2FF] transition-all bg-white shadow-sm flex items-center gap-2"
                     >
-                      <Upload size={16} strokeWidth={3} /> Browse Files
+                      <Upload size={16} strokeWidth={3} /> Browse Photos & Videos
                     </button>
-                    <p className="text-[11px] font-bold text-stone-300 mt-8 uppercase tracking-widest">JPEG, PNG, HEIC, MP4 up to 50MB each</p>
+                    <p className="text-[11px] font-bold text-stone-300 mt-8 uppercase tracking-widest">Supports JPG, PNG, HEIC, MP4, WEBM</p>
                   </>
                 ) : (
                   <div className="flex flex-col items-center text-center">
                     <div className="w-12 h-12 bg-[#EEF2FF] text-[#4A3AFF] rounded-full flex items-center justify-center mb-3">
                       <Upload size={20} strokeWidth={2.5} />
                     </div>
-                    <h3 className="text-sm font-bold text-stone-900 mb-1">Add more files</h3>
-                    <p className="text-xs font-medium text-stone-400 mb-4">Drag and drop or click below</p>
+                    <h3 className="text-sm font-bold text-stone-900 mb-1">{visualFiles.length} file(s) selected</h3>
+                    <p className="text-xs font-medium text-stone-400 mb-4">Click to add more photos or videos</p>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -560,7 +612,7 @@ export default function PublishWizard() {
                       }}
                       className="px-4 py-2 rounded-xl font-bold text-[#4A3AFF] bg-[#EEF2FF] hover:bg-[#E0E7FF] transition-all text-xs flex items-center gap-2"
                     >
-                      <Upload size={14} strokeWidth={3} /> Browse Files
+                      <Upload size={14} strokeWidth={3} /> Add More Files
                     </button>
                   </div>
                 )}
@@ -569,28 +621,33 @@ export default function PublishWizard() {
               {visualFiles.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto pb-4 px-1">
                   {visualFiles.map((file, idx) => {
-                    const isVideo = file.type.startsWith('video/');
-                    const previewUrl = URL.createObjectURL(file);
+                    const isVideo = file.type?.startsWith('video/') || (typeof file === 'string' && file.match(/\.(mp4|webm|mov)$/i));
+                    const previewUrl = typeof file === 'string' ? file : URL.createObjectURL(file);
                     return (
-                      <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group border border-stone-200 shadow-sm bg-stone-100">
+                      <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group border border-stone-200 shadow-sm bg-stone-900">
                         {isVideo ? (
-                          <video src={previewUrl} className="w-full h-full object-cover" />
+                          <div className="relative w-full h-full">
+                            <video src={previewUrl} className="w-full h-full object-cover opacity-80" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
+                                <Play size={20} fill="currentColor" className="ml-0.5" />
+                              </div>
+                            </div>
+                          </div>
                         ) : (
                           <img src={previewUrl} className="w-full h-full object-cover" alt="preview" />
                         )}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <button 
                             onClick={() => removeFile(idx)}
-                            className="w-8 h-8 bg-white/20 hover:bg-red-500 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-colors"
+                            className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110"
                           >
                             <X size={16} strokeWidth={3} />
                           </button>
                         </div>
-                        {isVideo && (
-                          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded-md text-[10px] font-bold text-white uppercase tracking-wider">
-                            Video
-                          </div>
-                        )}
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded-md text-[10px] font-bold text-white uppercase tracking-wider">
+                          {isVideo ? "Video" : "Photo"} #{idx + 1}
+                        </div>
                       </div>
                     );
                   })}
@@ -607,7 +664,7 @@ export default function PublishWizard() {
                 <input 
                   type="text" 
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => { setTitle(e.target.value); setValidationError(""); }}
                   placeholder="e.g., Graduated College, Bought a House..."
                   className="w-full border border-stone-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#4A3AFF] focus:ring-2 focus:ring-[#4A3AFF]/20 transition-all font-medium text-stone-700 shadow-sm placeholder:font-normal"
                 />
@@ -657,18 +714,26 @@ export default function PublishWizard() {
             </div>
           )}
 
-          {/* STEP 3: DETAILS */}
+          {/* STEP 3: DETAILS & REQUIRED TITLE */}
           {step === 3 && (
             <div className="animate-fade-in space-y-6">
               
               <div>
-                <label className="block text-[13px] font-medium text-stone-500 mb-2">Memory Title</label>
+                <label className="block text-[13px] font-bold text-stone-700 mb-2 flex items-center justify-between">
+                  <span>Memory Title <span className="text-red-500">*</span></span>
+                  <span className="text-stone-400 text-xs font-normal">Required</span>
+                </label>
                 <input 
                   type="text" 
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Give your memory a name..."
-                  className="w-full border border-stone-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#4A3AFF] focus:ring-2 focus:ring-[#4A3AFF]/20 transition-all font-medium text-stone-700 shadow-sm placeholder:font-normal"
+                  onChange={(e) => { setTitle(e.target.value); setValidationError(""); }}
+                  placeholder="Give your memory a title (e.g., Childhood Kitchen, Family Reunion)..."
+                  className={clsx(
+                    "w-full border rounded-2xl px-4 py-3.5 focus:outline-none transition-all font-medium text-stone-800 shadow-sm",
+                    validationError && !title.trim() 
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20" 
+                      : "border-stone-200 focus:border-[#4A3AFF] focus:ring-2 focus:ring-[#4A3AFF]/20"
+                  )}
                 />
               </div>
 
@@ -720,13 +785,13 @@ export default function PublishWizard() {
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-stone-500 mb-2">Tags</label>
+                <label className="block text-[13px] font-medium text-stone-500 mb-2">Tags (comma separated)</label>
                 <input 
                   type="text" 
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
-                  placeholder="Add a tag, press Enter..."
-                  className="w-full border border-stone-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#4A3AFF] focus:ring-2 focus:ring-[#4A3AFF]/20 transition-all font-medium text-stone-700 shadow-sm placeholder:font-normal"
+                  placeholder="e.g., family, summer, ireland, reflection"
+                  className="w-full border border-stone-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#4A3AFF] focus:ring-2 focus:ring-[#4A3AFF]/20 transition-all font-medium text-stone-700 shadow-sm placeholder:font-normal text-sm"
                 />
               </div>
 
@@ -736,7 +801,6 @@ export default function PublishWizard() {
           {/* STEP 4: REVIEW & PUBLISH */}
           {step === 4 && (
             <div className="animate-fade-in flex flex-col h-full">
-              <p className="text-stone-500 mb-6 font-medium text-[15px]">Review your memory before publishing.</p>
               
               {/* Preview Card */}
               <div className="border border-[#C7D2FE] rounded-[24px] p-6 mb-8 bg-white shadow-[0_4px_20px_-4px_rgba(74,58,255,0.08)] relative overflow-hidden flex-1">
@@ -748,9 +812,15 @@ export default function PublishWizard() {
                   <span className="text-[11px] font-bold tracking-widest uppercase">{memoryType || "VOICE"} MEMORY</span>
                 </div>
                 
-                <h3 className="text-2xl font-bold text-stone-900 mb-6">
+                <h3 className="text-2xl font-bold text-stone-900 mb-4">
                   {title || "Untitled Memory"}
                 </h3>
+
+                {memoryType === "visual" && visualFiles.length > 0 && (
+                  <div className="mb-4 text-xs font-bold text-[#4A3AFF]">
+                    📁 {visualFiles.length} photo/video file(s) attached
+                  </div>
+                )}
                 
                 <div className="flex flex-wrap items-center gap-3">
                   {mood && (
@@ -762,7 +832,7 @@ export default function PublishWizard() {
                     {visibility === "Private" ? <Lock size={14} /> : visibility === "Family" ? <Users size={14} /> : <Globe size={14} />} 
                     {visibility}
                   </span>
-                  {tags && tags.split(" ").map(t => t.trim()).filter(Boolean).map(tag => (
+                  {tags && tags.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
                     <span key={tag} className="text-[#4A3AFF] text-[13px] font-bold">#{tag.replace('#', '')}</span>
                   ))}
                 </div>
@@ -835,7 +905,10 @@ export default function PublishWizard() {
                     setStep(1);
                     setMemoryType("");
                     setTitle("");
-                    setMood("");
+                    setWrittenContent("");
+                    setMood("Reflective");
+                    setVisualFiles([]);
+                    resetRecording();
                   }}
                   className="px-6 py-3 bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 rounded-[14px] font-bold transition-all active:scale-95 shadow-sm text-xs cursor-pointer"
                 >
@@ -872,6 +945,7 @@ export default function PublishWizard() {
               {step === 4 ? (
                 <button 
                   onClick={async () => {
+                    if (!validateStep(3)) return;
                     setIsPublishing(true);
                     
                     const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
@@ -881,23 +955,64 @@ export default function PublishWizard() {
                       ? `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` 
                       : "01:30";
 
+                    // Convert local File & Blob objects to base64 Data URLs so images/videos & voice stay permanent in localStorage
+                    const fileToDataUrl = (file) => {
+                      return new Promise((resolve) => {
+                        if (!file) return resolve(null);
+                        if (typeof file === "string") return resolve(file);
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = () => resolve(URL.createObjectURL(file));
+                        reader.readAsDataURL(file);
+                      });
+                    };
+
+                    const mediaDataUrls = await Promise.all(visualFiles.map(fileToDataUrl));
+                    const persistentAudioUrl = audioBlob ? await fileToDataUrl(audioBlob) : (audioUrl || undefined);
+
+                    // Build array of media objects for multiple photos & videos
+                    const mediaItems = mediaDataUrls.map((dataUrl, idx) => {
+                      const file = visualFiles[idx];
+                      const isVid = file?.type?.startsWith("video/") || (typeof dataUrl === "string" && dataUrl.startsWith("data:video/"));
+                      return {
+                        url: dataUrl,
+                        type: isVid ? "video" : "image",
+                        name: file?.name || `media-${idx}`,
+                      };
+                    });
+
+                    const firstImage = mediaItems.find(m => m.type === "image")?.url || mediaItems[0]?.url;
+                    const firstVideo = mediaItems.find(m => m.type === "video")?.url;
+
+                    const memType = memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : memoryType === "milestone" ? "Milestone" : "Voice";
+                    const chosenVisibility = visibility || "Private";
+
                     const newMem = {
                       id: `mem-${Date.now()}`,
-                      title: title.trim() || (memoryType === "voice" ? "Voice Note Memory" : "Untitled Memory"),
-                      description: writtenContent?.trim() || (memoryType === "written" ? "Written memory reflection" : "Voice recording memory"),
-                      type: memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : "Voice",
+                      title: title.trim() || (memoryType === "voice" ? "Voice Recording" : memoryType === "visual" ? "Visual Memory" : "Memory"),
+                      description: writtenContent?.trim() || (memoryType === "written" ? "Written memory reflection" : memoryType === "visual" ? "Visual memory album" : "Voice recording memory"),
+                      type: memType,
                       date: new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
                       albumId: targetAlbum,
                       albums: [targetAlbum],
-                      privacy: visibility || "Private",
+                      privacy: chosenVisibility,
+                      visibility: chosenVisibility,
                       tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["memory"],
                       duration: formattedDuration,
-                      audioUrl: audioUrl || undefined,
-                      image: visualFiles.length > 0 ? URL.createObjectURL(visualFiles[0]) : undefined
+                      audioUrl: persistentAudioUrl,
+                      audio: persistentAudioUrl,
+                      image: firstImage || undefined,
+                      cover: firstImage || undefined,
+                      videoUrl: firstVideo || undefined,
+                      media: mediaItems.length > 0 ? mediaItems : undefined,
+                      images: mediaItems.filter(m => m.type === "image").map(m => m.url),
+                      videos: mediaItems.filter(m => m.type === "video").map(m => m.url),
+                      mood: mood || "Reflective",
+                      createdAt: new Date().toISOString(),
                     };
 
                     try {
-                      // Save local memory
+                      // Save local memory persistently
                       const saved = localStorage.getItem("spokenOdysseyLocalMemories");
                       const existing = saved ? JSON.parse(saved) : [];
                       localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify([newMem, ...existing]));
@@ -909,16 +1024,25 @@ export default function PublishWizard() {
                         if (title) formData.append("title", title);
                         if (writtenContent) formData.append("description", writtenContent);
                         if (mood) formData.append("mood", mood);
-                        if (visibility) formData.append("visibility", visibility);
+                        formData.append("visibility", chosenVisibility);
+                        formData.append("privacy", chosenVisibility);
                         if (tags) formData.append("tags", tags);
                         
                         if (memoryType === "voice" && audioBlob) {
-                          formData.append("audio", audioBlob, `voice_recording_${Date.now()}.webm`);
+                          formData.append("media", audioBlob, `voice_recording_${Date.now()}.webm`);
                         }
                         if (memoryType === "visual" && visualFiles.length > 0) {
                           visualFiles.forEach((file) => formData.append("media", file));
                         }
-                        await createMemoryOnBackend(token, formData).catch(() => null);
+                        const createdBackendMem = await createMemoryOnBackend(token, formData).catch(() => null);
+                        if (createdBackendMem?._id || createdBackendMem?.id) {
+                          newMem._id = createdBackendMem._id || createdBackendMem.id;
+                          if (createdBackendMem.mediaUrl) {
+                            newMem.audioUrl = createdBackendMem.mediaUrl;
+                            newMem.audio = createdBackendMem.mediaUrl;
+                            newMem.mediaUrl = createdBackendMem.mediaUrl;
+                          }
+                        }
                       }
                     } catch (err) {
                       console.error("Failed to publish memory", err);
@@ -938,8 +1062,8 @@ export default function PublishWizard() {
                   onClick={handleNext}
                   disabled={step === 1 && !memoryType}
                   className={clsx(
-                    "px-8 py-2.5 rounded-[14px] font-bold text-white transition-all active:scale-95 flex items-center gap-1.5",
-                    (step === 1 && !memoryType) ? "bg-[#A5B4FC] cursor-not-allowed" : "bg-[#4A3AFF] hover:bg-[#3b2dd1] shadow-md shadow-[#4A3AFF]/30"
+                    "px-8 py-2.5 rounded-[14px] font-bold text-[#4A3AFF] transition-all active:scale-95 flex items-center gap-1.5 font-bold cursor-pointer",
+                    (step === 1 && !memoryType) ? "bg-[#A5B4FC] text-white cursor-not-allowed" : "bg-[#4A3AFF] text-white hover:bg-[#3b2dd1] shadow-md shadow-[#4A3AFF]/30"
                   )}
                 >
                   Continue <ArrowLeft size={16} strokeWidth={2.5} className="rotate-180" />

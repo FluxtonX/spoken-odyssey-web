@@ -13,9 +13,16 @@ import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COV
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp, fadeInScale } from "@/lib/animations";
 
+const formatDateSafely = (dateVal) => {
+  if (!dateVal) return "Recent";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return "Recent";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
 function MemoryCard({ memory, index }) {
   const type = memory.type?.toLowerCase() || "voice";
-  const dateStr = memory.date || new Date(memory.createdAt).toLocaleDateString() || "Unknown Date";
+  const dateStr = formatDateSafely(memory.date || memory.createdAt || memory.occurredAt);
   
   const openView = () => {
     window.dispatchEvent(new CustomEvent("openMemoryView", { detail: {

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { getStoredAlbums } from "@/data/userProfile";
-import { getAlbumDetailsFromBackend } from "@/services/backend";
+import { getAlbumDetailsFromBackend, normalizeMediaUrl } from "@/services/backend";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 
@@ -39,19 +39,36 @@ function MemoryCardItem({ memory, onCardClick }) {
     onCardClick?.(memory);
   };
 
-  if (type === "photo" || memory.image) {
+  const rawImg = 
+    (typeof memory.image === 'string' && memory.image) || 
+    (typeof memory.cover === 'string' && memory.cover) || 
+    (typeof memory.media === 'string' && memory.media) ||
+    (memory.media?.url && typeof memory.media.url === 'string' && memory.media.url) ||
+    (Array.isArray(memory.media) && memory.media.length > 0 && (typeof memory.media[0] === 'string' ? memory.media[0] : memory.media[0]?.url)) ||
+    (Array.isArray(memory.images) && memory.images.length > 0 && (typeof memory.images[0] === 'string' ? memory.images[0] : memory.images[0]?.url)) ||
+    (typeof memory.imageUrl === 'string' && memory.imageUrl) ||
+    (typeof memory.coverImageUrl === 'string' && memory.coverImageUrl);
+
+  const coverImg = normalizeMediaUrl(rawImg);
+
+  if (type === "photo" || type === "visual" || coverImg) {
     return (
       <div 
         onClick={handleCardClick}
         className="figma-card overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer group flex flex-col h-full"
       >
-        <div className="relative aspect-[4/2.5] bg-stone-200 dark:bg-slate-700 overflow-hidden">
-          <img 
-            src={memory.image || "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80"} 
-            alt={memory.title} 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-          />
-        </div>
+        {coverImg && (
+          <div className="relative aspect-[4/2.5] bg-stone-200 dark:bg-slate-700 overflow-hidden">
+            <img 
+              src={coverImg} 
+              alt={memory.title || "Memory cover"} 
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+            />
+          </div>
+        )}
         <div className="p-5 flex flex-col justify-between flex-1 bg-white/90 dark:bg-slate-900/90">
           <div>
             <div className="flex items-center justify-between mb-2">

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import DashboardHeader from "@/components/layout/DashboardHeader";
-import { Mic, FileText, Image as ImageIcon, Play, Plus, Search, Filter, LayoutGrid, List, Lock, Lightbulb, ArrowLeft } from "lucide-react";
-import { memories } from "@/data/mockApp";
+import { Mic, FileText, Image as ImageIcon, Play, Pause, Plus, Search, Filter, LayoutGrid, List, Lock, Lightbulb, ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
-import { getMemoriesFromBackend } from "@/services/backend";
+import { getMemoriesFromBackend, normalizeMediaUrl } from "@/services/backend";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
@@ -26,46 +25,141 @@ export default function MyArchive() {
   const [userMemories, setUserMemories] = useState([]);
   const [isLoadingMemories, setIsLoadingMemories] = useState(true);
 
+  // Card Audio Player State
+  const [playingAudioId, setPlayingAudioId] = useState(null);
+  const audioPlayerRef = useRef(null);
+  const [cardAudioDurations, setCardAudioDurations] = useState({});
+  const [cardAudioCurrentTime, setCardAudioCurrentTime] = useState(0);
+
+  const formatSecs = (secs) => {
+    if (!secs || isNaN(secs)) return "0:00";
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const formatDateSafely = (dateVal) => {
+    if (!dateVal) return "Recent";
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "Recent";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const loadMemories = async () => {
+    setIsLoadingMemories(true);
+    
+    let localMems = [];
+    try {
+      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) localMems = parsed;
+      }
+    } catch (e) {
+      console.warn("Could not read local memories:", e);
+    }
+
+    let backendMems = [];
+    if (isAuthenticated && firebaseUser) {
+      try {
+        const token = await getToken();
+        const mems = await getMemoriesFromBackend(token);
+        if (Array.isArray(mems)) backendMems = mems;
+      } catch (error) {
+        console.warn("Could not load backend memories:", error.message);
+      }
+    }
+
+    // Deduplicate and merge local and backend user memories (Static fallback removed per user request)
+    const map = new Map();
+    localMems.forEach((m) => map.set(m.id || m._id, m));
+    backendMems.forEach((m) => {
+      const key = m.id || m._id;
+      if (!map.has(key)) map.set(key, m);
+    });
+
+    setUserMemories(Array.from(map.values()));
+    setIsLoadingMemories(false);
+  };
+
   useEffect(() => {
-    const loadMemories = async () => {
-      setIsLoadingMemories(true);
-      let fetched = null;
+    loadMemories();
 
-      if (isAuthenticated && firebaseUser) {
-        try {
-          const token = await getToken();
-          const mems = await getMemoriesFromBackend(token);
-          if (Array.isArray(mems) && mems.length > 0) {
-            fetched = mems;
-          }
-        } catch (error) {
-          console.warn("Could not load backend memories, checking local storage:", error.message);
-        }
+    const handleMemoryPublished = (e) => {
+      const newMemory = e?.detail?.memory;
+      if (newMemory) {
+        setUserMemories((prev) => [
+          newMemory,
+          ...prev.filter((m) => (m.id || m._id) !== (newMemory.id || newMemory._id)),
+        ]);
+      } else {
+        loadMemories();
       }
-
-      if (!fetched) {
-        try {
-          const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              fetched = parsed;
-            }
-          }
-        } catch (e) {
-          console.warn("Could not read local memories:", e);
-        }
-      }
-
-      // If neither database nor local user memories exist, use static memories
-      setUserMemories(fetched && fetched.length > 0 ? fetched : memories);
-      setIsLoadingMemories(false);
     };
 
-    loadMemories();
-    window.addEventListener("memoryPublished", loadMemories);
-    return () => window.removeEventListener("memoryPublished", loadMemories);
+    const handleMemoryDeleted = (e) => {
+      const deletedId = e?.detail?.id;
+      if (deletedId) {
+        setUserMemories((prev) => prev.filter((m) => (m.id || m._id) !== deletedId));
+      } else {
+        loadMemories();
+      }
+    };
+
+    const handleMemoryUpdated = () => {
+      loadMemories();
+    };
+
+    window.addEventListener("memoryPublished", handleMemoryPublished);
+    window.addEventListener("memoryDeleted", handleMemoryDeleted);
+    window.addEventListener("memoryUpdated", handleMemoryUpdated);
+
+    return () => {
+      window.removeEventListener("memoryPublished", handleMemoryPublished);
+      window.removeEventListener("memoryDeleted", handleMemoryDeleted);
+      window.removeEventListener("memoryUpdated", handleMemoryUpdated);
+    };
   }, [isAuthenticated, firebaseUser, getToken]);
+
+  // Play/pause card audio directly with dynamic time tracking
+  const handleToggleCardAudio = (e, memory) => {
+    e.stopPropagation();
+    const memId = memory._id || memory.id;
+    const rawAudio = 
+      memory.audioUrl || 
+      memory.audio || 
+      memory.mediaUrl || 
+      memory.url || 
+      memory.fileUrl || 
+      memory.mediaList?.[0]?.mediaUrl || 
+      memory.mediaList?.[0]?.url || 
+      memory.path;
+    const audioSrc = normalizeMediaUrl(rawAudio);
+
+    if (!audioSrc) return;
+
+    if (playingAudioId === memId) {
+      if (audioPlayerRef.current) audioPlayerRef.current.pause();
+      setPlayingAudioId(null);
+    } else {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+      const audio = new Audio(audioSrc);
+      audioPlayerRef.current = audio;
+
+      audio.onloadedmetadata = () => {
+        setCardAudioDurations((prev) => ({ ...prev, [memId]: audio.duration }));
+      };
+      audio.ontimeupdate = () => {
+        setCardAudioCurrentTime(audio.currentTime);
+      };
+      audio.onended = () => setPlayingAudioId(null);
+
+      audio.play().catch(console.error);
+      setPlayingAudioId(memId);
+    }
+  };
 
   // Filter and sort memories dynamically
   const filteredMemories = useMemo(() => {
@@ -76,7 +170,7 @@ export default function MyArchive() {
       result = result.filter((m) => {
         const t = (m.type || "").toLowerCase();
         if (activeType === "Voice") return t === "voice" || t === "audio" || !!m.audioUrl || !!m.audio;
-        if (activeType === "Photos") return t === "photo" || t === "image" || !!m.image || !!m.cover;
+        if (activeType === "Photos") return t === "photo" || t === "photos" || t === "visual" || t === "image" || !!m.image || !!m.cover || (Array.isArray(m.media) && m.media.length > 0);
         if (activeType === "Written") return t === "text" || t === "written" || t === "milestone" || t === "thought";
         return true;
       });
@@ -120,42 +214,31 @@ export default function MyArchive() {
     window.dispatchEvent(new Event("openPublishModal"));
   };
 
-  const getIconForType = (type) => {
-    switch (type) {
-      case "Voice":
-        return <Mic size={16} strokeWidth={2.5} className="text-[#f59e0b]" />;
-      case "Text":
-      case "Written":
-        return <FileText size={16} strokeWidth={2.5} className="text-[#10b981]" />;
-      case "Thought":
-        return <Lightbulb size={16} strokeWidth={2.5} className="text-[#8b5cf6]" />;
-      case "Photo":
-        return <ImageIcon size={16} strokeWidth={2.5} className="text-[#3b82f6]" />;
-      default:
-        return <FileText size={16} strokeWidth={2.5} className="text-stone-400" />;
-    }
+  const getIconForType = (typeStr) => {
+    const type = (typeStr || "").toLowerCase();
+    if (type === "voice" || type === "audio") return <Mic size={16} strokeWidth={2.5} className="text-[#f59e0b]" />;
+    if (type === "text" || type === "written") return <FileText size={16} strokeWidth={2.5} className="text-[#10b981]" />;
+    if (type === "thought") return <Lightbulb size={16} strokeWidth={2.5} className="text-[#8b5cf6]" />;
+    if (type === "photo" || type === "visual" || type === "image") return <ImageIcon size={16} strokeWidth={2.5} className="text-[#3b82f6]" />;
+    return <FileText size={16} strokeWidth={2.5} className="text-stone-400" />;
   };
 
-  const getTypeLabel = (type) => {
-    switch (type) {
-      case "Voice": return "VOICE";
-      case "Text":
-      case "Written": return "WRITTEN";
-      case "Thought": return "THOUGHT";
-      case "Photo": return "PHOTO";
-      default: return "MEMORY";
-    }
+  const getTypeLabel = (typeStr) => {
+    const type = (typeStr || "").toLowerCase();
+    if (type === "voice" || type === "audio") return "VOICE";
+    if (type === "text" || type === "written") return "WRITTEN";
+    if (type === "thought") return "THOUGHT";
+    if (type === "photo" || type === "visual" || type === "image") return "PHOTO";
+    return "MEMORY";
   };
 
-  const getTypeColorClass = (type) => {
-    switch (type) {
-      case "Voice": return "text-[#f59e0b]";
-      case "Text":
-      case "Written": return "text-[#10b981]";
-      case "Thought": return "text-[#8b5cf6]";
-      case "Photo": return "text-[#3b82f6]";
-      default: return "text-stone-500";
-    }
+  const getTypeColorClass = (typeStr) => {
+    const type = (typeStr || "").toLowerCase();
+    if (type === "voice" || type === "audio") return "text-[#f59e0b]";
+    if (type === "text" || type === "written") return "text-[#10b981]";
+    if (type === "thought") return "text-[#8b5cf6]";
+    if (type === "photo" || type === "visual" || type === "image") return "text-[#3b82f6]";
+    return "text-stone-500";
   };
 
   return (
@@ -292,7 +375,32 @@ export default function MyArchive() {
             )}
           >
             {filteredMemories.map((memory) => {
-              const dateStr = memory.date || new Date(memory.createdAt).toLocaleDateString() || "Unknown Date";
+              const normType = (memory.type || "").toLowerCase();
+              const isVoice = normType === "voice" || normType === "audio" || !!memory.audioUrl || !!memory.audio;
+              const isWritten = normType === "written" || normType === "text" || normType === "thought" || normType === "milestone";
+              
+              // Thorough image & video extraction across all memory object shapes
+              const rawImg = 
+                (typeof memory.image === 'string' && memory.image) || 
+                (typeof memory.cover === 'string' && memory.cover) || 
+                (typeof memory.media === 'string' && memory.media) ||
+                (memory.media?.url && typeof memory.media.url === 'string' && memory.media.url) ||
+                (Array.isArray(memory.media) && memory.media.length > 0 && (typeof memory.media[0] === 'string' ? memory.media[0] : memory.media[0]?.url)) ||
+                (Array.isArray(memory.images) && memory.images.length > 0 && (typeof memory.images[0] === 'string' ? memory.images[0] : memory.images[0]?.url)) ||
+                (typeof memory.imageUrl === 'string' && memory.imageUrl) ||
+                (typeof memory.coverImageUrl === 'string' && memory.coverImageUrl);
+
+              const rawVid = 
+                (typeof memory.videoUrl === 'string' && memory.videoUrl) || 
+                (Array.isArray(memory.videos) && memory.videos.length > 0 && (typeof memory.videos[0] === 'string' ? memory.videos[0] : memory.videos[0]?.url)) ||
+                (Array.isArray(memory.media) ? memory.media.find(m => m.type === 'video' || (typeof m === 'string' && m.match(/\.(mp4|webm|mov)$/i)))?.url : null);
+              
+              const coverImg = normalizeMediaUrl(rawImg);
+              const coverVid = normalizeMediaUrl(rawVid);
+
+              const hasMedia = !!coverImg || !!coverVid;
+              const dateStr = formatDateSafely(memory.date || memory.createdAt || memory.occurredAt);
+
               const openView = () => window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { ...memory, date: dateStr } }));
               
               if (viewMode === "list") {
@@ -306,22 +414,20 @@ export default function MyArchive() {
                     <div className="flex items-center gap-5">
                       <div className={clsx(
                         "w-[52px] h-[52px] rounded-[18px] flex items-center justify-center shrink-0 border border-white/50 shadow-sm",
-                        (memory.type === "Written" || memory.type === "Text") ? "bg-[#d1fae5]" : 
-                        memory.type === "Voice" ? "bg-[#fef3c7]" : 
-                        memory.type === "Thought" ? "bg-[#ede9fe]" : 
+                        isWritten ? "bg-[#d1fae5]" : 
+                        isVoice ? "bg-[#fef3c7]" : 
                         "bg-[#e0e7ff]"
                       )}>
-                        {(memory.type === "Written" || memory.type === "Text") ? <FileText size={22} strokeWidth={2.5} className="text-[#10b981]" /> :
-                         memory.type === "Voice" ? <Mic size={22} strokeWidth={2.5} className="text-[#f59e0b]" /> :
-                         memory.type === "Thought" ? <Lightbulb size={22} strokeWidth={2.5} className="text-[#8b5cf6]" /> :
+                        {isWritten ? <FileText size={22} strokeWidth={2.5} className="text-[#10b981]" /> :
+                         isVoice ? <Mic size={22} strokeWidth={2.5} className="text-[#f59e0b]" /> :
                          <ImageIcon size={22} strokeWidth={2.5} className="text-[#3b82f6]" />}
                       </div>
                       <div className="flex flex-col justify-center">
                         <div className="flex items-center gap-2 mb-1">
-                          {memory.privacy === "Private" && <Lock size={14} className="text-stone-400" />}
+                          {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={14} className="text-stone-400" />}
                           <h3 className="text-[16px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
                         </div>
-                        <span className="text-[13px] font-medium text-stone-500">{memory.date}</span>
+                        <span className="text-[13px] font-medium text-stone-500">{dateStr}</span>
                       </div>
                     </div>
                   </motion.div>
@@ -335,13 +441,27 @@ export default function MyArchive() {
                   onClick={openView}
                   className="bg-[#EEF2FF] border-2 border-[#A5B4FC] rounded-3xl overflow-hidden group break-inside-avoid cursor-pointer flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full mb-6"
                 >
-                  {memory.type === "Photo" && (memory.image || memory.cover) && (
-                    <div className="bg-stone-200 relative overflow-hidden h-56 w-full shrink-0">
-                      <img 
-                        src={memory.image || memory.cover} 
-                        alt={memory.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
-                      />
+                  {hasMedia && (
+                    <div className="bg-stone-900 relative overflow-hidden h-56 w-full shrink-0">
+                      {coverImg ? (
+                        <img 
+                          src={coverImg} 
+                          alt={memory.title || "Memory cover"} 
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                        />
+                      ) : coverVid ? (
+                        <div className="relative w-full h-full">
+                          <video src={coverVid} className="w-full h-full object-cover opacity-80" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
+                              <Play size={22} fill="currentColor" className="ml-0.5" />
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                   
@@ -349,16 +469,13 @@ export default function MyArchive() {
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-2">
-                          {memory.type === "Written" || memory.type === "Text" ? <FileText size={16} strokeWidth={3} className="text-[#10b981]" /> :
-                           memory.type === "Voice" ? <Mic size={16} strokeWidth={3} className="text-[#f59e0b]" /> :
-                           memory.type === "Photo" ? <ImageIcon size={16} strokeWidth={3} className="text-[#3b82f6]" /> :
-                           <FileText size={16} strokeWidth={3} className="text-[#10b981]" />}
+                          {getIconForType(memory.type)}
                           <span className={clsx("text-[12px] font-bold tracking-wide", getTypeColorClass(memory.type))}>
-                            {memory.type === "Text" ? "Written" : memory.type}
+                            {getTypeLabel(memory.type)}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          {memory.privacy === "Private" && <Lock size={12} className="text-stone-500" />}
+                          {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
                           <span className="text-[13px] font-bold text-stone-700">{dateStr}</span>
                         </div>
                       </div>
@@ -368,20 +485,30 @@ export default function MyArchive() {
                       </p>
                     </div>
                     
-                    {memory.type === "Voice" && (
+                    {isVoice && (
                       <div className="flex items-center gap-3 bg-white border border-[#E5E7EB] rounded-full p-2 pr-5 mb-6 w-full shadow-sm">
-                        <button className="h-10 w-10 shrink-0 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center hover:bg-[#3b2dd1] transition-colors shadow-sm">
-                          <Play size={18} fill="currentColor" className="ml-0.5" />
+                        <button 
+                          onClick={(e) => handleToggleCardAudio(e, memory)}
+                          className="h-10 w-10 shrink-0 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center hover:bg-[#3b2dd1] transition-colors shadow-sm cursor-pointer"
+                        >
+                          {playingAudioId === (memory._id || memory.id) ? <Pause size={18} strokeWidth={2.5} /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
                         </button>
                         <div className="flex-1 flex items-center overflow-hidden h-8 relative">
-                          {/* Synthetic Waveform that resembles Figma */}
                           <div className="w-full flex items-center gap-0.5 opacity-60">
                             {[...Array(20)].map((_, i) => (
-                              <div key={i} className="w-1 bg-[#4A3AFF] rounded-full" style={{ height: `${Math.max(10, Math.random() * 100)}%` }}></div>
+                              <div 
+                                key={i} 
+                                className={clsx("w-1 rounded-full transition-all", playingAudioId === (memory._id || memory.id) ? "bg-[#10b981] animate-pulse" : "bg-[#4A3AFF]")} 
+                                style={{ height: `${Math.max(15, Math.random() * 100)}%` }}
+                              />
                             ))}
                           </div>
                         </div>
-                        <span className="text-[13px] font-bold text-stone-500 ml-2 shrink-0">{memory.duration || "4:32"}</span>
+                        <span className="text-[13px] font-bold text-stone-500 ml-2 shrink-0">
+                          {playingAudioId === (memory._id || memory.id)
+                            ? `${formatSecs(cardAudioCurrentTime)} / ${formatSecs(cardAudioDurations[(memory._id || memory.id)])}`
+                            : (memory.duration || (cardAudioDurations[(memory._id || memory.id)] ? formatSecs(cardAudioDurations[(memory._id || memory.id)]) : "Voice"))}
+                        </span>
                       </div>
                     )}
                     

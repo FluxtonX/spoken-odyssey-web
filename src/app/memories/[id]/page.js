@@ -62,7 +62,15 @@ const reactions = [
 const isMockId = (id) => {
   if (!id) return true;
   const idStr = String(id);
-  return !/^[0-9a-fA-F]{24}$/.test(idStr);
+  // Short mock IDs from mockApp like "m1", "m2", "m3", "1", "2"
+  return idStr.length <= 4 && (idStr.startsWith("m") || !isNaN(Number(idStr)));
+};
+
+const formatDateSafely = (dateVal) => {
+  if (!dateVal) return "Recent";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return "Recent";
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 };
 
 export default function MemoryDetailPage() {
@@ -91,64 +99,65 @@ export default function MemoryDetailPage() {
 
   const loadMemoryDetails = async () => {
     setIsLoading(true);
-    const isMock = isMockId(id);
-    if (isAuthenticated && firebaseUser && id && !isMock) {
+    if (isAuthenticated && firebaseUser && id) {
       try {
         const token = await getToken();
         const backendMemory = await getMemoryDetailsFromBackend(token, id);
         
-        const mappedMemory = {
-          id: backendMemory.id,
-          title: backendMemory.title,
-          description: backendMemory.description,
-          type: backendMemory.type,
-          mood: backendMemory.mood || "Calm",
-          privacy: backendMemory.privacy || "Private",
-          date: new Date(backendMemory.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
-          image: backendMemory.thumbnailUrl || backendMemory.mediaUrl || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
-          mediaUrl: backendMemory.mediaUrl,
-          mediaMimeType: backendMemory.mediaMimeType,
-          mediaList: backendMemory.mediaList || [],
-          backgroundId: backendMemory.backgroundId || "none",
-          fontId: backendMemory.fontId || "default",
-          tags: backendMemory.tags || [],
-          likes: backendMemory.likes || 0,
-          comments: backendMemory.comments || 0,
-          ownerId: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
-          ownerDisplayName: backendMemory.ownerDisplayName,
-          ownerEmail: backendMemory.ownerEmail,
-          ownerProfession: backendMemory.ownerProfession,
-          ownerAvatarUrl: backendMemory.ownerAvatarUrl,
-        };
-        setMemory(mappedMemory);
-        setReaction(backendMemory.userReaction || null);
-        setLikesCount(backendMemory.likes || 0);
-        setSharesCount(backendMemory.shares || 0);
-        setCommentsCount(backendMemory.comments || 0);
+        if (backendMemory) {
+          const mappedMemory = {
+            id: backendMemory.id || id,
+            title: backendMemory.title || "Memory",
+            description: backendMemory.description || "",
+            type: backendMemory.type || "Text",
+            mood: backendMemory.mood || "Calm",
+            privacy: backendMemory.privacy || backendMemory.category || "Private",
+            date: formatDateSafely(backendMemory.date || backendMemory.createdAt),
+            image: backendMemory.thumbnailUrl || backendMemory.mediaUrl || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+            mediaUrl: backendMemory.mediaUrl,
+            mediaMimeType: backendMemory.mediaMimeType,
+            mediaList: backendMemory.mediaList || [],
+            backgroundId: backendMemory.backgroundId || "none",
+            fontId: backendMemory.fontId || "default",
+            tags: backendMemory.tags || [],
+            likes: backendMemory.likes || 0,
+            comments: typeof backendMemory.comments === "number" ? backendMemory.comments : (Array.isArray(backendMemory.comments) ? backendMemory.comments.length : 0),
+            ownerId: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
+            ownerDisplayName: backendMemory.ownerDisplayName || "Alexander Mitchell",
+            ownerEmail: backendMemory.ownerEmail || "",
+            ownerProfession: backendMemory.ownerProfession || "",
+            ownerAvatarUrl: backendMemory.ownerAvatarUrl || "",
+          };
+          setMemory(mappedMemory);
+          setReaction(backendMemory.userReaction || null);
+          setLikesCount(backendMemory.likes || 0);
+          setSharesCount(backendMemory.shares || 0);
+          setCommentsCount(typeof backendMemory.comments === "number" ? backendMemory.comments : (Array.isArray(backendMemory.comments) ? backendMemory.comments.length : 0));
 
-        if (backendMemory.albumId) {
-          const storedAlbums = getStoredAlbums();
-          const foundAlbum = storedAlbums.find((a) => a.id === backendMemory.albumId);
-          if (foundAlbum) {
-            setAlbum(foundAlbum);
+          if (backendMemory.albumId) {
+            const storedAlbums = getStoredAlbums();
+            const foundAlbum = storedAlbums.find((a) => a.id === backendMemory.albumId);
+            if (foundAlbum) {
+              setAlbum(foundAlbum);
+            } else {
+              setAlbum({ id: backendMemory.albumId, title: backendMemory.albumTitle || "Album" });
+            }
           } else {
-            setAlbum({ id: backendMemory.albumId, title: backendMemory.albumTitle || "Album" });
+            setAlbum({ id: "none", title: "No Album" });
           }
-        } else {
-          setAlbum({ id: "none", title: "No Album" });
-        }
 
-        const foundOwner = {
-          id: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
-          name: backendMemory.ownerDisplayName || "Alexander Mitchell",
-          role: backendMemory.ownerProfession || (backendMemory.ownerFirebaseUid === firebaseUser.uid ? "Family Archivist" : "Family Contributor"),
-          avatar: backendMemory.ownerAvatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(backendMemory.ownerDisplayName || "U")}`
-        };
-        setOwner(foundOwner);
-        setIsLoading(false);
-        return;
+          const foundOwner = {
+            id: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
+            name: backendMemory.ownerDisplayName || "Alexander Mitchell",
+            role: backendMemory.ownerProfession || (backendMemory.ownerFirebaseUid === firebaseUser.uid ? "Family Archivist" : "Family Contributor"),
+            avatar: backendMemory.ownerAvatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(backendMemory.ownerDisplayName || "U")}`
+          };
+          setOwner(foundOwner);
+          setIsLoading(false);
+          return;
+        }
       } catch (error) {
-        console.warn("Failed to load memory details from backend, falling back:", getBackendErrorMessage(error));
+        console.warn("Failed to load memory details from backend, falling back to local:", getBackendErrorMessage(error));
       }
     }
 
