@@ -13,6 +13,8 @@ import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COV
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp, fadeInScale } from "@/lib/animations";
 
+import VoicePlayer from "@/components/ui/VoicePlayer";
+
 const formatDateSafely = (dateVal) => {
   if (!dateVal) return "Recent";
   const d = new Date(dateVal);
@@ -47,14 +49,8 @@ function MemoryCard({ memory, index }) {
         <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">
           {memory.description || "No transcript available for this voice memory."}
         </p>
-        <div className="flex items-center gap-3 bg-white border border-[#E5E7EB] rounded-full p-1.5 pr-6 mb-6 w-full max-w-full">
-          <button className="h-10 w-10 shrink-0 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center hover:bg-[#3b2dd1] transition-colors">
-            <Play size={18} fill="currentColor" className="ml-0.5" />
-          </button>
-          <div className="flex-1 flex items-center overflow-hidden">
-            <div className="w-full border-t-4 border-dotted border-[#A5B4FC] opacity-60" />
-          </div>
-          <span className="text-xs font-bold text-stone-500">{memory.duration || "1:00"}</span>
+        <div className="mb-6 w-full" onClick={(e) => e.stopPropagation()}>
+          <VoicePlayer memory={memory} />
         </div>
         <div className="flex flex-wrap gap-2">
           {(memory.tags || []).map(tag => (

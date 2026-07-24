@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
-import { interactWithMemoryOnBackend } from "@/services/backend";
+import { interactWithMemoryOnBackend, normalizeMediaUrl } from "@/services/backend";
 
 const WAVEFORM_BARS = [
   15, 25, 40, 20, 50, 70, 45, 30, 15, 35, 
@@ -40,7 +40,7 @@ export default function VoicePlayer({ memory }) {
   const duration = useMemo(() => {
     if (realDuration !== null) return realDuration;
     if (memory.audio?.seconds) return memory.audio.seconds;
-    if (memory.duration) {
+    if (memory.duration && typeof memory.duration === "string") {
       const parts = memory.duration.split(":");
       if (parts.length === 2) {
         return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
@@ -64,7 +64,17 @@ export default function VoicePlayer({ memory }) {
 
   // Audio setup (using user uploaded clip if available)
   useEffect(() => {
-    const url = memory.mediaUrl || memory.media?.url || memory.audio?.url || "";
+    const rawUrl = 
+      memory.mediaUrl || 
+      memory.media?.url || 
+      memory.audio?.url || 
+      memory.audioUrl || 
+      memory.url || 
+      memory.fileUrl || 
+      (Array.isArray(memory.mediaList) && (memory.mediaList[0]?.url || memory.mediaList[0]?.mediaUrl)) || 
+      "";
+
+    const url = normalizeMediaUrl(rawUrl);
 
     if (url) {
       const audio = new Audio(url);

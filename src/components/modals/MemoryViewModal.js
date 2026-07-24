@@ -6,7 +6,7 @@ import {
   Bookmark, Share2, Download, Edit2, Trash2, Play, Pause, ChevronLeft, ChevronRight, 
   Sparkles, Lock, Users, Maximize2, Check, Loader2, Film, ThumbsUp, Laugh, Frown, Send, 
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp, Reply, Copy, MessageCircle, 
-  Mail, ExternalLink
+  Mail, ExternalLink, MoreVertical, Gauge, CornerDownRight
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
@@ -39,6 +39,48 @@ const countReactionsSafely = (reactions) => {
   }
   if (typeof target !== "object" || target === null) return 0;
   return Object.values(target).reduce((a, b) => a + (typeof b === "number" ? b : 0), 0);
+};
+
+const renderTextWithMentions = (text) => {
+  if (!text || typeof text !== "string") return text;
+  const parts = text.split(/(@[A-Za-z0-9_\u00C0-\u024F]+(?:\s+[A-Za-z0-9_\u00C0-\u024F]+)?)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith("@")) {
+      return (
+        <span key={idx} className="text-[#4A3AFF] font-bold dark:text-[#8f83ff] mr-0.5">
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+};
+
+const flattenReplies = (repliesList, rootAuthor = "") => {
+  if (!Array.isArray(repliesList)) return [];
+  const flat = [];
+  const visited = new Set();
+  const traverse = (list, parentAuthor = rootAuthor, depth = 0) => {
+    if (!Array.isArray(list)) return [];
+    list.forEach((item) => {
+      if (!item) return;
+      const key = item.id || item._id;
+      if (key && visited.has(key)) return;
+      if (key) visited.add(key);
+      const { replies, ...rest } = item;
+      const isSubReply = depth > 0 || Boolean(item.parentCommentId && item.parentCommentId !== item.id);
+      flat.push({
+        ...rest,
+        isSubReply,
+        replyToAuthor: parentAuthor || rootAuthor
+      });
+      if (Array.isArray(replies) && replies.length > 0) {
+        traverse(replies, item.author || parentAuthor, depth + 1);
+      }
+    });
+  };
+  traverse(repliesList, rootAuthor, 0);
+  return flat;
 };
 
 export default function MemoryViewModal() {
@@ -92,6 +134,7 @@ export default function MemoryViewModal() {
   // Audio Player State (Custom Tick Player)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const audioPlayerRef = useRef(null);
@@ -147,25 +190,28 @@ export default function MemoryViewModal() {
 
         // Load initial comments from memory object or local cache
         let initialComments = [];
-        if (Array.isArray(mem.comments) && mem.comments.length > 0) {
-          initialComments = mem.comments;
-        } else {
-          try {
-            const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              const found = parsed.find((m) => (m.id || m._id) === (mem._id || mem.id));
+        const memId = mem._id || mem.id;
+        try {
+          const savedComments = localStorage.getItem(`comments_${memId}`);
+          if (savedComments) {
+            initialComments = JSON.parse(savedComments);
+          } else if (Array.isArray(mem.comments) && mem.comments.length > 0) {
+            initialComments = mem.comments;
+          } else {
+            const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
+            if (savedMemories) {
+              const parsed = JSON.parse(savedMemories);
+              const found = parsed.find((m) => (m.id || m._id) === memId);
               if (found && Array.isArray(found.comments) && found.comments.length > 0) {
                 initialComments = found.comments;
               }
             }
-          } catch (_) {}
-        }
+          }
+        } catch (_) {}
 
         setComments(initialComments);
         setIsOpen(true);
 
-        const memId = mem._id || mem.id;
         if (memId) {
           try {
             const token = isAuthenticated && firebaseUser ? await getToken() : null;
@@ -173,6 +219,7 @@ export default function MemoryViewModal() {
             if (Array.isArray(backendComments) && backendComments.length > 0) {
               setComments(backendComments);
               try {
+                localStorage.setItem(`comments_${memId}`, JSON.stringify(backendComments));
                 const saved = localStorage.getItem("spokenOdysseyLocalMemories");
                 if (saved) {
                   const parsed = JSON.parse(saved);
@@ -182,7 +229,7 @@ export default function MemoryViewModal() {
               } catch (_) {}
             }
           } catch (err) {
-            console.warn("Could not fetch comments from backend:", err.message);
+            console.warn("Failed to sync comments from backend:", err.message);
           }
         }
       } catch (err) {
@@ -422,8 +469,11 @@ export default function MemoryViewModal() {
     setComments(nextComments);
     setCommentInput("");
 
-    // Persist to local memories cache
+    // Persist to local memories cache & comments cache
     try {
+      localStorage.setItem(`comments_${memId}`, JSON.stringify(nextComments));
+      window.dispatchEvent(new CustomEvent(`commentsUpdated_${memId}`, { detail: totalCommentsAndRepliesCount + 1 }));
+
       const saved = localStorage.getItem("spokenOdysseyLocalMemories");
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -477,8 +527,11 @@ export default function MemoryViewModal() {
     setReplyInput("");
     setActiveReplyId(null);
 
-    // Persist to local memories cache
+    // Persist to local memories cache & comments cache
     try {
+      localStorage.setItem(`comments_${memId}`, JSON.stringify(nextComments));
+      window.dispatchEvent(new CustomEvent(`commentsUpdated_${memId}`, { detail: totalCommentsAndRepliesCount + 1 }));
+
       const saved = localStorage.getItem("spokenOdysseyLocalMemories");
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -491,6 +544,13 @@ export default function MemoryViewModal() {
       try {
         const token = await getToken();
         await addMemoryCommentOnBackend(token, memId, prefixedText, targetParentId);
+        const refreshed = await getMemoryCommentsFromBackend(token, memId);
+        if (Array.isArray(refreshed) && refreshed.length > 0) {
+          setComments(refreshed);
+          try {
+            localStorage.setItem(`comments_${memId}`, JSON.stringify(refreshed));
+          } catch (_) {}
+        }
       } catch (err) {
         console.warn("Backend add reply error:", err.message);
       }
@@ -503,45 +563,49 @@ export default function MemoryViewModal() {
     const memId = memory._id || memory.id;
     setActiveCommentPickerId(null);
 
-    setComments((prev) =>
-      prev.map((c) => {
-        if (c.id === commentId || c._id === commentId) {
-          const isRemoving = c.userReaction === reactionType;
-          const newReaction = isRemoving ? null : reactionType;
-          const currentCount = c.reactions?.[reactionType] || 0;
+    const updateItemReaction = (item) => {
+      const isRemoving = item.userReaction === reactionType;
+      const oldReaction = item.userReaction;
+      const newReaction = isRemoving ? null : reactionType;
+      const currentReactions = { ...(item.reactions || { like: 0, love: 0, haha: 0, wow: 0, sad: 0 }) };
+
+      if (oldReaction && oldReaction !== reactionType) {
+        currentReactions[oldReaction] = Math.max(0, (currentReactions[oldReaction] || 1) - 1);
+      }
+      const count = currentReactions[reactionType] || 0;
+      currentReactions[reactionType] = isRemoving ? Math.max(0, count - 1) : count + 1;
+
+      return {
+        ...item,
+        userReaction: newReaction,
+        reactions: currentReactions,
+      };
+    };
+
+    const updateListRecursively = (list) => {
+      if (!Array.isArray(list)) return list;
+      return list.map((item) => {
+        if (!item) return item;
+        const itemId = item.id || item._id;
+        if (itemId === commentId) {
+          return updateItemReaction(item);
+        }
+        if (Array.isArray(item.replies) && item.replies.length > 0) {
           return {
-            ...c,
-            userReaction: newReaction,
-            reactions: {
-              ...c.reactions,
-              [reactionType]: isRemoving ? Math.max(0, currentCount - 1) : currentCount + 1,
-            },
+            ...item,
+            replies: updateListRecursively(item.replies),
           };
         }
-        if (Array.isArray(c.replies)) {
-          return {
-            ...c,
-            replies: c.replies.map((r) => {
-              if (r.id === commentId || r._id === commentId) {
-                const isRemoving = r.userReaction === reactionType;
-                const newReaction = isRemoving ? null : reactionType;
-                const currentCount = r.reactions?.[reactionType] || 0;
-                return {
-                  ...r,
-                  userReaction: newReaction,
-                  reactions: {
-                    ...r.reactions,
-                    [reactionType]: isRemoving ? Math.max(0, currentCount - 1) : currentCount + 1,
-                  },
-                };
-              }
-              return r;
-            }),
-          };
-        }
-        return c;
-      })
-    );
+        return item;
+      });
+    };
+
+    const updatedComments = updateListRecursively(comments);
+    setComments(updatedComments);
+
+    try {
+      localStorage.setItem(`comments_${memId}`, JSON.stringify(updatedComments));
+    } catch (_) {}
 
     if (isAuthenticated && firebaseUser) {
       try {
@@ -820,20 +884,46 @@ export default function MemoryViewModal() {
                     </div>
                   </div>
 
-                  {/* Playback Speed Toggles */}
-                  <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
-                    {[1, 1.25, 1.5, 1.75, 2].map((spd) => (
-                      <button
-                        key={spd}
-                        onClick={() => handleSpeedChange(spd)}
-                        className={clsx(
-                          "px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer",
-                          playbackSpeed === spd ? "bg-white text-[#4A3AFF]" : "text-white/80 hover:text-white"
-                        )}
-                      >
-                        {spd}x
-                      </button>
-                    ))}
+                  {/* Playback Speed Dropup Menu (3-dots vertical trigger labeled Speed) */}
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsSpeedMenuOpen(!isSpeedMenuOpen)}
+                      className="flex items-center gap-1.5 bg-black/40 hover:bg-black/60 text-white text-xs font-bold px-2.5 py-1.5 rounded-xl border border-white/10 transition-all cursor-pointer shadow-sm"
+                      title="Adjust playback speed"
+                    >
+                      <Gauge size={13} className="text-amber-400" />
+                      <span className="hidden sm:inline">Speed</span>
+                      <span className="text-[#A5B4FC]">{playbackSpeed}x</span>
+                      <MoreVertical size={14} className="text-white/80" />
+                    </button>
+
+                    {isSpeedMenuOpen && (
+                      <div className="absolute bottom-full right-0 mb-2 bg-stone-900 border border-stone-700/80 rounded-2xl p-1.5 shadow-2xl z-50 flex flex-col gap-1 min-w-[105px] animate-scale-up backdrop-blur-md">
+                        <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-stone-400 border-b border-stone-800 mb-0.5">
+                          Speed
+                        </div>
+                        {[0.75, 1, 1.25, 1.5, 1.75, 2].map((spd) => (
+                          <button
+                            key={spd}
+                            type="button"
+                            onClick={() => {
+                              handleSpeedChange(spd);
+                              setIsSpeedMenuOpen(false);
+                            }}
+                            className={clsx(
+                              "w-full text-left px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer",
+                              playbackSpeed === spd
+                                ? "bg-[#4A3AFF] text-white shadow-sm"
+                                : "text-stone-300 hover:bg-stone-800 hover:text-white"
+                            )}
+                          >
+                            <span>{spd}x</span>
+                            {playbackSpeed === spd && <Check size={12} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -841,20 +931,21 @@ export default function MemoryViewModal() {
           )}
 
           {/* VISUAL / MEDIA MEMORY HERO CAROUSEL */}
+          {/* VISUAL / MEDIA MEMORY HERO CAROUSEL */}
           {!isVoice && hasMedia && (
-            <div className="p-3 sm:p-5 bg-stone-900 border-b border-stone-800">
-              <div className="h-[220px] sm:h-[260px] bg-stone-950 rounded-2xl relative flex flex-col justify-end group select-none overflow-hidden border border-stone-800/80 shadow-inner">
+            <div className="p-3 sm:p-4 bg-stone-900 border-b border-stone-800">
+              <div className="h-[160px] sm:h-[190px] bg-stone-950 rounded-2xl relative flex flex-col justify-end group select-none overflow-hidden border border-stone-800/80 shadow-inner">
                 
                 {/* Floating X Cross Close Button */}
                 <button 
                   onClick={handleClose}
-                  className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all shadow-xl backdrop-blur-md z-30 cursor-pointer border border-white/10"
+                  className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all shadow-xl backdrop-blur-md z-30 cursor-pointer border border-white/10"
                   title="Close preview"
                 >
-                  <X size={20} strokeWidth={2.5} />
+                  <X size={18} strokeWidth={2.5} />
                 </button>
 
-                {/* Media Display */}
+                {/* Media Display (Fixed height, object-cover filling rectangular container) */}
                 {activeMedia?.type === "video" ? (
                   <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-black group/vid">
                     <video 
@@ -864,20 +955,20 @@ export default function MemoryViewModal() {
                       onEnded={() => setIsPlayingVideo(false)}
                       onTimeUpdate={(e) => setVideoCurrentTime(e.target.currentTime)}
                       onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                     />
 
                     {/* Interactive Video Playback & Speed Controller Bar */}
-                    <div className="absolute bottom-3 left-3 right-3 bg-black/80 backdrop-blur-md rounded-2xl p-2.5 flex items-center justify-between gap-3 text-white z-20 border border-white/10 opacity-90 group-hover/vid:opacity-100 transition-opacity">
+                    <div className="absolute bottom-3 left-3 right-3 bg-black/80 backdrop-blur-md rounded-2xl p-2 flex items-center justify-between gap-3 text-white z-20 border border-white/10 opacity-90 group-hover/vid:opacity-100 transition-opacity">
                       <div className="flex items-center gap-3">
                         <button 
                           onClick={togglePlayVideo}
-                          className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shrink-0 cursor-pointer shadow-md"
+                          className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shrink-0 cursor-pointer shadow-md"
                         >
-                          {isPlayingVideo ? <Pause size={16} strokeWidth={2.5} /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+                          {isPlayingVideo ? <Pause size={14} strokeWidth={2.5} /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
                         </button>
 
-                        <span className="text-xs font-bold text-white/90">
+                        <span className="text-[11px] font-bold text-white/90">
                           {Math.floor(videoCurrentTime / 60)}:{(Math.floor(videoCurrentTime) % 60).toString().padStart(2, '0')} / {Math.floor((videoDuration || 0) / 60)}:{(Math.floor(videoDuration || 0) % 60).toString().padStart(2, '0')}
                         </span>
                       </div>
@@ -901,13 +992,13 @@ export default function MemoryViewModal() {
                   </div>
                 ) : brokenImages[activeMedia?.url] ? (
                   <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-900 to-stone-950 text-stone-400 p-6 text-center">
-                    <ImageIcon size={48} className="mb-2 opacity-50 text-[#818CF8]" />
+                    <ImageIcon size={40} className="mb-2 opacity-50 text-[#818CF8]" />
                     <span className="font-bold text-sm text-stone-200">{memory.title}</span>
                     <span className="text-xs opacity-60 mt-1">Photo memory placeholder</span>
                   </div>
                 ) : (
                   <div 
-                    className="absolute inset-0 w-full h-full cursor-zoom-in flex items-center justify-center bg-black"
+                    className="absolute inset-0 w-full h-full cursor-zoom-in"
                     onClick={() => setIsLightboxOpen(true)}
                     title="Click to expand full screen"
                   >
@@ -915,52 +1006,52 @@ export default function MemoryViewModal() {
                       src={activeMedia?.url} 
                       alt={memory.title || "Photo memory"}
                       onError={() => setBrokenImages(prev => ({ ...prev, [activeMedia?.url]: true }))}
-                      className="w-full h-full object-contain opacity-95 transition-all duration-300 group-hover:scale-105"
+                      className="w-full h-full object-cover opacity-95 transition-all duration-300 group-hover:scale-105"
                     />
-                    <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-black/50 text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Maximize2 size={13} /> Click to expand
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/50 text-white text-[11px] font-bold flex items-center gap-1.5 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                      <Maximize2 size={12} /> Click to expand
                     </div>
                   </div>
                 )}
 
-                {/* Dark gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
+                {/* Dark gradient overlay for title contrast */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none z-10" />
 
                 {/* Carousel Arrows */}
                 {mediaList.length > 1 && (
                   <>
                     <button 
                       onClick={prevMedia}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all z-20 shadow-lg cursor-pointer"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all z-20 shadow-lg cursor-pointer"
                       title="Previous media"
                     >
-                      <ChevronLeft size={24} />
+                      <ChevronLeft size={20} />
                     </button>
                     <button 
                       onClick={nextMedia}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all z-20 shadow-lg cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all z-20 shadow-lg cursor-pointer"
                       title="Next media"
                     >
-                      <ChevronRight size={24} />
+                      <ChevronRight size={20} />
                     </button>
                   </>
                 )}
 
-                {/* Header Overlay */}
-                <div className="relative z-10 p-6 sm:p-8 pt-0 pointer-events-none">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="px-3 py-1 rounded-full bg-[#3b82f6] text-white flex items-center gap-1.5 text-xs font-bold shadow-sm">
-                      {activeMedia?.type === "video" ? <Film size={14} /> : <ImageIcon size={14} />}
+                {/* Header Overlay (Title, Date & Badge over covered image) */}
+                <div className="relative z-20 p-4 sm:p-5 pt-0 pointer-events-none">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="px-2.5 py-0.5 rounded-full bg-[#3b82f6] text-white flex items-center gap-1 text-[10px] font-extrabold shadow-sm">
+                      {activeMedia?.type === "video" ? <Film size={12} /> : <ImageIcon size={12} />}
                       <span>{activeMedia?.type === "video" ? "VIDEO MEMORY" : "PHOTO MEMORY"}</span>
                     </div>
                     {mediaList.length > 1 && (
-                      <span className="px-3 py-1 rounded-full bg-black/60 text-white text-xs font-bold backdrop-blur-md">
+                      <span className="px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-bold backdrop-blur-md">
                         {activeMediaIndex + 1} of {mediaList.length}
                       </span>
                     )}
                   </div>
-                  <h2 className="text-2xl sm:text-4xl font-bold mb-1 text-white leading-tight">{memory.title}</h2>
-                  <p className="text-white/80 text-xs sm:text-sm font-medium">{memoryDate}</p>
+                  <h2 className="text-xl sm:text-2xl font-black text-white leading-tight drop-shadow-md">{memory.title}</h2>
+                  <p className="text-white/80 text-[11px] sm:text-xs font-semibold drop-shadow-sm">{memoryDate}</p>
                 </div>
 
                 {/* Thumbnail Strip */}
@@ -1136,13 +1227,14 @@ export default function MemoryViewModal() {
                     </form>
 
                     {/* Comments & Nested Replies List */}
-                    <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
+                    <div className="space-y-4 pr-1">
                       {comments.length === 0 ? (
                         <p className="text-xs text-stone-400 italic py-2">No comments yet. Leave the first reflection!</p>
                       ) : (
                         comments.map((c) => {
                           const commentId = c.id || c._id;
-                          const hasReplies = Array.isArray(c.replies) && c.replies.length > 0;
+                          const allReplies = flattenReplies(c.replies, c.author);
+                          const hasReplies = allReplies.length > 0;
                           const isReplyingThis = activeReplyId === commentId;
                           const isShowReplies = !!expandedReplies[commentId];
 
@@ -1150,7 +1242,7 @@ export default function MemoryViewModal() {
                           const totalCommentReactions = countReactionsSafely(c.reactions);
 
                           return (
-                            <div key={commentId} className="bg-stone-50/90 p-3.5 rounded-2xl border border-stone-150 flex flex-col gap-2">
+                            <div key={commentId} className="py-2.5 flex flex-col gap-1.5 border-b border-stone-100/90 last:border-none">
                               {/* Comment Header */}
                               <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
@@ -1162,11 +1254,11 @@ export default function MemoryViewModal() {
                                 <span className="text-[10px] text-stone-400 font-medium">{c.time || "Recent"}</span>
                               </div>
 
-                              {/* Comment Text */}
-                              <p className="text-xs text-stone-700 font-medium leading-relaxed pl-9">{c.text || c.content}</p>
+                              {/* Comment Text with Blue Mention Highlighting */}
+                              <p className="text-xs text-stone-700 font-medium leading-relaxed pl-9">{renderTextWithMentions(c.text || c.content)}</p>
 
                               {/* Comment Action Bar with Emoji Pop-over */}
-                              <div className="flex items-center gap-4 pl-9 text-[11px] font-bold text-stone-500 pt-1">
+                              <div className="flex items-center gap-4 pl-9 text-[11px] font-bold text-stone-500 pt-0.5">
                                 
                                 {/* Emoji Reaction Pop-over Trigger for Comment */}
                                 <div className="relative">
@@ -1216,7 +1308,7 @@ export default function MemoryViewModal() {
                                     onClick={() => toggleExpandReplies(commentId)}
                                     className="text-[#4A3AFF] hover:underline cursor-pointer ml-auto"
                                   >
-                                    {isShowReplies ? `Hide ${c.replies.length} replies` : `Show ${c.replies.length} replies`}
+                                    {isShowReplies ? `Hide ${allReplies.length} replies` : `Show ${allReplies.length} replies`}
                                   </button>
                                 )}
                               </div>
@@ -1242,23 +1334,31 @@ export default function MemoryViewModal() {
                                 </form>
                               )}
 
-                              {/* Nested Replies List with Emoji Pop-over Reaction Support */}
+                              {/* Nested Replies Stream (Simple, Background-Free with Indented Thread Line) */}
                               {hasReplies && isShowReplies && (
-                                <div className="mt-2 pl-9 space-y-2.5 border-l-2 border-[#4A3AFF]/20 ml-3">
-                                  {c.replies.map((r) => {
+                                <div className="mt-2 pl-6 space-y-2 border-l-2 border-[#4A3AFF]/30 ml-3">
+                                  {allReplies.map((r) => {
                                     const replyId = r.id || r._id;
                                     const isReplyingReply = activeReplyId === replyId;
                                     const replyReactionMeta = REACTION_EMOJIS.find(em => em.id === r.userReaction);
                                     const totalReplyReactions = countReactionsSafely(r.reactions);
+                                    const isSub = r.isSubReply;
 
                                     return (
-                                      <div key={replyId} className="bg-white p-3 rounded-xl border border-stone-100 flex flex-col gap-1.5 shadow-xs">
+                                      <div 
+                                        key={replyId} 
+                                        className={clsx(
+                                          "flex flex-col gap-1 py-1.5 transition-all pl-2",
+                                          isSub ? "ml-3 border-l-2 border-l-[#4A3AFF]/50" : ""
+                                        )}
+                                      >
                                         <div className="flex justify-between items-center">
-                                          <span className="font-bold text-[11px] text-stone-800">{r.author || "User"}</span>
-                                          <span className="text-[9px] text-stone-400">{r.time || "Recent"}</span>
+                                          <span className="font-bold text-[11px] text-stone-900">{r.author || "User"}</span>
+                                          <span className="text-[9px] text-stone-400 font-medium">{r.time || "Recent"}</span>
                                         </div>
 
-                                        <p className="text-[11px] text-stone-600 font-medium">{r.text}</p>
+                                        {/* Reply Text with Blue Mention Highlighting */}
+                                        <p className="text-[11px] text-stone-600 font-medium">{renderTextWithMentions(r.text)}</p>
 
                                         {/* Action Bar for Reply (Multi-Emoji React & Reply to Reply) */}
                                         <div className="flex items-center gap-3 text-[10px] font-bold text-stone-500 pt-0.5">

@@ -120,11 +120,39 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     return matched ? matched.avatar : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authorName)}`;
   };
 
+  const flattenReplies = (repliesList, rootAuthor = "") => {
+    if (!Array.isArray(repliesList)) return [];
+    const flat = [];
+    const visited = new Set();
+    const traverse = (list, parentAuthor = rootAuthor, depth = 0) => {
+      if (!Array.isArray(list)) return;
+      list.forEach((item) => {
+        if (!item) return;
+        const key = item.id || item._id;
+        if (key && visited.has(key)) return;
+        if (key) visited.add(key);
+        const { replies, ...rest } = item;
+        const isSubReply = depth > 0 || Boolean(item.parentCommentId && item.parentCommentId !== item.id);
+        flat.push({
+          ...rest,
+          isSubReply,
+          replyToAuthor: parentAuthor || rootAuthor
+        });
+        if (Array.isArray(replies) && replies.length > 0) {
+          traverse(replies, item.author || parentAuthor, depth + 1);
+        }
+      });
+    };
+    traverse(repliesList, rootAuthor, 0);
+    return flat;
+  };
+
   const getTotalCommentsCount = (commentsList) => {
     let count = 0;
     commentsList.forEach(c => {
       count += 1;
-      if (c.replies) count += c.replies.length;
+      const allR = flattenReplies(c.replies, c.author);
+      count += allR.length;
     });
     return count;
   };
@@ -192,16 +220,18 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     setCommentInput("");
   };
 
-  const handleAddReply = async (commentId) => {
-    const text = replyInputMap[commentId]?.trim();
+  const handleAddReply = async (commentId, parentCommentId = null) => {
+    const targetParentId = parentCommentId || commentId;
+    const inputKey = parentCommentId || commentId;
+    const text = replyInputMap[inputKey]?.trim();
     if (!text) return;
 
     const isMock = isMockId(memoryId);
     if (isAuthenticated && firebaseUser && memoryId && !isMock) {
       try {
         const token = await getToken();
-        await addComment(token, memoryId, text, commentId);
-        setReplyInputMap(prev => ({ ...prev, [commentId]: "" }));
+        await addComment(token, memoryId, text, targetParentId);
+        setReplyInputMap(prev => ({ ...prev, [inputKey]: "" }));
         setActiveReplyId(null);
         setExpandedComments(prev => ({ ...prev, [commentId]: true }));
         const backendComments = await getComments(token, memoryId);
@@ -220,6 +250,7 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
       avatar: authProfile?.photoURL || getAuthorAvatar("Alexander Mitchell"),
       text: text,
       time: "Just now",
+      parentCommentId: targetParentId,
       reactions: { like: 0, love: 0, haha: 0, wow: 0, sad: 0 },
       userReaction: null
     };
@@ -235,19 +266,34 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     });
 
     saveComments(updated);
-    setReplyInputMap(prev => ({ ...prev, [commentId]: "" }));
+    setReplyInputMap(prev => ({ ...prev, [inputKey]: "" }));
     setActiveReplyId(null);
     setExpandedComments(prev => ({ ...prev, [commentId]: true }));
   };
 
+  const renderTextWithMentions = (text) => {
+    if (!text || typeof text !== "string") return text;
+    const parts = text.split(/(@[A-Za-z0-9_\u00C0-\u024F]+(?:\s+[A-Za-z0-9_\u00C0-\u024F]+)?)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith("@")) {
+        return (
+          <span key={idx} className="text-[#4A3AFF] font-bold dark:text-[#8f83ff] mr-0.5">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   const handleReact = async (commentId, replyId = null, reactionId) => {
-    const targetCommentId = replyId || commentId;
+    const targetId = replyId || commentId;
 
     const isMock = isMockId(memoryId);
     if (isAuthenticated && firebaseUser && memoryId && !isMock) {
       try {
         const token = await getToken();
-        await reactToComment(token, memoryId, targetCommentId, reactionId);
+        await reactToComment(token, memoryId, targetId, reactionId);
         setHoveredItemId(null);
         const backendComments = await getComments(token, memoryId);
         setComments(backendComments);
@@ -257,49 +303,42 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
       }
     }
 
-    const updated = comments.map(c => {
-      if (c.id === commentId) {
-        if (replyId) {
-          const updatedReplies = (c.replies || []).map(r => {
-            if (r.id === replyId) {
-              const reactions = { ...(r.reactions || { like: 0, love: 0, haha: 0, wow: 0, sad: 0 }) };
-              let userReaction = r.userReaction || null;
+    const updateItemReaction = (item) => {
+      const reactions = { ...(item.reactions || { like: 0, love: 0, haha: 0, wow: 0, sad: 0 }) };
+      let userReaction = item.userReaction || null;
 
-              if (userReaction === reactionId) {
-                reactions[reactionId] = Math.max(0, (reactions[reactionId] || 1) - 1);
-                userReaction = null;
-              } else {
-                if (userReaction) {
-                  reactions[userReaction] = Math.max(0, (reactions[userReaction] || 1) - 1);
-                }
-                reactions[reactionId] = (reactions[reactionId] || 0) + 1;
-                userReaction = reactionId;
-              }
-              return { ...r, reactions, userReaction };
-            }
-            return r;
-          });
-          return { ...c, replies: updatedReplies };
-        } else {
-          const reactions = { ...(c.reactions || { like: 0, love: 0, haha: 0, wow: 0, sad: 0 }) };
-          let userReaction = c.userReaction || null;
-
-          if (userReaction === reactionId) {
-            reactions[reactionId] = Math.max(0, (reactions[reactionId] || 1) - 1);
-            userReaction = null;
-          } else {
-            if (userReaction) {
-              reactions[userReaction] = Math.max(0, (reactions[userReaction] || 1) - 1);
-            }
-            reactions[reactionId] = (reactions[reactionId] || 0) + 1;
-            userReaction = reactionId;
-          }
-          return { ...c, reactions, userReaction };
+      if (userReaction === reactionId) {
+        reactions[reactionId] = Math.max(0, (reactions[reactionId] || 1) - 1);
+        userReaction = null;
+      } else {
+        if (userReaction) {
+          reactions[userReaction] = Math.max(0, (reactions[userReaction] || 1) - 1);
         }
+        reactions[reactionId] = (reactions[reactionId] || 0) + 1;
+        userReaction = reactionId;
       }
-      return c;
-    });
+      return { ...item, reactions, userReaction };
+    };
 
+    const updateListRecursively = (list) => {
+      if (!Array.isArray(list)) return list;
+      return list.map((item) => {
+        if (!item) return item;
+        const itemId = item.id || item._id;
+        if (itemId === targetId) {
+          return updateItemReaction(item);
+        }
+        if (Array.isArray(item.replies) && item.replies.length > 0) {
+          return {
+            ...item,
+            replies: updateListRecursively(item.replies),
+          };
+        }
+        return item;
+      });
+    };
+
+    const updated = updateListRecursively(comments);
     saveComments(updated);
     setHoveredItemId(null);
   };
@@ -369,12 +408,12 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
     const isExpanded = expandedReplies[reply.id];
     
     if (text.length <= 60 || isExpanded) {
-      return <span>{text}</span>;
+      return <span>{renderTextWithMentions(text)}</span>;
     }
     
     return (
       <span>
-        {text.slice(0, 55)}...
+        {renderTextWithMentions(text.slice(0, 55))}...
         <button 
           onClick={() => setExpandedReplies(prev => ({ ...prev, [reply.id]: true }))}
           className="ml-1 font-extrabold text-[var(--brand)] hover:underline focus:outline-none cursor-pointer"
@@ -391,10 +430,11 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
       <div className="space-y-5 max-h-[420px] overflow-y-auto pr-1">
         {comments.map((comment) => {
           const { totalCount, activeTypes } = getItemReactionDetails(comment);
-          const showReplies = comment.replies && comment.replies.length > 0;
+          const allReplies = flattenReplies(comment.replies, comment.author);
+          const showReplies = allReplies.length > 0;
           const isRepliesExpanded = expandedComments[comment.id];
           const displayedReplies = showReplies 
-            ? (isRepliesExpanded ? comment.replies : [])
+            ? (isRepliesExpanded ? allReplies : [])
             : [];
           const hasMoreReplies = showReplies && !isRepliesExpanded;
 
@@ -412,7 +452,7 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
                     <div className="flex items-baseline justify-between gap-4 mb-0.5">
                       <p className="text-[12px] font-extrabold text-[var(--ink)] dark:text-white leading-tight">{comment.author}</p>
                     </div>
-                    <p className="text-xs font-semibold leading-relaxed text-stone-605 dark:text-stone-300">{comment.text}</p>
+                    <p className="text-xs font-semibold leading-relaxed text-stone-605 dark:text-stone-300">{renderTextWithMentions(comment.text)}</p>
                     
                     {/* Floating Reactions Badge */}
                     {totalCount > 0 && (
@@ -465,15 +505,21 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
                 </div>
               </div>
 
-              {/* Nested Replies Stream */}
+              {/* Nested Replies Stream with Clear Sub-Reply UI */}
               {showReplies && (
                 <div className="pl-11 relative space-y-3.5">
                   {displayedReplies.map((reply, rIdx) => {
                     const { totalCount: replyReactionsCount, activeTypes: replyActiveTypes } = getItemReactionDetails(reply);
                     const isReplyLast = false;
+                    const isSub = reply.isSubReply;
 
                     return (
-                      <div key={reply.id} className="relative pl-6 flex items-start gap-2 z-10 animate-fade-in group/reply">
+                      <div 
+                        key={reply.id} 
+                        className={`relative flex items-start gap-2 z-10 animate-fade-in group/reply ${
+                          isSub ? "pl-8" : "pl-6"
+                        }`}
+                      >
                         {/* Curved Tree Connector */}
                         <div className="absolute left-[-16px] top-0 bottom-0 w-5 pointer-events-none">
                           <div className={`absolute left-0 top-0 ${isReplyLast ? "h-[17px]" : "bottom-0"} border-l-2 border-stone-200 dark:border-stone-800`} />
@@ -486,14 +532,13 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
                           className="h-6.5 w-6.5 rounded-full object-cover shrink-0 border border-stone-200 shadow-sm"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="relative inline-block rounded-2xl bg-stone-100/70 dark:bg-slate-800/40 px-3.5 py-2 shadow-sm max-w-[92%] break-words">
-                            <div className="flex items-baseline justify-between gap-3 mb-0.5">
+                          <div className={`relative inline-block px-1 py-1 max-w-[95%] break-words transition-all ${
+                            isSub ? "border-l-2 border-l-[#4A3AFF]/50 pl-2.5" : ""
+                          }`}>
+                            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                               <p className="text-[11px] font-extrabold text-[var(--ink)] dark:text-white leading-tight">{reply.author}</p>
                             </div>
                             <p className="text-xs font-semibold leading-relaxed text-stone-605 dark:text-stone-300">
-                              <span className="font-extrabold text-stone-400 dark:text-stone-555 mr-1 select-none">
-                                {comment.author.split(" ")[0]}
-                              </span>
                               {renderReplyText(reply)}
                             </p>
 
@@ -537,14 +582,39 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
 
                             <button 
                               onClick={() => {
-                                setActiveReplyId(comment.id);
-                                setReplyInputMap(prev => ({ ...prev, [comment.id]: `@${reply.author.split(" ")[0]} ` }));
+                                const targetId = activeReplyId === reply.id ? null : reply.id;
+                                setActiveReplyId(targetId);
+                                setReplyInputMap(prev => ({ ...prev, [reply.id]: `@${reply.author.split(" ")[0]} ` }));
                               }}
                               className="hover:underline cursor-pointer hover:text-stone-500"
                             >
                               Reply
                             </button>
                           </div>
+
+                          {/* Inline Sub-Reply Input Form */}
+                          {activeReplyId === reply.id && (
+                            <div className="pl-3 pt-2 relative flex gap-2 items-center animate-scale-up z-10">
+                              <input
+                                type="text"
+                                placeholder={`Reply to @${reply.author.split(" ")[0]}...`}
+                                value={replyInputMap[reply.id] || ""}
+                                onChange={e => setReplyInputMap(prev => ({ ...prev, [reply.id]: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === "Enter") handleAddReply(comment.id, reply.id);
+                                }}
+                                className="h-8.5 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-xs font-semibold outline-none focus:border-[var(--brand)] text-[var(--ink)] dark:text-white"
+                                autoFocus
+                              />
+                              <button 
+                                onClick={() => handleAddReply(comment.id, reply.id)}
+                                className="h-8.5 w-8.5 rounded-xl bg-[var(--brand)] text-white flex items-center justify-center hover:bg-[var(--brand-hover)] transition cursor-pointer shrink-0"
+                                aria-label="Send reply"
+                              >
+                                <Send size={12} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -563,13 +633,13 @@ export default function CommentsSection({ memoryId, initialComments = [] }) {
                         onClick={() => setExpandedComments(prev => ({ ...prev, [comment.id]: true }))}
                         className="text-[12px] font-extrabold text-stone-500 hover:text-[var(--brand)] transition cursor-pointer hover:underline pl-0.5"
                       >
-                        View {comment.replies.length} {comment.replies.length === 1 ? "reply" : "replies"}...
+                        View {allReplies.length} {allReplies.length === 1 ? "reply" : "replies"}...
                       </button>
                     </div>
                   )}
 
                   {/* Hide replies link */}
-                  {isRepliesExpanded && comment.replies.length > 0 && (
+                  {isRepliesExpanded && allReplies.length > 0 && (
                     <div className="relative pl-6 flex items-center z-10 py-0.5">
                       {/* Curved tree line to connection */}
                       <div className="absolute left-[-16px] top-0 bottom-0 w-5 pointer-events-none">
