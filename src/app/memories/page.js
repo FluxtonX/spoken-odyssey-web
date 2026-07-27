@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import DashboardHeader from "@/components/layout/DashboardHeader";
-import { Mic, FileText, Image as ImageIcon, Play, Pause, Plus, Search, Filter, LayoutGrid, List, Lock, Lightbulb, ArrowLeft } from "lucide-react";
+import { Mic, FileText, Image as ImageIcon, Play, Pause, Plus, Search, Filter, LayoutGrid, List, Lock, Lightbulb, ArrowLeft, Film } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
 import { getMemoriesFromBackend, normalizeMediaUrl } from "@/services/backend";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
+import VoicePlayer from "@/components/ui/VoicePlayer";
 
 export default function MyArchive() {
   const router = useRouter();
@@ -45,12 +46,86 @@ export default function MyArchive() {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
+  const isVideoLike = (url, mimeType = "", type = "") => {
+    const cleanUrl = typeof url === "string" ? url.split("?")[0] : "";
+    return (
+      String(mimeType || "").toLowerCase().startsWith("video/") ||
+      String(type || "").toLowerCase() === "video" ||
+      cleanUrl.startsWith("data:video/") ||
+      /\.(mp4|webm|mov|avi|m4v)$/i.test(cleanUrl)
+    );
+  };
+
+  const getMemoryMediaSources = (memory) => {
+    const items = [];
+    const addItem = (url, type = "image", mimeType = "") => {
+      if (!url || typeof url !== "string") return;
+      const mediaType = isVideoLike(url, mimeType, type) ? "video" : "image";
+      items.push({ url, type: mediaType });
+    };
+
+    if (Array.isArray(memory.mediaList)) {
+      memory.mediaList.forEach((item) => addItem(item?.mediaUrl || item?.url, item?.type, item?.mediaMimeType));
+    }
+    if (Array.isArray(memory.media)) {
+      memory.media.forEach((item) => {
+        if (typeof item === "string") addItem(item);
+        else addItem(item?.url || item?.mediaUrl, item?.type, item?.mediaMimeType || item?.mimeType);
+      });
+    } else if (memory.media) {
+      addItem(typeof memory.media === "string" ? memory.media : (memory.media.url || memory.media.mediaUrl), memory.media.type, memory.media.mediaMimeType);
+    }
+    if (Array.isArray(memory.images)) memory.images.forEach((img) => addItem(typeof img === "string" ? img : img?.url, "image"));
+    if (Array.isArray(memory.videos)) memory.videos.forEach((vid) => addItem(typeof vid === "string" ? vid : vid?.url, "video"));
+
+    addItem(memory.videoUrl, "video");
+    addItem(memory.mediaUrl, undefined, memory.mediaMimeType);
+    addItem(memory.image, "image");
+    addItem(memory.cover, "image");
+    addItem(memory.imageUrl, "image");
+    addItem(memory.coverImageUrl, "image");
+
+    const firstVideo = items.find((item) => item.type === "video")?.url;
+    const firstImage = items.find((item) => item.type === "image")?.url;
+    return { video: firstVideo, image: firstImage };
+  };
+
+  const getMemoryId = (memory) => memory?.id || memory?._id;
+
+  const getMemoryDuplicateKey = (memory) => {
+    const title = String(memory?.title || "").trim().toLowerCase();
+    if (!title) return "";
+    const rawDate = memory?.createdAt || memory?.occurredAt || memory?.date || "";
+    const parsedDate = new Date(rawDate);
+    const day = Number.isNaN(parsedDate.getTime()) ? String(rawDate).slice(0, 10) : parsedDate.toISOString().slice(0, 10);
+    return `${title}_${day}`;
+  };
+
+  const mergeUniqueMemories = (primary, secondary = []) => {
+    const byId = new Map();
+    const duplicateKeys = new Set();
+
+    [...primary, ...secondary].forEach((memory) => {
+      if (!memory) return;
+      const id = getMemoryId(memory);
+      const duplicateKey = getMemoryDuplicateKey(memory);
+      if (id && byId.has(id)) return;
+      if (duplicateKey && duplicateKeys.has(duplicateKey)) return;
+      const key = id || duplicateKey || `memory-${byId.size}`;
+      byId.set(key, memory);
+      if (duplicateKey) duplicateKeys.add(duplicateKey);
+    });
+
+    return Array.from(byId.values());
+  };
+
   const loadMemories = async () => {
     setIsLoadingMemories(true);
     
     let localMems = [];
     try {
-      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+      const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+      const saved = localStorage.getItem(userKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) localMems = parsed;
@@ -70,15 +145,9 @@ export default function MyArchive() {
       }
     }
 
-    // Deduplicate and merge local and backend user memories (Static fallback removed per user request)
-    const map = new Map();
-    localMems.forEach((m) => map.set(m.id || m._id, m));
-    backendMems.forEach((m) => {
-      const key = m.id || m._id;
-      if (!map.has(key)) map.set(key, m);
-    });
-
-    setUserMemories(Array.from(map.values()));
+    // Authenticated users should see backend-owned memories only when backend data exists.
+    // Local cache is a fallback for offline/failed backend loads, so stale memories from another session do not leak in.
+    setUserMemories(backendMems.length > 0 ? mergeUniqueMemories(backendMems) : mergeUniqueMemories(localMems));
     setIsLoadingMemories(false);
   };
 
@@ -88,10 +157,7 @@ export default function MyArchive() {
     const handleMemoryPublished = (e) => {
       const newMemory = e?.detail?.memory;
       if (newMemory) {
-        setUserMemories((prev) => [
-          newMemory,
-          ...prev.filter((m) => (m.id || m._id) !== (newMemory.id || newMemory._id)),
-        ]);
+        setUserMemories((prev) => mergeUniqueMemories([newMemory], prev));
       } else {
         loadMemories();
       }
@@ -169,7 +235,10 @@ export default function MyArchive() {
     if (activeType !== "All") {
       result = result.filter((m) => {
         const t = (m.type || "").toLowerCase();
-        if (activeType === "Voice") return t === "voice" || t === "audio" || !!m.audioUrl || !!m.audio;
+        if (activeType === "Voice") {
+          const sources = getMemoryMediaSources(m);
+          return !sources.video && (t === "voice" || t === "audio" || !!m.audioUrl || !!m.audio);
+        }
         if (activeType === "Photos") return t === "photo" || t === "photos" || t === "visual" || t === "image" || !!m.image || !!m.cover || (Array.isArray(m.media) && m.media.length > 0);
         if (activeType === "Written") return t === "text" || t === "written" || t === "milestone" || t === "thought";
         return true;
@@ -376,27 +445,14 @@ export default function MyArchive() {
           >
             {filteredMemories.map((memory) => {
               const normType = (memory.type || "").toLowerCase();
-              const isVoice = normType === "voice" || normType === "audio" || !!memory.audioUrl || !!memory.audio;
-              const isWritten = normType === "written" || normType === "text" || normType === "thought" || normType === "milestone";
               
-              // Thorough image & video extraction across all memory object shapes
-              const rawImg = 
-                (typeof memory.image === 'string' && memory.image) || 
-                (typeof memory.cover === 'string' && memory.cover) || 
-                (typeof memory.media === 'string' && memory.media) ||
-                (memory.media?.url && typeof memory.media.url === 'string' && memory.media.url) ||
-                (Array.isArray(memory.media) && memory.media.length > 0 && (typeof memory.media[0] === 'string' ? memory.media[0] : memory.media[0]?.url)) ||
-                (Array.isArray(memory.images) && memory.images.length > 0 && (typeof memory.images[0] === 'string' ? memory.images[0] : memory.images[0]?.url)) ||
-                (typeof memory.imageUrl === 'string' && memory.imageUrl) ||
-                (typeof memory.coverImageUrl === 'string' && memory.coverImageUrl);
+              const mediaSources = getMemoryMediaSources(memory);
+              const coverImg = normalizeMediaUrl(mediaSources.image);
+              const coverVid = normalizeMediaUrl(mediaSources.video);
 
-              const rawVid = 
-                (typeof memory.videoUrl === 'string' && memory.videoUrl) || 
-                (Array.isArray(memory.videos) && memory.videos.length > 0 && (typeof memory.videos[0] === 'string' ? memory.videos[0] : memory.videos[0]?.url)) ||
-                (Array.isArray(memory.media) ? memory.media.find(m => m.type === 'video' || (typeof m === 'string' && m.match(/\.(mp4|webm|mov)$/i)))?.url : null);
-              
-              const coverImg = normalizeMediaUrl(rawImg);
-              const coverVid = normalizeMediaUrl(rawVid);
+              const isVideo = normType === "video" || normType === "visual" || !!coverVid;
+              const isVoice = !isVideo && (normType === "voice" || normType === "audio" || (!!memory.audioUrl && !coverVid) || (!!memory.audio && !coverVid));
+              const isWritten = !isVideo && !isVoice && (normType === "written" || normType === "text" || normType === "thought" || normType === "milestone");
 
               const hasMedia = !!coverImg || !!coverVid;
               const dateStr = formatDateSafely(memory.date || memory.createdAt || memory.occurredAt);
@@ -416,10 +472,12 @@ export default function MyArchive() {
                         "w-[52px] h-[52px] rounded-[18px] flex items-center justify-center shrink-0 border border-white/50 shadow-sm",
                         isWritten ? "bg-[#d1fae5]" : 
                         isVoice ? "bg-[#fef3c7]" : 
+                        isVideo ? "bg-[#fce7f3]" :
                         "bg-[#e0e7ff]"
                       )}>
                         {isWritten ? <FileText size={22} strokeWidth={2.5} className="text-[#10b981]" /> :
                          isVoice ? <Mic size={22} strokeWidth={2.5} className="text-[#f59e0b]" /> :
+                         isVideo ? <Film size={22} strokeWidth={2.5} className="text-[#ec4899]" /> :
                          <ImageIcon size={22} strokeWidth={2.5} className="text-[#3b82f6]" />}
                       </div>
                       <div className="flex flex-col justify-center">
@@ -434,12 +492,101 @@ export default function MyArchive() {
                 );
               }
 
+              if (isVideo) {
+                return (
+                  <motion.div 
+                    variants={fadeInUp}
+                    key={memory._id || memory.id} 
+                    onClick={openView}
+                    className="figma-card overflow-hidden group break-inside-avoid cursor-pointer flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full mb-6"
+                  >
+                    <div className="bg-stone-900 relative overflow-hidden h-56 w-full shrink-0 flex items-center justify-center">
+                      {coverVid ? (
+                        <video src={coverVid} className="w-full h-full object-cover opacity-85" />
+                      ) : coverImg ? (
+                        <img src={coverImg} alt="Video cover" className="w-full h-full object-cover opacity-85" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-900 flex items-center justify-center text-slate-500" />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md shadow-xl group-hover:scale-110 transition-transform">
+                          <Play size={22} fill="currentColor" className="ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 md:p-8 flex flex-col justify-between grow">
+                      <div>
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-2">
+                            <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" />
+                            <span className="text-[11px] font-bold uppercase tracking-widest text-[#ec4899]">VIDEO</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
+                            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+                          </div>
+                        </div>
+                        <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight">{memory.title}</h3>
+                        <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-auto">
+                        {(memory.tags && memory.tags.length > 0 ? memory.tags : ['memory']).map((tag) => (
+                          <span key={tag} className="px-3 py-1 bg-white border border-[#E5E7EB] rounded-full text-[11px] font-semibold text-stone-500">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              }
+
+              if (isVoice) {
+                return (
+                  <motion.div 
+                    variants={fadeInUp}
+                    key={memory._id || memory.id} 
+                    onClick={openView}
+                    className="figma-card p-6 md:p-8 flex flex-col justify-between break-inside-avoid cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full mb-6"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-2 text-[#f59e0b]">
+                          <Mic size={16} strokeWidth={2.5} />
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]">VOICE</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
+                          <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+                        </div>
+                      </div>
+                      <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight">{memory.title}</h3>
+                      <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">
+                        {memory.description || "No transcript available for this voice memory."}
+                      </p>
+                    </div>
+
+                    <div className="mb-6 w-full" onClick={(e) => e.stopPropagation()}>
+                      <VoicePlayer memory={memory} />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-auto">
+                      {(memory.tags && memory.tags.length > 0 ? memory.tags : ['memory']).map((tag) => (
+                        <span key={tag} className="px-3 py-1 bg-white border border-[#E5E7EB] rounded-full text-[11px] font-semibold text-stone-500">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </motion.div>
+                );
+              }
+
               return (
                 <motion.div 
                   variants={fadeInUp}
                   key={memory._id || memory.id} 
                   onClick={openView}
-                  className="bg-[#EEF2FF] border-2 border-[#A5B4FC] rounded-3xl overflow-hidden group break-inside-avoid cursor-pointer flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full mb-6"
+                  className="figma-card overflow-hidden group break-inside-avoid cursor-pointer flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full mb-6"
                 >
                   {hasMedia && (
                     <div className="bg-stone-900 relative overflow-hidden h-56 w-full shrink-0">
@@ -485,41 +632,9 @@ export default function MyArchive() {
                       </p>
                     </div>
                     
-                    {isVoice && (
-                      <div className="flex items-center gap-3 bg-white border border-[#E5E7EB] rounded-full p-2 pr-5 mb-6 w-full shadow-sm">
-                        <button 
-                          onClick={(e) => handleToggleCardAudio(e, memory)}
-                          className="h-10 w-10 shrink-0 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center hover:bg-[#3b2dd1] transition-colors shadow-sm cursor-pointer"
-                        >
-                          {playingAudioId === (memory._id || memory.id) ? <Pause size={18} strokeWidth={2.5} /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
-                        </button>
-                        <div className="flex-1 flex items-center overflow-hidden h-8 relative">
-                          <div className="w-full flex items-center gap-0.5 opacity-60">
-                            {[...Array(20)].map((_, i) => (
-                              <div 
-                                key={i} 
-                                className={clsx("w-1 rounded-full transition-all", playingAudioId === (memory._id || memory.id) ? "bg-[#10b981] animate-pulse" : "bg-[#4A3AFF]")} 
-                                style={{ height: `${Math.max(15, Math.random() * 100)}%` }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <span className="text-[13px] font-bold text-stone-500 ml-2 shrink-0">
-                          {playingAudioId === (memory._id || memory.id)
-                            ? `${formatSecs(cardAudioCurrentTime)} / ${formatSecs(cardAudioDurations[(memory._id || memory.id)])}`
-                            : (memory.duration || (cardAudioDurations[(memory._id || memory.id)] ? formatSecs(cardAudioDurations[(memory._id || memory.id)]) : "Voice"))}
-                        </span>
-                      </div>
-                    )}
-                    
                     <div className="flex flex-wrap gap-2 mt-auto">
-                      {memory.tags?.map((tag) => (
-                        <span key={tag} className="px-3 py-1.5 bg-[#6366f1] text-white rounded-md text-[11px] font-bold shadow-sm">
-                          {tag}
-                        </span>
-                      ))}
-                      {(!memory.tags || memory.tags.length === 0) && ['memory', 'archive'].map(tag => (
-                        <span key={tag} className="px-3 py-1.5 bg-[#6366f1] text-white rounded-md text-[11px] font-bold shadow-sm">
+                      {(memory.tags && memory.tags.length > 0 ? memory.tags : ['memory']).map((tag) => (
+                        <span key={tag} className="px-3 py-1 bg-white border border-[#E5E7EB] rounded-full text-[11px] font-semibold text-stone-500">
                           {tag}
                         </span>
                       ))}

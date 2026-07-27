@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
+import VideoPlayer from "@/components/ui/VideoPlayer";
 import { 
   normalizeMediaUrl, 
   deleteMemoryOnBackend, 
@@ -30,6 +31,16 @@ const REACTION_EMOJIS = [
   { id: "wow", label: "Wow", emoji: "😮", icon: Sparkles, color: "text-amber-400", bg: "bg-amber-50 text-amber-600" },
   { id: "angry", label: "Angry", emoji: "😡", icon: Frown, color: "text-rose-500", bg: "bg-rose-50 text-rose-600" },
 ];
+
+const isVideoLike = (url, mimeType = "", type = "") => {
+  const cleanUrl = typeof url === "string" ? url.split("?")[0] : "";
+  return (
+    String(mimeType || "").toLowerCase().startsWith("video/") ||
+    String(type || "").toLowerCase() === "video" ||
+    cleanUrl.startsWith("data:video/") ||
+    /\.(mp4|webm|mov|avi|m4v)$/i.test(cleanUrl)
+  );
+};
 
 const countReactionsSafely = (reactions) => {
   if (!reactions) return 0;
@@ -55,6 +66,17 @@ const renderTextWithMentions = (text) => {
     return part;
   });
 };
+
+const isStaticDemoComment = (comment) => {
+  const author = String(comment?.author || "").trim().toLowerCase();
+  const text = String(comment?.text || "").trim().toLowerCase();
+  return (
+    (author === "sarah mitchell" && text === "this is a beautiful memory! thanks for sharing.") ||
+    (author === "robert mitchell" && text === "wow, brings back so many memories.")
+  );
+};
+
+const realCommentsOnly = (commentsList) => (Array.isArray(commentsList) ? commentsList.filter((comment) => !isStaticDemoComment(comment)) : []);
 
 const flattenReplies = (repliesList, rootAuthor = "") => {
   if (!Array.isArray(repliesList)) return [];
@@ -188,24 +210,27 @@ export default function MemoryViewModal() {
           });
         }
 
-        // Load initial comments from memory object or local cache
+        // Load real comments only; do not seed video memories from static/local demo comments.
         let initialComments = [];
         const memId = mem._id || mem.id;
+        const openedMediaList = [];
+        const collectOpenedMedia = (item) => {
+          if (!item) return;
+          if (typeof item === "string") openedMediaList.push({ url: item });
+          else openedMediaList.push(item);
+        };
+        if (Array.isArray(mem.mediaList)) mem.mediaList.forEach(collectOpenedMedia);
+        if (Array.isArray(mem.media)) mem.media.forEach(collectOpenedMedia);
+        if (Array.isArray(mem.videos)) mem.videos.forEach(collectOpenedMedia);
+        if (mem.videoUrl) openedMediaList.push({ url: mem.videoUrl, type: "video" });
+        if (mem.mediaUrl) openedMediaList.push({ url: mem.mediaUrl, mediaMimeType: mem.mediaMimeType });
+        const openedAsVideo = String(mem.type || "").toLowerCase() === "video" || openedMediaList.some((item) => isVideoLike(item.mediaUrl || item.url, item.mediaMimeType, item.type));
         try {
           const savedComments = localStorage.getItem(`comments_${memId}`);
           if (savedComments) {
-            initialComments = JSON.parse(savedComments);
+            initialComments = realCommentsOnly(JSON.parse(savedComments));
           } else if (Array.isArray(mem.comments) && mem.comments.length > 0) {
-            initialComments = mem.comments;
-          } else {
-            const savedMemories = localStorage.getItem("spokenOdysseyLocalMemories");
-            if (savedMemories) {
-              const parsed = JSON.parse(savedMemories);
-              const found = parsed.find((m) => (m.id || m._id) === memId);
-              if (found && Array.isArray(found.comments) && found.comments.length > 0) {
-                initialComments = found.comments;
-              }
-            }
+            initialComments = realCommentsOnly(mem.comments);
           }
         } catch (_) {}
 
@@ -216,14 +241,15 @@ export default function MemoryViewModal() {
           try {
             const token = isAuthenticated && firebaseUser ? await getToken() : null;
             const backendComments = await getMemoryCommentsFromBackend(token, memId);
-            if (Array.isArray(backendComments) && backendComments.length > 0) {
-              setComments(backendComments);
+            if (Array.isArray(backendComments)) {
+              const realBackendComments = realCommentsOnly(backendComments);
+              setComments(realBackendComments);
               try {
-                localStorage.setItem(`comments_${memId}`, JSON.stringify(backendComments));
+                localStorage.setItem(`comments_${memId}`, JSON.stringify(realBackendComments));
                 const saved = localStorage.getItem("spokenOdysseyLocalMemories");
                 if (saved) {
                   const parsed = JSON.parse(saved);
-                  const updated = parsed.map((m) => ((m.id || m._id) === memId ? { ...m, comments: backendComments } : m));
+                  const updated = parsed.map((m) => ((m.id || m._id) === memId ? { ...m, comments: realBackendComments } : m));
                   localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(updated));
                 }
               } catch (_) {}
@@ -245,26 +271,49 @@ export default function MemoryViewModal() {
     if (!memory) return [];
     const list = [];
 
-    const addMediaItem = (rawUrl, defaultType = "image") => {
+    const addMediaItem = (rawUrl, defaultType = "image", mimeType = "", thumbnailUrl = "") => {
       const norm = normalizeMediaUrl(rawUrl);
       if (!norm) return;
       if (!list.some((m) => m.url === norm)) {
-        const isVid = defaultType === "video" || norm.match(/\.(mp4|webm|mov)$/i) || norm.startsWith("data:video/");
-        list.push({ url: norm, rawUrl, type: isVid ? "video" : "image" });
+        const isVid = isVideoLike(norm, mimeType, defaultType);
+        list.push({
+          url: norm,
+          rawUrl,
+          type: isVid ? "video" : "image",
+          poster: normalizeMediaUrl(thumbnailUrl) || undefined,
+        });
       }
     };
 
-    if (Array.isArray(memory.media) && memory.media.length > 0) {
-      memory.media.forEach((item) => {
-        if (typeof item === "string") {
-          addMediaItem(item);
-        } else if (item?.url) {
-          addMediaItem(item.url, item.type);
-        }
-      });
-    } else if (memory.media) {
-      const url = typeof memory.media === "string" ? memory.media : memory.media.url;
-      addMediaItem(url);
+    // Check memory type first to prevent adding video media for voice memories
+    const memoryType = String(memory.type || "").toLowerCase();
+
+    // Only process mediaList if not voice memory
+    if (memoryType !== "voice") {
+      if (Array.isArray(memory.mediaList) && memory.mediaList.length > 0) {
+        memory.mediaList.forEach((item) => {
+          const url = item?.mediaUrl || item?.url;
+          addMediaItem(url, item?.type, item?.mediaMimeType, item?.thumbnailUrl);
+        });
+      }
+    }
+
+    // Only process media if not voice memory
+    if (memoryType !== "voice") {
+      if (Array.isArray(memory.media) && memory.media.length > 0) {
+        memory.media.forEach((item) => {
+          if (typeof item === "string") {
+            addMediaItem(item);
+          } else if (item?.url) {
+            addMediaItem(item.url, item.type, item.mediaMimeType || item.mimeType, item.thumbnailUrl);
+          } else if (item?.mediaUrl) {
+            addMediaItem(item.mediaUrl, item.type, item.mediaMimeType, item.thumbnailUrl);
+          }
+        });
+      } else if (memory.media) {
+        const url = typeof memory.media === "string" ? memory.media : (memory.media.url || memory.media.mediaUrl);
+        addMediaItem(url, memory.media.type, memory.media.mediaMimeType, memory.media.thumbnailUrl);
+      }
     }
 
     if (Array.isArray(memory.images)) {
@@ -274,18 +323,30 @@ export default function MemoryViewModal() {
       });
     }
 
-    if (Array.isArray(memory.videos)) {
-      memory.videos.forEach((vid) => {
-        const url = typeof vid === "string" ? vid : vid?.url;
-        addMediaItem(url, "video");
-      });
+    // Only add videos if memory type is not Voice
+    if (memoryType !== "voice") {
+      if (Array.isArray(memory.videos)) {
+        memory.videos.forEach((vid) => {
+          const url = typeof vid === "string" ? vid : vid?.url;
+          addMediaItem(url, "video");
+        });
+      }
     }
 
     if (memory.image) addMediaItem(memory.image, "image");
     if (memory.cover) addMediaItem(memory.cover, "image");
-    if (memory.videoUrl) addMediaItem(memory.videoUrl, "video");
-    if (memory.mediaUrl && !memory.audioUrl && !memory.audio) addMediaItem(memory.mediaUrl);
-    if (memory.fileUrl) addMediaItem(memory.fileUrl);
+    // Only add video-related media if memory type is not Voice
+    if (memoryType !== "voice") {
+      if (memory.videoUrl) addMediaItem(memory.videoUrl, "video");
+      if (isVideoLike(memory.audioUrl)) addMediaItem(memory.audioUrl, "video");
+      if (isVideoLike(memory.audio)) addMediaItem(memory.audio, "video");
+      if (memory.mediaUrl && (!memory.audioUrl || isVideoLike(memory.mediaUrl, memory.mediaMimeType))) addMediaItem(memory.mediaUrl, undefined, memory.mediaMimeType, memory.thumbnailUrl);
+      if (memory.fileUrl) addMediaItem(memory.fileUrl, undefined, memory.mediaMimeType);
+    }
+
+    if ((memoryType === "video" || memoryType === "visual" || memoryType === "photo") && list.some((m) => m.type === "video")) {
+      return [...list].sort((a, b) => (a.type === "video" ? -1 : 0) - (b.type === "video" ? -1 : 0));
+    }
 
     return list;
   }, [memory]);
@@ -298,7 +359,8 @@ export default function MemoryViewModal() {
       : null);
   
   const audioSrc = normalizeMediaUrl(rawAudioUrl);
-  const isVoice = memory?.type?.toLowerCase() === "voice" || memory?.type?.toLowerCase() === "audio" || !!audioSrc;
+  const hasVideoMedia = mediaList.some((item) => item.type === "video");
+  const isVoice = !hasVideoMedia && (memory?.type?.toLowerCase() === "voice" || memory?.type?.toLowerCase() === "audio" || !!audioSrc);
   const hasMedia = mediaList.length > 0;
 
   useEffect(() => {
@@ -365,6 +427,7 @@ export default function MemoryViewModal() {
   const rawPrivacy = (memory?.privacy || memory?.visibility || "Private").toString();
   const privacyStr = rawPrivacy.charAt(0).toUpperCase() + rawPrivacy.slice(1).toLowerCase();
   const activeMedia = mediaList[activeMediaIndex] || mediaList[0];
+  const isVideoMemory = activeMedia?.type === "video" || mediaList.some((item) => item.type === "video");
 
   const prevMedia = () => {
     setIsPlayingVideo(false);
@@ -626,7 +689,7 @@ export default function MemoryViewModal() {
   const getShareUrl = () => {
     if (typeof window === "undefined") return "";
     const memId = memory?._id || memory?.id;
-    return `${window.location.origin}/memories?id=${memId}`;
+    return `${window.location.origin}/memories/${memId}`;
   };
 
   const trackShareOnBackend = async () => {
@@ -936,6 +999,21 @@ export default function MemoryViewModal() {
             <div className="p-3 sm:p-4 bg-stone-900 border-b border-stone-800">
               <div className="h-[160px] sm:h-[190px] bg-stone-950 rounded-2xl relative flex flex-col justify-end group select-none overflow-hidden border border-stone-800/80 shadow-inner">
                 
+                {activeMedia?.type === "video" && (memory?._id || memory?.id) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsLightboxOpen(true);
+                    }}
+                    className="absolute top-3 right-14 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all shadow-xl backdrop-blur-md z-30 cursor-pointer border border-white/10"
+                    title="Open full screen video preview"
+                    aria-label="Open full screen video preview"
+                  >
+                    <ExternalLink size={17} strokeWidth={2.5} />
+                  </button>
+                )}
+
                 {/* Floating X Cross Close Button */}
                 <button 
                   onClick={handleClose}
@@ -947,48 +1025,16 @@ export default function MemoryViewModal() {
 
                 {/* Media Display (Fixed height, object-cover filling rectangular container) */}
                 {activeMedia?.type === "video" ? (
-                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-black group/vid">
-                    <video 
-                      ref={videoPlayerRef}
+                  <div className="absolute inset-0 w-full h-full bg-black z-20">
+                    <VideoPlayer 
                       src={activeMedia?.url} 
-                      controls 
-                      onEnded={() => setIsPlayingVideo(false)}
-                      onTimeUpdate={(e) => setVideoCurrentTime(e.target.currentTime)}
-                      onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
-                      className="w-full h-full object-cover"
+                      poster={activeMedia?.poster}
+                      title={memory.title}
+                      onNext={mediaList.length > 1 ? nextMedia : undefined}
+                      onPrev={mediaList.length > 1 ? prevMedia : undefined}
+                      hasNext={mediaList.length > 1 && activeMediaIndex < mediaList.length - 1}
+                      hasPrev={mediaList.length > 1 && activeMediaIndex > 0}
                     />
-
-                    {/* Interactive Video Playback & Speed Controller Bar */}
-                    <div className="absolute bottom-3 left-3 right-3 bg-black/80 backdrop-blur-md rounded-2xl p-2 flex items-center justify-between gap-3 text-white z-20 border border-white/10 opacity-90 group-hover/vid:opacity-100 transition-opacity">
-                      <div className="flex items-center gap-3">
-                        <button 
-                          onClick={togglePlayVideo}
-                          className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shrink-0 cursor-pointer shadow-md"
-                        >
-                          {isPlayingVideo ? <Pause size={14} strokeWidth={2.5} /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-                        </button>
-
-                        <span className="text-[11px] font-bold text-white/90">
-                          {Math.floor(videoCurrentTime / 60)}:{(Math.floor(videoCurrentTime) % 60).toString().padStart(2, '0')} / {Math.floor((videoDuration || 0) / 60)}:{(Math.floor(videoDuration || 0) % 60).toString().padStart(2, '0')}
-                        </span>
-                      </div>
-
-                      {/* Video Speed Toggles */}
-                      <div className="flex items-center gap-1 bg-white/10 p-1 rounded-xl">
-                        {[1, 1.25, 1.5, 1.75, 2].map((spd) => (
-                          <button
-                            key={spd}
-                            onClick={() => handleVideoSpeedChange(spd)}
-                            className={clsx(
-                              "px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer",
-                              videoPlaybackSpeed === spd ? "bg-white text-black shadow-xs" : "text-white/80 hover:text-white"
-                            )}
-                          >
-                            {spd}x
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 ) : brokenImages[activeMedia?.url] ? (
                   <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-900 to-stone-950 text-stone-400 p-6 text-center">
@@ -1018,7 +1064,7 @@ export default function MemoryViewModal() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none z-10" />
 
                 {/* Carousel Arrows */}
-                {mediaList.length > 1 && (
+                {mediaList.length > 1 && activeMedia?.type !== "video" && (
                   <>
                     <button 
                       onClick={prevMedia}
@@ -1044,7 +1090,7 @@ export default function MemoryViewModal() {
                       {activeMedia?.type === "video" ? <Film size={12} /> : <ImageIcon size={12} />}
                       <span>{activeMedia?.type === "video" ? "VIDEO MEMORY" : "PHOTO MEMORY"}</span>
                     </div>
-                    {mediaList.length > 1 && (
+                    {mediaList.length > 1 && activeMedia?.type !== "video" && (
                       <span className="px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-bold backdrop-blur-md">
                         {activeMediaIndex + 1} of {mediaList.length}
                       </span>
@@ -1055,7 +1101,7 @@ export default function MemoryViewModal() {
                 </div>
 
                 {/* Thumbnail Strip */}
-                {mediaList.length > 1 && (
+                {mediaList.length > 1 && activeMedia?.type !== "video" && (
                   <div className="relative z-20 px-6 pb-4 flex items-center gap-2 overflow-x-auto">
                     {mediaList.map((m, idx) => (
                       <button
@@ -1522,7 +1568,7 @@ export default function MemoryViewModal() {
             </div>
           </div>
 
-          {/* --- FOOTER SECTION WITH FACEBOOK-STYLE HOVER REACTION PICKER & ACTIONS --- */}
+          {/* --- FOOTER SECTION WITH ACTIONS --- */}
           <div className="p-4 sm:px-8 sm:py-4 border-t border-stone-100 bg-white flex flex-col md:flex-row items-center justify-between gap-4">
             
             {/* Facebook-Style Floating Reaction Picker */}
@@ -1773,7 +1819,7 @@ export default function MemoryViewModal() {
           <div className="w-full flex items-center justify-between text-white z-10">
             <div className="flex items-center gap-3">
               <span className="font-bold text-sm">{memory.title}</span>
-              {mediaList.length > 1 && (
+              {mediaList.length > 1 && activeMedia?.type !== "video" && (
                 <span className="text-xs bg-white/20 px-3 py-1 rounded-full backdrop-blur-md">
                   {activeMediaIndex + 1} / {mediaList.length}
                 </span>
@@ -1793,7 +1839,7 @@ export default function MemoryViewModal() {
             className="flex-1 w-full max-w-5xl flex items-center justify-center my-4 relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {mediaList.length > 1 && (
+            {mediaList.length > 1 && activeMedia?.type !== "video" && (
               <button 
                 onClick={prevMedia}
                 className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/60 hover:bg-black text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-xl z-20 cursor-pointer"
@@ -1803,49 +1849,16 @@ export default function MemoryViewModal() {
             )}
 
             {activeMedia.type === "video" ? (
-              <div className="relative w-full max-w-4xl max-h-[80vh] bg-black rounded-2xl overflow-hidden flex flex-col justify-end group/vid shadow-2xl">
-                <video 
-                  ref={videoPlayerRef}
-                  src={activeMedia.url} 
-                  controls 
-                  autoPlay
-                  onEnded={() => setIsPlayingVideo(false)}
-                  onTimeUpdate={(e) => setVideoCurrentTime(e.target.currentTime)}
-                  onLoadedMetadata={(e) => setVideoDuration(e.target.duration)}
-                  className="max-h-[80vh] max-w-full object-contain" 
+              <div className="relative w-full max-w-6xl h-[78vh] bg-black rounded-2xl overflow-hidden shadow-2xl">
+                <VideoPlayer
+                  src={activeMedia.url}
+                  poster={activeMedia.poster}
+                  title={memory.title}
+                  onNext={mediaList.length > 1 ? nextMedia : undefined}
+                  onPrev={mediaList.length > 1 ? prevMedia : undefined}
+                  hasNext={mediaList.length > 1 && activeMediaIndex < mediaList.length - 1}
+                  hasPrev={mediaList.length > 1 && activeMediaIndex > 0}
                 />
-
-                {/* Lightbox Video Controls Overlay */}
-                <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md rounded-2xl p-3 flex items-center justify-between gap-3 text-white z-20 border border-white/10 opacity-90 group-hover/vid:opacity-100 transition-opacity">
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={togglePlayVideo}
-                      className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shrink-0 cursor-pointer shadow-md"
-                    >
-                      {isPlayingVideo ? <Pause size={18} strokeWidth={2.5} /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
-                    </button>
-
-                    <span className="text-xs font-bold text-white/90">
-                      {Math.floor(videoCurrentTime / 60)}:{(Math.floor(videoCurrentTime) % 60).toString().padStart(2, '0')} / {Math.floor((videoDuration || 0) / 60)}:{(Math.floor(videoDuration || 0) % 60).toString().padStart(2, '0')}
-                    </span>
-                  </div>
-
-                  {/* Video Speed Toggles */}
-                  <div className="flex items-center gap-1 bg-white/10 p-1 rounded-xl">
-                    {[1, 1.25, 1.5, 1.75, 2].map((spd) => (
-                      <button
-                        key={spd}
-                        onClick={() => handleVideoSpeedChange(spd)}
-                        className={clsx(
-                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                          videoPlaybackSpeed === spd ? "bg-white text-black shadow-xs" : "text-white/80 hover:text-white"
-                        )}
-                      >
-                        {spd}x
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             ) : brokenImages[activeMedia.url] ? (
               <div className="w-80 h-80 rounded-3xl bg-stone-900 border border-stone-800 flex flex-col items-center justify-center text-stone-400 p-6 text-center shadow-2xl">
@@ -1862,7 +1875,7 @@ export default function MemoryViewModal() {
               />
             )}
 
-            {mediaList.length > 1 && (
+            {mediaList.length > 1 && activeMedia?.type !== "video" && (
               <button 
                 onClick={nextMedia}
                 className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/60 hover:bg-black text-white rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-xl z-20 cursor-pointer"
@@ -1873,7 +1886,7 @@ export default function MemoryViewModal() {
           </div>
 
           {/* Lightbox Thumbnail Strip */}
-          {mediaList.length > 1 && (
+          {mediaList.length > 1 && activeMedia?.type !== "video" && (
             <div className="flex items-center gap-2 overflow-x-auto py-2 z-10" onClick={(e) => e.stopPropagation()}>
               {mediaList.map((m, idx) => (
                 <button

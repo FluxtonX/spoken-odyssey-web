@@ -92,12 +92,15 @@ export default function AlbumsGallery() {
   const [toastMessage, setToastMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   const loadAlbums = async () => {
     setIsLoading(true);
     let allMemories = [];
     try {
-      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+      const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+      const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
       if (saved) allMemories = JSON.parse(saved);
     } catch {}
 
@@ -259,6 +262,23 @@ export default function AlbumsGallery() {
     (album.subtitle && album.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAlbums.length / itemsPerPage);
+  const paginatedAlbums = filteredAlbums.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   return (
     <div className="w-full relative min-h-screen">
       {/* If WavesBackground causes layout issues, it can be added around this div. Based on screenshot, background is plain with slight purple shapes, which LayoutShell handles. */}
@@ -334,13 +354,51 @@ export default function AlbumsGallery() {
               <p className="text-sm text-stone-500 max-w-sm text-center">Create your first album to start organizing your memories.</p>
             </div>
           ) : (
-            filteredAlbums.map((album) => (
+            paginatedAlbums.map((album) => (
               <motion.div variants={fadeInUp} key={album.id} className="h-full">
                 <AlbumCard album={album} />
               </motion.div>
             ))
           )}
         </motion.div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <motion.div 
+            variants={fadeInUp} 
+            className="flex items-center justify-center gap-2 mt-8"
+          >
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-4 py-2 rounded-lg border border-[#C7D2FE] text-stone-700 font-bold bg-white hover:bg-[#EEF2FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Previous
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+                  currentPage === page
+                    ? 'bg-[#4A3AFF] text-white'
+                    : 'border border-[#C7D2FE] text-stone-700 bg-white hover:bg-[#EEF2FF]'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 rounded-lg border border-[#C7D2FE] text-stone-700 font-bold bg-white hover:bg-[#EEF2FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Next
+            </button>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Album Creation Modal */}

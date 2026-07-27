@@ -21,13 +21,16 @@ import {
   BookOpen, 
   Check, 
   Loader2,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { getStoredAlbums } from "@/data/userProfile";
-import { getAlbumDetailsFromBackend, normalizeMediaUrl } from "@/services/backend";
+import { getAlbumDetailsFromBackend, normalizeMediaUrl, deleteAlbumOnBackend, getBackendErrorMessage } from "@/services/backend";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
+import EditAlbumModal from "@/components/ui/EditAlbumModal";
+import ShareModal from "@/components/ui/ShareModal";
 
 import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
 
@@ -181,6 +184,12 @@ export default function AlbumDetailPage() {
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "list" | "story"
   const [isLoading, setIsLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState("");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
   useEffect(() => {
     async function loadAlbumDetails() {
@@ -198,6 +207,9 @@ export default function AlbumDetailPage() {
         tags: ["career", "work", "craft"]
       };
 
+      let backendMemoriesLoaded = false;
+      let backendAlbumLoaded = false;
+
       if (isAuthenticated && firebaseUser && id && !id.startsWith("album-")) {
         try {
           const token = await getToken();
@@ -210,8 +222,10 @@ export default function AlbumDetailPage() {
               privacy: backendData.privacy || found.privacy,
               cover: backendData.coverImageUrl || backendData.coverImageKey || found.cover
             });
+            backendAlbumLoaded = true;
             if (Array.isArray(backendData.memories) && backendData.memories.length > 0) {
               setMemoriesList(backendData.memories);
+              backendMemoriesLoaded = true;
               setIsLoading(false);
               return;
             }
@@ -221,26 +235,49 @@ export default function AlbumDetailPage() {
         }
       }
 
-      setAlbum(found);
+      // Only set album to static fallback if backend album was not loaded
+      if (!backendAlbumLoaded) {
+        setAlbum(found);
 
-      const baseMemories = ALBUM_MEMORIES_MAP[found.id] || ALBUM_MEMORIES_MAP["career-craft"] || [];
+        // Only load static memories if backend album was not loaded
+        const baseMemories = ALBUM_MEMORIES_MAP[found.id] || ALBUM_MEMORIES_MAP["career-craft"] || [];
 
-      // Load local memories for album
-      try {
-        const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-        if (saved) {
-          const allMem = JSON.parse(saved);
-          const filtered = allMem.filter(m => m.albumId === found.id || (m.albums && m.albums.includes(found.id)));
-          if (filtered.length > 0) {
-            const merged = [...filtered, ...baseMemories.filter(s => !filtered.some(f => f.id === s.id))];
-            setMemoriesList(merged);
-            setIsLoading(false);
-            return;
+        // Load local memories for album
+        try {
+          const saved = localStorage.getItem("spokenOdysseyLocalMemories");
+          if (saved) {
+            const allMem = JSON.parse(saved);
+            const filtered = allMem.filter(m => m.albumId === found.id || (m.albums && m.albums.includes(found.id)));
+            if (filtered.length > 0) {
+              const merged = [...filtered, ...baseMemories.filter(s => !filtered.some(f => f.id === s.id))];
+              setMemoriesList(merged);
+              setIsLoading(false);
+              return;
+            }
           }
-        }
-      } catch {}
+        } catch {}
 
-      setMemoriesList(baseMemories);
+        setMemoriesList(baseMemories);
+      } else {
+        // Backend album was loaded but no memories found - check local storage
+        try {
+          const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+          const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
+          if (saved) {
+            const allMem = JSON.parse(saved);
+            const filtered = allMem.filter(m => m.albumId === id || (m.albums && m.albums.includes(id)));
+            if (filtered.length > 0) {
+              setMemoriesList(filtered);
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch {}
+        
+        // No memories anywhere - show empty state
+        setMemoriesList([]);
+      }
+
       setIsLoading(false);
     }
 
@@ -252,7 +289,13 @@ export default function AlbumDetailPage() {
       setTimeout(() => setToastMessage(""), 4000);
 
       if (newMemory) {
-        setMemoriesList(prev => [newMemory, ...prev]);
+        setMemoriesList(prev => {
+          // Check if memory already exists to avoid duplicates
+          if (prev.some(m => m.id === newMemory.id)) {
+            return prev;
+          }
+          return [newMemory, ...prev];
+        });
       } else {
         loadAlbumDetails();
       }
@@ -263,10 +306,44 @@ export default function AlbumDetailPage() {
   }, [id, isAuthenticated, firebaseUser]);
 
   const handleShareAlbum = () => {
-    const link = `${window.location.origin}/albums/${id}`;
-    navigator.clipboard.writeText(link);
-    setToastMessage("Album link copied to clipboard!");
+    setIsShareModalOpen(true);
+  };
+
+  const handleEditAlbum = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteAlbum = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteAlbum = async () => {
+    if (!album?.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const token = await getToken();
+      await deleteAlbumOnBackend(token, album.id);
+      setToastMessage("Album deleted successfully!");
+      setTimeout(() => {
+        router.push("/albums");
+      }, 1500);
+    } catch (err) {
+      console.error("Failed to delete album:", err);
+      setToastMessage(`Failed to delete: ${getBackendErrorMessage(err)}`);
+      setTimeout(() => setToastMessage(""), 3000);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
+  };
+
+  const handleAlbumUpdated = () => {
+    setToastMessage("Album updated successfully!");
     setTimeout(() => setToastMessage(""), 3000);
+    setIsEditModalOpen(false);
+    // Reload the page to refresh album data
+    window.location.reload();
   };
 
   const handleAddMemory = () => {
@@ -278,6 +355,23 @@ export default function AlbumDetailPage() {
   const voiceCount = useMemo(() => memoriesList.filter(m => (m.type || "").toLowerCase() === "voice" && !m.image).length, [memoriesList]);
   const writtenCount = useMemo(() => memoriesList.filter(m => (m.type || "").toLowerCase() === "written").length, [memoriesList]);
   const totalMemoriesCount = memoriesList.length;
+
+  // Pagination logic for memories
+  const totalPages = useMemo(() => Math.ceil(memoriesList.length / itemsPerPage), [memoriesList.length]);
+  const paginatedMemories = useMemo(() => 
+    memoriesList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [memoriesList, currentPage]
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to page 1 when memories list changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [memoriesList.length]);
 
   if (isLoading || !album) {
     return (
@@ -328,7 +422,7 @@ export default function AlbumDetailPage() {
             {/* Top Right Action Control Buttons */}
             <div className="absolute top-5 right-5 flex items-center gap-2.5 z-20">
               <button 
-                onClick={() => setToastMessage("Album editing active")}
+                onClick={handleEditAlbum}
                 className="w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95"
                 title="Edit Album"
               >
@@ -342,11 +436,7 @@ export default function AlbumDetailPage() {
                 <Share2 size={16} />
               </button>
               <button 
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete this album?")) {
-                    router.push("/albums");
-                  }
-                }}
+                onClick={handleDeleteAlbum}
                 className="w-9 h-9 rounded-xl bg-white/20 hover:bg-red-500/80 backdrop-blur-md text-white flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95"
                 title="Delete Album"
               >
@@ -486,7 +576,7 @@ export default function AlbumDetailPage() {
           {viewMode === "grid" && (
             <motion.div variants={staggerContainer} initial="hidden" animate="show">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {memoriesList.map((memory) => (
+                {paginatedMemories.map((memory) => (
                   <motion.div key={memory.id} variants={fadeInUp}>
                     <MemoryCardItem memory={memory} />
                   </motion.div>
@@ -498,7 +588,7 @@ export default function AlbumDetailPage() {
           {/* VIEW MODE 2: LIST (Clean vertical table/row view) */}
           {viewMode === "list" && (
             <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
-              {memoriesList.map((memory) => {
+              {paginatedMemories.map((memory) => {
                 const type = (memory.type || "Voice").toLowerCase();
                 const isPhoto = type === "photo" || memory.image;
 
@@ -551,7 +641,7 @@ export default function AlbumDetailPage() {
                 {/* Continuous Vertical Timeline Connecting Line */}
                 <div className="absolute left-[17px] sm:left-[23px] top-6 bottom-6 w-[2px] bg-[#C7D2FE]/70 dark:bg-slate-700/70" />
 
-                {memoriesList.map((memory) => {
+                {paginatedMemories.map((memory) => {
                   const type = (memory.type || "Voice").toLowerCase();
                   const isPhoto = type === "photo" || memory.image;
 
@@ -603,6 +693,44 @@ export default function AlbumDetailPage() {
             </motion.div>
           )}
 
+          {/* Pagination Controls for Memories */}
+          {totalPages > 1 && (
+            <motion.div 
+              variants={fadeInUp} 
+              className="flex items-center justify-center gap-2 mt-8"
+            >
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg border border-[#C7D2FE] text-stone-700 font-bold bg-white hover:bg-[#EEF2FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                Previous
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+                    currentPage === page
+                      ? 'bg-[#4A3AFF] text-white'
+                      : 'border border-[#C7D2FE] text-stone-700 bg-white hover:bg-[#EEF2FF]'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg border border-[#C7D2FE] text-stone-700 font-bold bg-white hover:bg-[#EEF2FF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                Next
+              </button>
+            </motion.div>
+          )}
+
         </div>
       </motion.div>
 
@@ -611,6 +739,70 @@ export default function AlbumDetailPage() {
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-emerald-500 text-white p-4 text-xs font-bold shadow-xl animate-fade-in">
           <Check size={16} strokeWidth={3} />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Edit Album Modal */}
+      {isEditModalOpen && album && (
+        <EditAlbumModal 
+          album={album}
+          onClose={() => setIsEditModalOpen(false)}
+          onSuccess={handleAlbumUpdated}
+        />
+      )}
+
+      {/* Share Modal */}
+      {isShareModalOpen && album && (
+        <ShareModal 
+          album={album}
+          onClose={() => setIsShareModalOpen(false)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl animate-scale-up overflow-hidden relative">
+            <div className="flex items-center justify-between border-b border-[#4f37ff]/20 p-5">
+              <h3 className="text-lg font-black text-stone-900">Delete Album</h3>
+              <button onClick={() => setIsDeleteModalOpen(false)} className="text-stone-900 hover:text-stone-600 cursor-pointer">
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-4 p-4 bg-red-50 rounded-xl border border-red-100">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-stone-900">Are you sure?</p>
+                  <p className="text-xs font-semibold text-stone-500">This action cannot be undone.</p>
+                </div>
+              </div>
+              
+              <p className="text-sm font-medium text-stone-600">
+                Deleting <span className="font-bold text-stone-900">"{album?.title}"</span> will permanently remove this album and all its memories.
+              </p>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  disabled={isDeleting}
+                  className="flex-1 rounded-xl border border-[#c8c5ff] py-3 text-sm font-bold text-stone-900 hover:bg-stone-50 transition cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDeleteAlbum}
+                  disabled={isDeleting}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold bg-red-500 text-white hover:bg-red-600 transition cursor-pointer disabled:opacity-50"
+                >
+                  {isDeleting && <Loader2 size={16} className="animate-spin" />}
+                  Delete Album
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </WavesBackground>

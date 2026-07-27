@@ -1,13 +1,13 @@
 "use client";
 
-import { ChevronRight, Play, Pause, Mic, Image as ImageIcon, FileText, Share2, LogOut, Settings, HelpCircle, User, Sparkles, Users, BookOpen, TrendingUp } from "lucide-react";
+import { ChevronRight, Play, Pause, Mic, Image as ImageIcon, FileText, Film, Share2, LogOut, Settings, HelpCircle, User, Sparkles, Users, BookOpen, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import LandingPage from "@/app/landing/page";
 import { useAuth } from "@/context/AuthProvider";
 import { useRouter } from "next/navigation";
-import { getAlbumsFromBackend, getMemoriesFromBackend, getFamilyMembers } from "@/services/backend";
+import { getAlbumsFromBackend, getMemoriesFromBackend, getFamilyMembers, normalizeMediaUrl } from "@/services/backend";
 import { memories } from "@/data/mockApp";
 import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COVER_PRESETS } from "@/data/userProfile";
 import { motion } from "framer-motion";
@@ -22,9 +22,85 @@ const formatDateSafely = (dateVal) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
+const isVideoLike = (url, mimeType = "", type = "") => {
+  const cleanUrl = typeof url === "string" ? url.split("?")[0] : "";
+  return (
+    String(mimeType || "").toLowerCase().startsWith("video/") ||
+    String(type || "").toLowerCase() === "video" ||
+    cleanUrl.startsWith("data:video/") ||
+    /\.(mp4|webm|mov|avi|m4v)$/i.test(cleanUrl)
+  );
+};
+
+const getMemoryMediaSources = (memory) => {
+  const items = [];
+  const addItem = (url, type = "image", mimeType = "") => {
+    if (!url || typeof url !== "string") return;
+    items.push({ url, type: isVideoLike(url, mimeType, type) ? "video" : "image" });
+  };
+
+  if (Array.isArray(memory.mediaList)) {
+    memory.mediaList.forEach((item) => addItem(item?.mediaUrl || item?.url, item?.type, item?.mediaMimeType));
+  }
+  if (Array.isArray(memory.media)) {
+    memory.media.forEach((item) => {
+      if (typeof item === "string") addItem(item);
+      else addItem(item?.url || item?.mediaUrl, item?.type, item?.mediaMimeType || item?.mimeType);
+    });
+  } else if (memory.media) {
+    addItem(typeof memory.media === "string" ? memory.media : (memory.media.url || memory.media.mediaUrl), memory.media.type, memory.media.mediaMimeType);
+  }
+
+  if (Array.isArray(memory.images)) memory.images.forEach((img) => addItem(typeof img === "string" ? img : img?.url, "image"));
+  if (Array.isArray(memory.videos)) memory.videos.forEach((vid) => addItem(typeof vid === "string" ? vid : vid?.url, "video"));
+
+  addItem(memory.videoUrl, "video");
+  addItem(memory.mediaUrl, undefined, memory.mediaMimeType);
+  if (isVideoLike(memory.audioUrl)) addItem(memory.audioUrl, "video");
+  if (isVideoLike(memory.audio)) addItem(memory.audio, "video");
+  addItem(memory.image, "image");
+  addItem(memory.cover, "image");
+  addItem(memory.imageUrl, "image");
+  addItem(memory.coverImageUrl, "image");
+
+  return {
+    video: items.find((item) => item.type === "video")?.url,
+    image: items.find((item) => item.type === "image")?.url,
+  };
+};
+
+const getMemoryDuplicateKey = (memory) => {
+  const id = memory?.id || memory?._id;
+  const title = String(memory?.title || "").trim().toLowerCase();
+  if (!title) return id ? `id:${id}` : "";
+  const rawDate = memory?.createdAt || memory?.occurredAt || memory?.date || "";
+  const parsedDate = new Date(rawDate);
+  const day = Number.isNaN(parsedDate.getTime()) ? String(rawDate).slice(0, 10) : parsedDate.toISOString().slice(0, 10);
+  return `${title}_${day}`;
+};
+
+const dedupeMemories = (list = []) => {
+  const seen = new Set();
+  return list.filter((memory) => {
+    const key = getMemoryDuplicateKey(memory);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 function MemoryCard({ memory, index }) {
   const type = memory.type?.toLowerCase() || "voice";
   const dateStr = formatDateSafely(memory.date || memory.createdAt || memory.occurredAt);
+
+  const mediaSources = getMemoryMediaSources(memory);
+  const coverVid = normalizeMediaUrl(mediaSources.video);
+  const coverImg = normalizeMediaUrl(mediaSources.image);
+
+  const normType = (memory.type || "").toLowerCase();
+  const isVideo = normType === "video" || normType === "visual" || !!coverVid;
+  const isVoice = !isVideo && (normType === "voice" || normType === "audio" || (!!memory.audioUrl && !coverVid) || (!!memory.audio && !coverVid));
   
   const openView = () => {
     window.dispatchEvent(new CustomEvent("openMemoryView", { detail: {
@@ -35,7 +111,44 @@ function MemoryCard({ memory, index }) {
 
   const delay = `stagger-${(index % 4) + 2}`;
 
-  if (type === "voice") {
+  if (isVideo) {
+    return (
+      <div onClick={openView} className={`figma-card overflow-hidden group animate-fade-in-up ${delay} break-inside-avoid cursor-pointer`}>
+        <div className="h-48 bg-stone-900 relative overflow-hidden flex items-center justify-center">
+          {coverVid ? (
+            <video src={coverVid} className="w-full h-full object-cover opacity-85" />
+          ) : coverImg ? (
+            <img src={coverImg} alt="Video cover" className="w-full h-full object-cover opacity-85" />
+          ) : (
+            <div className="w-full h-full bg-slate-900 flex items-center justify-center text-slate-500" />
+          )}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md shadow-xl group-hover:scale-110 transition-transform">
+              <Play size={22} fill="currentColor" className="ml-0.5" />
+            </div>
+          </div>
+        </div>
+        <div className="p-6 md:p-8">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-2">
+              <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-[#ec4899]">VIDEO</span>
+            </div>
+            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+          </div>
+          <h3 className="text-[22px] font-bold mb-2 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+          <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>
+          <div className="flex flex-wrap gap-2">
+            {(memory.tags || []).map(tag => (
+              <span key={tag} className="px-3 py-1 bg-white border border-[#E5E7EB] rounded-full text-[11px] font-semibold text-stone-500">{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isVoice) {
     return (
       <div onClick={openView} className={`figma-card p-6 md:p-8 animate-fade-in-up ${delay} break-inside-avoid cursor-pointer`}>
         <div className="flex justify-between items-start mb-4">
@@ -45,7 +158,7 @@ function MemoryCard({ memory, index }) {
           </div>
           <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
         </div>
-        <h3 className="text-[22px] font-bold mb-3 text-stone-900">{memory.title}</h3>
+        <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
         <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">
           {memory.description || "No transcript available for this voice memory."}
         </p>
@@ -72,7 +185,7 @@ function MemoryCard({ memory, index }) {
             </div>
             <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
           </div>
-          <h3 className="text-[22px] font-bold mb-3 text-stone-900">{memory.title}</h3>
+          <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
           <p className="text-stone-500 mb-6 line-clamp-3 text-[15px] leading-relaxed">
             {memory.description}
           </p>
@@ -90,7 +203,7 @@ function MemoryCard({ memory, index }) {
   return (
     <div onClick={openView} className={`figma-card overflow-hidden group animate-fade-in-up ${delay} break-inside-avoid cursor-pointer`}>
       <div className="h-48 bg-stone-200 relative overflow-hidden">
-        <img src={memory.image || memory.cover || "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80"} alt="Memory" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+        <img src={coverImg || memory.image || memory.cover || "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80"} alt="Memory" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
       </div>
       <div className="p-6 md:p-8">
         <div className="flex justify-between items-start mb-4">
@@ -100,11 +213,11 @@ function MemoryCard({ memory, index }) {
           </div>
           <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
         </div>
-        <h3 className="text-[22px] font-bold mb-2 text-stone-900">{memory.title}</h3>
+        <h3 className="text-[22px] font-bold mb-2 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
         <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>
         <div className="flex flex-wrap gap-2">
           {(memory.tags || []).map(tag => (
-            <span key={tag} className="px-3 py-1 bg-[#4A3AFF] text-white rounded-full text-[11px] font-semibold">{tag}</span>
+            <span key={tag} className="px-3 py-1 bg-white border border-[#E5E7EB] rounded-full text-[11px] font-semibold text-stone-500">{tag}</span>
           ))}
         </div>
       </div>
@@ -167,51 +280,54 @@ export default function Home() {
             getFamilyMembers(token)
           ]);
           
-          if (backendMemories.status === "fulfilled" && Array.isArray(backendMemories.value) && backendMemories.value.length > 0) {
+          if (backendMemories.status === "fulfilled" && Array.isArray(backendMemories.value)) {
             fetchedMemories = backendMemories.value;
           } else {
-            seedInitialMemoriesIfNeeded();
-            const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-            fetchedMemories = saved ? JSON.parse(saved) : memories;
+            const userKey = (firebaseUser?.uid || profile?.id) ? `spokenOdysseyLocalMemories_${firebaseUser?.uid || profile?.id}` : "spokenOdysseyLocalMemories";
+            const saved = localStorage.getItem(userKey);
+            fetchedMemories = saved ? JSON.parse(saved) : [];
           }
 
           if (backendFamily.status === "fulfilled" && Array.isArray(backendFamily.value)) {
             familyCount = backendFamily.value.length;
           } else {
             const storedFam = localStorage.getItem("spokenOdysseyFamilyMembers");
-            familyCount = storedFam ? JSON.parse(storedFam).length : 4;
+            familyCount = storedFam ? JSON.parse(storedFam).length : 0;
           }
         } catch (error) {
           console.warn("Failed to load backend data", error);
-          seedInitialMemoriesIfNeeded();
-          const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-          fetchedMemories = saved ? JSON.parse(saved) : memories;
+          const userKey = (firebaseUser?.uid || profile?.id) ? `spokenOdysseyLocalMemories_${firebaseUser?.uid || profile?.id}` : "spokenOdysseyLocalMemories";
+          const saved = localStorage.getItem(userKey);
+          fetchedMemories = saved ? JSON.parse(saved) : [];
         }
       } else {
-        seedInitialMemoriesIfNeeded();
         const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-        fetchedMemories = saved ? JSON.parse(saved) : memories;
+        fetchedMemories = saved ? JSON.parse(saved) : [];
       }
 
-      setMemoriesList(fetchedMemories);
+      const uniqueMemories = dedupeMemories(fetchedMemories);
+      setMemoriesList(uniqueMemories);
 
       // Compute exact dynamic stats from database / API
       const currentYear = new Date().getFullYear();
-      const voiceCount = fetchedMemories.filter(m => 
-        m.type?.toLowerCase() === "voice" || 
-        m.type?.toLowerCase() === "audio" || 
-        !!m.audioUrl || 
-        !!m.audio
-      ).length;
+      const voiceCount = uniqueMemories.filter((m) => {
+        const sources = getMemoryMediaSources(m);
+        return !sources.video && (
+          m.type?.toLowerCase() === "voice" ||
+          m.type?.toLowerCase() === "audio" ||
+          !!m.audioUrl ||
+          !!m.audio
+        );
+      }).length;
 
-      const thisYearCount = fetchedMemories.filter(m => {
+      const thisYearCount = uniqueMemories.filter(m => {
         const dateStr = (m.occurredAt || m.createdAt || m.date || "").toString();
         if (!dateStr) return false;
         return dateStr.includes(currentYear.toString()) || new Date(dateStr).getFullYear() === currentYear;
       }).length;
 
       setStats({
-        totalMemories: fetchedMemories.length,
+        totalMemories: uniqueMemories.length,
         voiceRecordings: voiceCount,
         familyMembers: familyCount,
         thisYearCount: thisYearCount

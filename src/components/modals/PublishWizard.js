@@ -945,77 +945,90 @@ export default function PublishWizard() {
               {step === 4 ? (
                 <button 
                   onClick={async () => {
-                    if (!validateStep(3)) return;
                     setIsPublishing(true);
-                    
-                    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
-                    const pathAlbumId = currentPath.startsWith("/albums/") ? currentPath.split("/")[2] : "";
-                    const targetAlbum = pathAlbumId || "career-craft";
-                    const formattedDuration = recordingTime > 0 
-                      ? `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` 
-                      : "01:30";
-
-                    // Convert local File & Blob objects to base64 Data URLs so images/videos & voice stay permanent in localStorage
-                    const fileToDataUrl = (file) => {
-                      return new Promise((resolve) => {
-                        if (!file) return resolve(null);
-                        if (typeof file === "string") return resolve(file);
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = () => resolve(URL.createObjectURL(file));
-                        reader.readAsDataURL(file);
-                      });
-                    };
-
-                    const mediaDataUrls = await Promise.all(visualFiles.map(fileToDataUrl));
-                    const persistentAudioUrl = audioBlob ? await fileToDataUrl(audioBlob) : (audioUrl || undefined);
-
-                    // Build array of media objects for multiple photos & videos
-                    const mediaItems = mediaDataUrls.map((dataUrl, idx) => {
-                      const file = visualFiles[idx];
-                      const isVid = file?.type?.startsWith("video/") || (typeof dataUrl === "string" && dataUrl.startsWith("data:video/"));
-                      return {
-                        url: dataUrl,
-                        type: isVid ? "video" : "image",
-                        name: file?.name || `media-${idx}`,
-                      };
-                    });
-
-                    const firstImage = mediaItems.find(m => m.type === "image")?.url || mediaItems[0]?.url;
-                    const firstVideo = mediaItems.find(m => m.type === "video")?.url;
-
-                    const memType = memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : memoryType === "milestone" ? "Milestone" : "Voice";
-                    const chosenVisibility = visibility || "Private";
-
-                    const newMem = {
-                      id: `mem-${Date.now()}`,
-                      title: title.trim() || (memoryType === "voice" ? "Voice Recording" : memoryType === "visual" ? "Visual Memory" : "Memory"),
-                      description: writtenContent?.trim() || (memoryType === "written" ? "Written memory reflection" : memoryType === "visual" ? "Visual memory album" : "Voice recording memory"),
-                      type: memType,
-                      date: new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-                      albumId: targetAlbum,
-                      albums: [targetAlbum],
-                      privacy: chosenVisibility,
-                      visibility: chosenVisibility,
-                      tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["memory"],
-                      duration: formattedDuration,
-                      audioUrl: persistentAudioUrl,
-                      audio: persistentAudioUrl,
-                      image: firstImage || undefined,
-                      cover: firstImage || undefined,
-                      videoUrl: firstVideo || undefined,
-                      media: mediaItems.length > 0 ? mediaItems : undefined,
-                      images: mediaItems.filter(m => m.type === "image").map(m => m.url),
-                      videos: mediaItems.filter(m => m.type === "video").map(m => m.url),
-                      mood: mood || "Reflective",
-                      createdAt: new Date().toISOString(),
-                    };
-
+                    let publishedMem = null;
                     try {
-                      // Save local memory persistently
-                      const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-                      const existing = saved ? JSON.parse(saved) : [];
-                      localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify([newMem, ...existing]));
+                      const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+                      const pathAlbumId = currentPath.startsWith("/albums/") ? currentPath.split("/")[2] : "";
+                      const targetAlbum = pathAlbumId || "career-craft";
+                      const formattedDuration = recordingTime > 0 
+                        ? `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` 
+                        : "01:30";
+
+                      const fileToDataUrl = (file) => {
+                        return new Promise((resolve) => {
+                          if (!file) return resolve(null);
+                          if (typeof file === "string") return resolve(file);
+                          const reader = new FileReader();
+                          reader.onload = () => resolve(reader.result);
+                          reader.onerror = () => resolve(URL.createObjectURL(file));
+                          reader.readAsDataURL(file);
+                        });
+                      };
+
+                      const mediaDataUrls = await Promise.all(visualFiles.map(fileToDataUrl));
+                      const persistentAudioUrl = audioBlob ? await fileToDataUrl(audioBlob) : (audioUrl || undefined);
+
+                      const mediaItems = mediaDataUrls.map((dataUrl, idx) => {
+                        const file = visualFiles[idx];
+                        const isVid = file?.type?.startsWith("video/") || (typeof dataUrl === "string" && dataUrl.startsWith("data:video/"));
+                        return {
+                          url: dataUrl,
+                          type: isVid ? "video" : "image",
+                          name: file?.name || `media-${idx}`,
+                        };
+                      });
+
+                      const firstImage = mediaItems.find(m => m.type === "image")?.url || mediaItems[0]?.url;
+                      const firstVideo = mediaItems.find(m => m.type === "video")?.url;
+
+                      const memType = memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : memoryType === "milestone" ? "Milestone" : "Voice";
+                      const chosenVisibility = visibility || "Private";
+
+                      const newMem = {
+                        id: `mem-${Date.now()}`,
+                        title: title.trim() || (memoryType === "voice" ? "Voice Recording" : memoryType === "visual" ? "Visual Memory" : "Memory"),
+                        description: writtenContent?.trim() || (memoryType === "written" ? "Written memory reflection" : memoryType === "visual" ? "Visual memory album" : "Voice recording memory"),
+                        type: memType,
+                        date: new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+                        albumId: targetAlbum,
+                        albums: [targetAlbum],
+                        privacy: chosenVisibility,
+                        visibility: chosenVisibility,
+                        tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["memory"],
+                        duration: formattedDuration,
+                        audioUrl: persistentAudioUrl,
+                        audio: persistentAudioUrl,
+                        image: firstImage || undefined,
+                        cover: firstImage || undefined,
+                        videoUrl: firstVideo || undefined,
+                        media: mediaItems.length > 0 ? mediaItems : undefined,
+                        images: mediaItems.filter(m => m.type === "image").map(m => m.url),
+                        videos: mediaItems.filter(m => m.type === "video").map(m => m.url),
+                        mood: mood || "Reflective",
+                        createdAt: new Date().toISOString(),
+                      };
+                      publishedMem = newMem;
+
+                      try {
+                        const sanitizeUrl = (url) => (url && typeof url === "string" && url.startsWith("data:") ? undefined : url);
+                        const sanitizedMem = {
+                          ...newMem,
+                          image: sanitizeUrl(newMem.image),
+                          cover: sanitizeUrl(newMem.cover),
+                          videoUrl: sanitizeUrl(newMem.videoUrl),
+                          mediaUrl: sanitizeUrl(newMem.mediaUrl),
+                          audioUrl: sanitizeUrl(newMem.audioUrl),
+                          media: Array.isArray(newMem.media) ? newMem.media.map(m => ({ ...m, url: sanitizeUrl(m.url) })) : undefined,
+                        };
+
+                        const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+                        const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
+                        const existing = saved ? JSON.parse(saved) : [];
+                        localStorage.setItem(userKey, JSON.stringify([sanitizedMem, ...existing].slice(0, 30)));
+                      } catch (err) {
+                        console.warn("Could not write to localStorage:", err.message);
+                      }
 
                       if (firebaseUser) {
                         const token = await getToken();
@@ -1036,11 +1049,25 @@ export default function PublishWizard() {
                         }
                         const createdBackendMem = await createMemoryOnBackend(token, formData).catch(() => null);
                         if (createdBackendMem?._id || createdBackendMem?.id) {
-                          newMem._id = createdBackendMem._id || createdBackendMem.id;
-                          if (createdBackendMem.mediaUrl) {
-                            newMem.audioUrl = createdBackendMem.mediaUrl;
-                            newMem.audio = createdBackendMem.mediaUrl;
-                            newMem.mediaUrl = createdBackendMem.mediaUrl;
+                          const backendMediaList = Array.isArray(createdBackendMem.mediaList) ? createdBackendMem.mediaList : [];
+                          const backendVideo = backendMediaList.find((item) => item?.mediaMimeType?.startsWith("video/"));
+                          const backendImage = backendMediaList.find((item) => item?.mediaMimeType?.startsWith("image/"));
+
+                          publishedMem._id = createdBackendMem._id || createdBackendMem.id;
+                          publishedMem.id = createdBackendMem.id || createdBackendMem._id || publishedMem.id;
+                          publishedMem.mediaList = backendMediaList;
+
+                          if (memoryType === "voice" && createdBackendMem.mediaUrl) {
+                            publishedMem.audioUrl = createdBackendMem.mediaUrl;
+                            publishedMem.audio = createdBackendMem.mediaUrl;
+                            publishedMem.mediaUrl = createdBackendMem.mediaUrl;
+                          } else if (memoryType === "visual") {
+                            publishedMem.audioUrl = undefined;
+                            publishedMem.audio = undefined;
+                            publishedMem.mediaUrl = backendVideo?.mediaUrl || createdBackendMem.mediaUrl || publishedMem.mediaUrl;
+                            publishedMem.videoUrl = backendVideo?.mediaUrl || publishedMem.videoUrl;
+                            publishedMem.image = backendImage?.mediaUrl || backendVideo?.thumbnailUrl || createdBackendMem.thumbnailUrl || publishedMem.image;
+                            publishedMem.cover = publishedMem.image;
                           }
                         }
                       }
@@ -1048,7 +1075,7 @@ export default function PublishWizard() {
                       console.error("Failed to publish memory", err);
                     } finally {
                       setIsPublishing(false);
-                      window.dispatchEvent(new CustomEvent("memoryPublished", { detail: { memory: newMem } }));
+                      window.dispatchEvent(new CustomEvent("memoryPublished", { detail: { memory: publishedMem } }));
                       setStep(5);
                     }
                   }}

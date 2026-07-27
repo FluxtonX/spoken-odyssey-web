@@ -98,6 +98,14 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     localStorage.removeItem("spokenOdysseyToken");
+    localStorage.removeItem("spokenOdysseyLocalMemories");
+    try {
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith("spokenOdysseyLocalMemories")) {
+          localStorage.removeItem(k);
+        }
+      });
+    } catch {}
     setJwtToken(null);
     setProfile(null);
     await signOutUser();

@@ -3,11 +3,73 @@
 import { useState, useEffect, useMemo } from "react";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { getMemoriesFromBackend } from "@/services/backend";
+import { getMemoriesFromBackend, normalizeMediaUrl } from "@/services/backend";
 import { useAuth } from "@/context/AuthProvider";
-import { Filter, Mic, Image as ImageIcon, FileText, Star, Loader2 } from "lucide-react";
+import { Filter, Mic, Image as ImageIcon, FileText, Star, Loader2, Film, Play, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
+import VoicePlayer from "@/components/ui/VoicePlayer";
+
+const isVideoLike = (url, mimeType = "", type = "") => {
+  const cleanUrl = typeof url === "string" ? url.split("?")[0] : "";
+  return (
+    String(mimeType || "").toLowerCase().startsWith("video/") ||
+    String(type || "").toLowerCase() === "video" ||
+    cleanUrl.startsWith("data:video/") ||
+    /.(mp4|webm|mov|avi|m4v)$/i.test(cleanUrl)
+  );
+};
+
+const getMemoryMediaSources = (memory) => {
+  const items = [];
+  const addItem = (url, type = "image", mimeType = "") => {
+    if (!url || typeof url !== "string") return;
+    items.push({ url, type: isVideoLike(url, mimeType, type) ? "video" : "image" });
+  };
+
+  if (Array.isArray(memory.mediaList)) memory.mediaList.forEach((item) => addItem(item?.mediaUrl || item?.url, item?.type, item?.mediaMimeType));
+  if (Array.isArray(memory.media)) {
+    memory.media.forEach((item) => {
+      if (typeof item === "string") addItem(item);
+      else addItem(item?.url || item?.mediaUrl, item?.type, item?.mediaMimeType || item?.mimeType);
+    });
+  } else if (memory.media) {
+    addItem(typeof memory.media === "string" ? memory.media : (memory.media.url || memory.media.mediaUrl), memory.media.type, memory.media.mediaMimeType);
+  }
+  if (Array.isArray(memory.images)) memory.images.forEach((img) => addItem(typeof img === "string" ? img : img?.url, "image"));
+  if (Array.isArray(memory.videos)) memory.videos.forEach((vid) => addItem(typeof vid === "string" ? vid : vid?.url, "video"));
+
+  addItem(memory.videoUrl, "video");
+  addItem(memory.mediaUrl, undefined, memory.mediaMimeType);
+  if (isVideoLike(memory.audioUrl)) addItem(memory.audioUrl, "video");
+  if (isVideoLike(memory.audio)) addItem(memory.audio, "video");
+  addItem(memory.image, "image");
+  addItem(memory.cover, "image");
+  addItem(memory.imageUrl, "image");
+  addItem(memory.coverImageUrl, "image");
+
+  return { video: items.find((item) => item.type === "video")?.url, image: items.find((item) => item.type === "image")?.url };
+};
+
+const getMemoryDuplicateKey = (memory) => {
+  const title = String(memory?.title || "").trim().toLowerCase();
+  if (!title) return memory?.id || memory?._id || "";
+  const rawDate = memory?.createdAt || memory?.occurredAt || memory?.date || "";
+  const parsedDate = new Date(rawDate);
+  const day = Number.isNaN(parsedDate.getTime()) ? String(rawDate).slice(0, 10) : parsedDate.toISOString().slice(0, 10);
+  return title + "_" + day;
+};
+
+const dedupeMemories = (list = []) => {
+  const seen = new Set();
+  return list.filter((memory) => {
+    const key = getMemoryDuplicateKey(memory);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 export default function TimelinePage() {
   const [memories, setMemories] = useState([]);
@@ -26,52 +88,16 @@ export default function TimelinePage() {
         setIsLoading(true);
         const token = await getToken();
         const data = await getMemoriesFromBackend(token);
-        // Sort memories chronologically (newest first)
-        let sorted = [...data].sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
-        
-        // Inject Figma static fallback data if no entries found
-        if (sorted.length === 0) {
-          const figmaFallbackMemories = [
-            { id: 1, date: "2023-03-14", type: "milestone", title: "The day I knew I'd found home", description: "Standing on the roof at dusk, watching the city lights." },
-            { id: 2, date: "2023-03-14", type: "milestone", title: "The day I knew I'd found home", description: "Standing on the roof at dusk, watching the city lights." },
-            { id: 3, date: "2023-03-14", type: "milestone", title: "The day I knew I'd found home", description: "Standing on the roof at dusk, watching the city lights." },
-            { id: 4, date: "2021-06-07", type: "photo", title: "Grandma's 80th birthday", description: "42 people in one backyard. Life, continuing.", mediaUrl: "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=600&auto=format&fit=crop" },
-            { id: 5, date: "2021-06-07", type: "photo", title: "Grandma's 80th birthday", description: "42 people in one backyard. Life, continuing.", mediaUrl: "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=600&auto=format&fit=crop" },
-            { id: 6, date: "2021-06-07", type: "photo", title: "Grandma's 80th birthday", description: "42 people in one backyard. Life, continuing.", mediaUrl: "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=600&auto=format&fit=crop" },
-            { id: 7, date: "2020-11-01", type: "star", title: "Lost my mother", description: "Mary Catherine O'Brien. November 1st, 2020. She is not gone — she is everywhere." },
-            { id: 8, date: "2020-11-01", type: "star", title: "Lost my mother", description: "Mary Catherine O'Brien. November 1st, 2020. She is not gone — she is everywhere." },
-            { id: 9, date: "2020-11-01", type: "star", title: "Lost my mother", description: "Mary Catherine O'Brien. November 1st, 2020. She is not gone — she is everywhere." },
-            { id: 10, date: "2019-09-03", type: "milestone", title: "Sunday mornings in Cork", description: "The last time I visited before the diagnosis." },
-            { id: 11, date: "2019-09-03", type: "milestone", title: "Sunday mornings in Cork", description: "The last time I visited before the diagnosis." },
-            { id: 12, date: "2019-09-03", type: "milestone", title: "Sunday mornings in Cork", description: "The last time I visited before the diagnosis." },
-            { id: 13, date: "2016-03-22", type: "star", title: "Cianán was born", description: "3:47am. The world stopped, then restarted, and nothing was the same." },
-            { id: 14, date: "2016-03-22", type: "star", title: "Cianán was born", description: "3:47am. The world stopped, then restarted, and nothing was the same." },
-            { id: 15, date: "2016-03-22", type: "star", title: "Cianán was born", description: "3:47am. The world stopped, then restarted, and nothing was the same." },
-            { id: 16, date: "2015-07-14", type: "photo", title: "Married", description: "St. Patrick's Cathedral. 89 people. Mum danced until midnight.", mediaUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600&auto=format&fit=crop" },
-            { id: 17, date: "2015-07-14", type: "photo", title: "Married", description: "St. Patrick's Cathedral. 89 people. Mum danced until midnight.", mediaUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600&auto=format&fit=crop" },
-            { id: 18, date: "2015-07-14", type: "photo", title: "Married", description: "St. Patrick's Cathedral. 89 people. Mum danced until midnight.", mediaUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600&auto=format&fit=crop" },
-            { id: 19, date: "2012-07-04", type: "star", title: "Met Sarah", description: "A friend's birthday party in Brixton. She was wearing a yellow dress." },
-            { id: 20, date: "2012-07-04", type: "star", title: "Met Sarah", description: "A friend's birthday party in Brixton. She was wearing a yellow dress." },
-            { id: 21, date: "2012-07-04", type: "star", title: "Met Sarah", description: "A friend's birthday party in Brixton. She was wearing a yellow dress." },
-            { id: 22, date: "2010-03-15", type: "star", title: "Started career in design", description: "Junior designer at a small studio in Shoreditch. Made coffee and learned everything." },
-            { id: 23, date: "2010-03-15", type: "star", title: "Started career in design", description: "Junior designer at a small studio in Shoreditch. Made coffee and learned everything." },
-            { id: 24, date: "2010-03-15", type: "star", title: "Started career in design", description: "Junior designer at a small studio in Shoreditch. Made coffee and learned everything." },
-            { id: 25, date: "2008-10-01", type: "star", title: "Moved to London", description: "Two bags, €300, and no plan. The best decision of my life." },
-            { id: 26, date: "2008-10-01", type: "star", title: "Moved to London", description: "Two bags, €300, and no plan. The best decision of my life." },
-            { id: 27, date: "2008-10-01", type: "star", title: "Moved to London", description: "Two bags, €300, and no plan. The best decision of my life." },
-            { id: 28, date: "2005-06-18", type: "star", title: "Leaving Certificate — top of the class", description: "585 points. My mother framed the results slip. It's still on her wall." },
-            { id: 29, date: "2005-06-18", type: "star", title: "Leaving Certificate — top of the class", description: "585 points. My mother framed the results slip. It's still on her wall." },
-            { id: 30, date: "2005-06-18", type: "star", title: "Leaving Certificate — top of the class", description: "585 points. My mother framed the results slip. It's still on her wall." },
-            { id: 31, date: "1993-09-01", type: "star", title: "First day of school", description: "St. Finbarr's National School. I cried, but only a little." },
-            { id: 32, date: "1993-09-01", type: "star", title: "First day of school", description: "St. Finbarr's National School. I cried, but only a little." },
-            { id: 33, date: "1993-09-01", type: "star", title: "First day of school", description: "St. Finbarr's National School. I cried, but only a little." },
-            { id: 34, date: "1987-04-03", type: "star", title: "Born in Cork, Ireland", description: "Mercy University Hospital, Cork City." },
-            { id: 35, date: "1987-04-03", type: "star", title: "Born in Cork, Ireland", description: "Mercy University Hospital, Cork City." },
-            { id: 36, date: "1987-04-03", type: "star", title: "Born in Cork, Ireland", description: "Mercy University Hospital, Cork City." }
-          ];
-          sorted = figmaFallbackMemories.sort((a, b) => new Date(b.date) - new Date(a.date));
-        }
-        
+        const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+        let localData = [];
+        try {
+          const saved = localStorage.getItem(userKey);
+          if (saved) localData = JSON.parse(saved);
+        } catch {}
+
+        const sourceMemories = Array.isArray(data) && data.length > 0 ? data : localData;
+        const sorted = dedupeMemories(sourceMemories).sort((a, b) => new Date(b.date || b.createdAt || b.occurredAt) - new Date(a.date || a.createdAt || a.occurredAt));
+
         setMemories(sorted);
       } catch (err) {
         console.error("Failed to load timeline data:", err);
@@ -87,8 +113,9 @@ export default function TimelinePage() {
     if (activeType === "All") return memories;
     return memories.filter((m) => {
       const type = (m.type || "").toLowerCase();
-      if (activeType === "Voice") return type === "voice";
-      if (activeType === "Photo") return type === "photo" || type === "image";
+      const sources = getMemoryMediaSources(m);
+      if (activeType === "Voice") return !sources.video && (type === "voice" || type === "audio");
+      if (activeType === "Photo") return !sources.video && (type === "photo" || type === "image" || type === "visual");
       if (activeType === "Written") return type === "text" || type === "written";
       if (activeType === "Milestone") return type === "milestone" || m.isMilestone;
       return true;
@@ -236,25 +263,99 @@ export default function TimelinePage() {
                     </motion.h2>
                     <motion.div variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 ml-4 md:ml-10">
                       {items.map((memory) => {
-                        const dateStr = memory.date || new Date(memory.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+                        const dateStr = memory.date || (memory.createdAt ? new Date(memory.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "Recent");
+                        const normType = (memory.type || "").toLowerCase();
+                        const mediaSources = getMemoryMediaSources(memory);
+                        const coverImg = normalizeMediaUrl(mediaSources.image);
+                        const coverVid = normalizeMediaUrl(mediaSources.video);
+
+                        const isVideo = normType === "video" || normType === "visual" || !!coverVid;
+                        const isVoice = !isVideo && (normType === "voice" || normType === "audio" || (!!memory.audioUrl && !coverVid) || (!!memory.audio && !coverVid));
+                        const hasVisualMedia = !isVoice && (!!coverImg || !!coverVid);
+
+                        const openView = () => window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { ...memory, date: dateStr } }));
+
+                        if (isVoice) {
+                          return (
+                            <motion.div 
+                              variants={fadeInUp} 
+                              key={memory.id || memory._id} 
+                              onClick={openView}
+                              className="figma-card flex flex-col justify-between group cursor-pointer h-full overflow-hidden bg-white border border-[#C7D2FE] p-6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-2 text-[#f59e0b]">
+                                    <Mic size={16} strokeWidth={2.5} />
+                                    <span className="text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]">VOICE</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
+                                    <span className="text-[12px] font-bold text-stone-500">{dateStr}</span>
+                                  </div>
+                                </div>
+                                <h3 className="text-[18px] font-black text-stone-900 leading-tight mb-2 line-clamp-2 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+                                <p className="text-[14px] text-stone-500 font-medium leading-relaxed line-clamp-2 mb-4">
+                                  {memory.description || "No transcript available for this voice memory."}
+                                </p>
+                              </div>
+
+                              <div className="w-full mt-auto" onClick={(e) => e.stopPropagation()}>
+                                <VoicePlayer memory={memory} />
+                              </div>
+                            </motion.div>
+                          );
+                        }
+
                         return (
-                          <motion.div variants={fadeInUp} key={memory.id || memory._id} className="figma-card flex flex-col group cursor-pointer h-full overflow-hidden bg-white border border-[#C7D2FE]">
-                            {memory.mediaUrl && (
-                              <div className="w-full h-32 overflow-hidden shrink-0">
-                                <img src={memory.mediaUrl} alt={memory.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                          <motion.div 
+                            variants={fadeInUp} 
+                            key={memory.id || memory._id} 
+                            onClick={openView}
+                            className="figma-card flex flex-col group cursor-pointer h-full overflow-hidden bg-white border border-[#C7D2FE] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                          >
+                            {hasVisualMedia && (
+                              <div className="bg-stone-900 relative overflow-hidden h-44 w-full shrink-0">
+                                {coverVid ? (
+                                  <div className="relative w-full h-full">
+                                    <video src={coverVid} className="w-full h-full object-cover opacity-80" />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
+                                        <Play size={22} fill="currentColor" className="ml-0.5" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : coverImg ? (
+                                  <img 
+                                    src={coverImg} 
+                                    alt={memory.title || "Memory cover"} 
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                    }}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                                  />
+                                ) : null}
                               </div>
                             )}
-                            <div className="p-6 flex flex-col grow">
-                              <div className="flex items-center gap-3 mb-4">
-                                <div className="w-8 h-8 rounded-full bg-[#F4F5FF] border border-[#D1D9FF] flex items-center justify-center shrink-0">
-                                  {getTypeIcon(memory.type)}
+                            <div className="p-6 flex flex-col grow justify-between">
+                              <div>
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-2">
+                                    {coverVid ? <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" /> : getTypeIcon(memory.type)}
+                                    <span className="text-[11px] font-bold uppercase tracking-widest text-stone-600">
+                                      {coverVid ? "VIDEO" : coverImg ? "PHOTO" : (memory.type || "MEMORY").toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
+                                    <span className="text-[12px] font-bold text-stone-500">{dateStr}</span>
+                                  </div>
                                 </div>
-                                <span className="text-[12px] font-bold text-stone-500">{dateStr}</span>
+                                <h3 className="text-[18px] font-black text-stone-900 leading-tight mb-3 line-clamp-2 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+                                <p className="text-[14px] text-stone-500 font-medium leading-relaxed line-clamp-3">
+                                  {memory.description || "Captured moment in time. Continuing the journey."}
+                                </p>
                               </div>
-                              <h3 className="text-[18px] font-black text-stone-900 leading-tight mb-3 line-clamp-2">{memory.title}</h3>
-                              <p className="text-[14px] text-stone-500 font-medium leading-relaxed line-clamp-3">
-                                {memory.description || "Captured moment in time. Continuing the journey."}
-                              </p>
                             </div>
                           </motion.div>
                         );

@@ -9,12 +9,17 @@ import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
 import { Plus, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings, CreditCard, User, ChevronRight } from "lucide-react";
 
-import { getFamilyInvitations } from "@/services/backend";
+import { getFamilyInvitations, normalizeMediaUrl } from "@/services/backend";
 
 export default function NavBar() {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile, firebaseUser } = useAuth();
   const [pendingFamilyCount, setPendingFamilyCount] = useState(0);
+
+  const userName = profile?.displayName || profile?.name || firebaseUser?.displayName || "User";
+  const userEmail = profile?.email || firebaseUser?.email || "";
+  const rawAvatar = profile?.avatarUrl || profile?.avatar || profile?.photoURL || profile?.image;
+  const userAvatar = rawAvatar ? normalizeMediaUrl(rawAvatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=4A3AFF&color=fff`;
 
   useEffect(() => {
     async function loadInvitationsCount() {
@@ -193,13 +198,16 @@ export default function NavBar() {
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <img 
-                src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80" 
-                alt="Seán O'Brien" 
+                src={userAvatar} 
+                alt={userName} 
+                onError={(e) => {
+                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=4A3AFF&color=fff`;
+                }}
                 className="w-9 h-9 rounded-full object-cover border border-[#C7D2FE] shrink-0" 
               />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-[13px] text-stone-900 dark:text-white truncate leading-tight">Seán O'Brien</p>
-                <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate mt-0.5">sean@spokenodyssey.co</p>
+                <p className="font-bold text-[13px] text-stone-900 dark:text-white truncate leading-tight">{userName}</p>
+                <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate mt-0.5">{userEmail}</p>
               </div>
             </div>
             <ChevronRight size={14} className="text-stone-400 group-hover:text-stone-600 transition shrink-0 ml-1" />

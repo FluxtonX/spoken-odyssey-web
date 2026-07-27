@@ -170,6 +170,15 @@ export async function updateAlbumOnBackend(token, albumId, formData) {
   return response.data;
 }
 
+/** Delete an album from backend */
+export async function deleteAlbumOnBackend(token, albumId) {
+  const response = await backendFetch(`/api/albums/${albumId}`, {
+    method: "DELETE",
+    token,
+  });
+  return response.data;
+}
+
 /** Get memories from MongoDB */
 export async function getMemoriesFromBackend(token, userId = null) {
   const path = userId ? `/api/memories?userId=${userId}` : "/api/memories";

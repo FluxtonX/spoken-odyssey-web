@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthProvider";
 import { useRouter } from "next/navigation";
 import { getStoredUserProfile } from "@/data/userProfile";
-import { searchOnBackend } from "@/services/backend";
+import { searchOnBackend, normalizeMediaUrl } from "@/services/backend";
 import { memories as mockMemories } from "@/data/mockApp";
 
 export default function DashboardHeader({ onSearchChange }) {
@@ -14,6 +14,11 @@ export default function DashboardHeader({ onSearchChange }) {
   const { profile, firebaseUser, logout, getToken } = useAuth();
   
   const [userProfile, setUserProfile] = useState(null);
+  
+  const displayName = profile?.displayName || profile?.name || firebaseUser?.displayName || userProfile?.name || "User";
+  const displayEmail = profile?.email || firebaseUser?.email || "";
+  const rawAvatar = profile?.avatarUrl || profile?.avatar || profile?.photoURL || profile?.image || userProfile?.avatar;
+  const userAvatar = rawAvatar ? normalizeMediaUrl(rawAvatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4A3AFF&color=fff`;
   
   // Search & Auto-complete States
   const [searchQuery, setSearchQuery] = useState("");
@@ -161,8 +166,6 @@ export default function DashboardHeader({ onSearchChange }) {
 
   const totalResultsCount =
     searchResults.memories.length + searchResults.albums.length + searchResults.people.length;
-
-  const displayName = firebaseUser?.displayName?.split(" ")[0] || profile?.displayName?.split(" ")[0] || firebaseUser?.email?.split("@")[0] || profile?.email?.split("@")[0] || userProfile?.name?.split(" ")[0] || "Explorer";
 
   return (
     <div className="w-full border-b border-[#C7D2FE]/30 pb-4 mb-8 flex items-center justify-between gap-4">
@@ -361,25 +364,40 @@ export default function DashboardHeader({ onSearchChange }) {
         <div className="relative" ref={profileRef}>
           <button 
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 pl-1.5 pr-2 sm:pr-4 py-1.5 rounded-full border border-[#C7D2FE]/40 bg-white/40 backdrop-blur-md shadow-sm hover:bg-stone-50 transition active:scale-95"
+            className="flex items-center gap-2 pl-1.5 pr-2 sm:pr-4 py-1.5 rounded-full border border-[#C7D2FE]/40 bg-white/40 backdrop-blur-md shadow-sm hover:bg-stone-50 transition active:scale-95 cursor-pointer"
           >
-            {userProfile?.avatar ? (
-              <img src={userProfile.avatar} alt="Profile" className="h-8 w-8 rounded-full object-cover" />
-            ) : (
-              <div className="h-8 w-8 rounded-full bg-[var(--brand)] text-white flex items-center justify-center font-bold text-sm">
-                {displayName.charAt(0)}
-              </div>
-            )}
-            <span className="text-sm font-semibold text-stone-700 hidden sm:block">{displayName}</span>
+            <img 
+              src={userAvatar} 
+              alt={displayName} 
+              onError={(e) => {
+                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4A3AFF&color=fff`;
+              }}
+              className="h-8 w-8 rounded-full object-cover border border-[#C7D2FE] shrink-0" 
+            />
+            <span className="text-sm font-semibold text-stone-700 dark:text-stone-200 hidden sm:block truncate max-w-[120px]">{displayName}</span>
             <ChevronRight size={14} className="text-stone-400 rotate-90 ml-0.5" />
           </button>
 
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-48 dropdown-menu animate-fade-in z-50 py-1">
-              <Link href="/profile" className="flex items-center px-4 py-3 text-[14px] text-stone-700 hover:bg-stone-50 transition font-medium">View Profile</Link>
-              <Link href="/settings" className="flex items-center px-4 py-3 text-[14px] text-stone-700 hover:bg-stone-50 transition border-t border-stone-100 font-medium">Settings</Link>
-              <Link href="/help" className="flex items-center px-4 py-3 text-[14px] text-stone-700 hover:bg-stone-50 transition border-t border-stone-100 font-medium">Help</Link>
-              <button onClick={handleSignOut} className="w-full text-left flex items-center px-4 py-3 text-[14px] text-red-500 hover:bg-red-50 transition border-t border-stone-100 font-medium cursor-pointer">Sign Out</button>
+            <div className="absolute right-0 mt-2 w-56 dropdown-menu animate-fade-in z-50 py-2 bg-white dark:bg-slate-900 border border-[#C7D2FE]/70 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-stone-100 dark:border-slate-800 flex items-center gap-3">
+                <img 
+                  src={userAvatar} 
+                  alt={displayName} 
+                  onError={(e) => {
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4A3AFF&color=fff`;
+                  }}
+                  className="h-9 w-9 rounded-full object-cover border border-[#C7D2FE] shrink-0" 
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-sm text-stone-900 dark:text-white truncate leading-tight">{displayName}</p>
+                  {displayEmail && <p className="text-xs text-stone-400 dark:text-stone-500 truncate mt-0.5">{displayEmail}</p>}
+                </div>
+              </div>
+              <Link href="/profile" onClick={() => setShowProfileMenu(false)} className="flex items-center px-4 py-2.5 text-[14px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800 transition font-medium">View Profile</Link>
+              <Link href="/settings" onClick={() => setShowProfileMenu(false)} className="flex items-center px-4 py-2.5 text-[14px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800 transition border-t border-stone-100 dark:border-slate-800/80 font-medium">Settings</Link>
+              <Link href="/help" onClick={() => setShowProfileMenu(false)} className="flex items-center px-4 py-2.5 text-[14px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800 transition border-t border-stone-100 dark:border-slate-800/80 font-medium">Help</Link>
+              <button onClick={handleSignOut} className="w-full text-left flex items-center px-4 py-2.5 text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition border-t border-stone-100 dark:border-slate-800/80 font-medium cursor-pointer">Sign Out</button>
             </div>
           )}
         </div>
