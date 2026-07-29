@@ -15,6 +15,7 @@ export default function NavBar() {
   const pathname = usePathname();
   const { isAuthenticated, profile, firebaseUser } = useAuth();
   const [pendingFamilyCount, setPendingFamilyCount] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const userName = profile?.displayName || profile?.name || firebaseUser?.displayName || "User";
   const userEmail = profile?.email || firebaseUser?.email || "";
@@ -37,6 +38,20 @@ export default function NavBar() {
     }
     loadInvitationsCount();
   }, [pathname]);
+
+  // Listen for modal open/close events
+  useEffect(() => {
+    const handleModalOpen = () => setIsModalOpen(true);
+    const handleModalClose = () => setIsModalOpen(false);
+
+    window.addEventListener('modal-open', handleModalOpen);
+    window.addEventListener('modal-close', handleModalClose);
+
+    return () => {
+      window.removeEventListener('modal-open', handleModalOpen);
+      window.removeEventListener('modal-close', handleModalClose);
+    };
+  }, []);
 
   const menuItems = [
     { name: "Home", href: "/home", icon: Home },
@@ -97,7 +112,10 @@ export default function NavBar() {
       </nav>
 
       {/* Desktop Sidebar */}
-      <nav className="fixed bottom-0 left-0 top-0 z-50 hidden w-20 flex-col bg-[#F4F5FF]/15 backdrop-blur-lg border-r border-[#C7D2FE]/30 transition-all duration-300 md:flex lg:w-[260px]">
+      <nav className={clsx(
+        "fixed bottom-0 left-0 top-0 hidden w-20 flex-col bg-[#F4F5FF]/15 backdrop-blur-lg border-r border-[#C7D2FE]/30 transition-all duration-300 md:flex lg:w-[260px]",
+        isModalOpen ? "opacity-50 pointer-events-none" : ""
+      )}>
         {/* Logo */}
         <div className="mb-8 hidden items-center gap-3 p-6 pb-2 lg:flex">
           <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-7 w-auto object-contain" />

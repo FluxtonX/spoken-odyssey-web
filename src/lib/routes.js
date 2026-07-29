@@ -18,11 +18,19 @@ export function isSetupRoute(pathname) {
   );
 }
 
+export function isInviteRoute(pathname) {
+  return (
+    pathname?.startsWith("/invite") ||
+    pathname?.startsWith("/family/join")
+  );
+}
+
 export function isPublicRoute(pathname) {
   return (
     isLandingRoute(pathname) ||
     isAuthEntryRoute(pathname) ||
-    isSetupRoute(pathname)
+    isSetupRoute(pathname) ||
+    isInviteRoute(pathname)
   );
 }
 

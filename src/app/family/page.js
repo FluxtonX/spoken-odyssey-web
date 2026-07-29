@@ -1,17 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthProvider";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck } from "lucide-react";
+import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck, Clock, Mic, FileText, Image as ImageIcon, Film, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp, fadeIn } from "@/lib/animations";
 import InviteMemberModal from "./components/InviteMemberModal";
+import VoicePlayer from "@/components/ui/VoicePlayer";
+import CardMediaSlider from "@/components/ui/CardMediaSlider";
 import { 
   getFamilyMembers, 
   getFamilyInvitations, 
   acceptFamilyInvitation, 
-  declineFamilyInvitation 
+  declineFamilyInvitation,
+  getFamilyCircleMembers,
+  isFamilyAdmin,
+  getPendingApprovals,
+  approveInvitation,
+  declineApproval,
+  promoteToAdmin,
+  demoteFromAdmin,
+  removeFamilyMember,
+  getFamilySharedMemories,
+  getLegacySettings,
+  updateLegacySettings
 } from "@/services/backend";
 
 const MOCK_MEMBERS = [
@@ -114,9 +128,13 @@ const FAMILY_TREE_DATA = {
 };
 
 export default function FamilyCirclePage() {
-  const [activeTab, setActiveTab] = useState("Legacy Access");
-  const [membersList, setMembersList] = useState(MOCK_MEMBERS);
+  const auth = useAuth() || {};
+  const currentProfile = auth.profile;
+  const [activeTab, setActiveTab] = useState("Members");
+  const [membersList, setMembersList] = useState([]); // Start with empty array, no mock data
   const [invitationsList, setInvitationsList] = useState([]);
+  const [sharedMemories, setSharedMemories] = useState([]);
+  const [loadingMemories, setLoadingMemories] = useState(false);
   const [permissions, setPermissions] = useState(INITIAL_PERMISSIONS);
   const [legacySettings, setLegacySettings] = useState({
     administrator: "Sarah Murphy",
@@ -128,22 +146,74 @@ export default function FamilyCirclePage() {
   const [selectedOption, setSelectedOption] = useState("");
   const [toastMessage, setToastMessage] = useState("");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [userToken, setUserToken] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const t = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (t) setUserToken(t);
+    }
+  }, []);
 
   // Load connected family members & pending invitations from backend
   useEffect(() => {
     async function loadFamilyData() {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
         if (token) {
-          const [backendMembers, backendInvites] = await Promise.all([
-            getFamilyMembers(token).catch(() => null),
-            getFamilyInvitations(token).catch(() => null)
-          ]);
-          if (Array.isArray(backendMembers) && backendMembers.length > 0) {
-            setMembersList(backendMembers);
+          // Load family circle members (new API)
+          const circleMembers = await getFamilyCircleMembers(token).catch(() => null);
+          if (Array.isArray(circleMembers) && circleMembers.length > 0) {
+            setMembersList(circleMembers);
           }
+
+          // Load pending invitations (for current user)
+          const backendInvites = await getFamilyInvitations(token).catch(() => null);
           if (Array.isArray(backendInvites)) {
             setInvitationsList(backendInvites);
+          }
+
+          // Load shared memories for family circle
+          const shared = await getFamilySharedMemories(token).catch(() => []);
+          if (Array.isArray(shared)) {
+            const uniqueMap = new Map();
+            shared.forEach(m => {
+              if (!m) return;
+              const idKey = m.id || m._id;
+              const titleKey = `${String(m.title || "").trim().toLowerCase()}_${String(m.createdAt || m.date || "").slice(0, 10)}`;
+              if (idKey && !uniqueMap.has(idKey) && !uniqueMap.has(titleKey)) {
+                uniqueMap.set(idKey, m);
+                uniqueMap.set(titleKey, m);
+              }
+            });
+            setSharedMemories(Array.from(new Set(uniqueMap.values())));
+          }
+
+          // Check if user is admin
+          const adminStatus = await isFamilyAdmin(token).catch(() => ({ isAdmin: false }));
+          const userIsAdmin = Boolean(adminStatus?.isAdmin || adminStatus === true);
+          setIsAdmin(userIsAdmin);
+
+          // Load pending approvals (if admin)
+          if (userIsAdmin) {
+            const approvals = await getPendingApprovals(token).catch(() => []);
+            if (Array.isArray(approvals)) {
+              setPendingApprovals(approvals);
+            }
+          }
+
+          // Load legacy settings from backend
+          const backendLegacy = await getLegacySettings(token).catch(() => null);
+          if (backendLegacy) {
+            setLegacySettings({
+              administrator: backendLegacy.administratorName || "Sarah Murphy",
+              administratorId: backendLegacy.administratorId || null,
+              releaseCondition: backendLegacy.releaseCondition || "After verified passing",
+              familyCircleAccess: backendLegacy.familyCircleAccess || "Full archive",
+              publicProfile: backendLegacy.publicProfile || "Remain public"
+            });
           }
         }
       } catch (err) {
@@ -153,6 +223,28 @@ export default function FamilyCirclePage() {
     loadFamilyData();
   }, []);
 
+  // Load shared memories when Shared Memories tab is active
+  useEffect(() => {
+    async function loadSharedMemories() {
+      if (activeTab === "Shared Memories") {
+        setLoadingMemories(true);
+        try {
+          const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+          if (token) {
+            const memories = await getFamilySharedMemories(token).catch(() => []);
+            setSharedMemories(Array.isArray(memories) ? memories : []);
+          }
+        } catch (err) {
+          console.warn("Could not load shared memories:", err);
+          setSharedMemories([]);
+        } finally {
+          setLoadingMemories(false);
+        }
+      }
+    }
+    loadSharedMemories();
+  }, [activeTab]);
+
   const togglePermission = (id) => {
     setPermissions(permissions.map(p => 
       p.id === id ? { ...p, enabled: !p.enabled } : p
@@ -160,19 +252,44 @@ export default function FamilyCirclePage() {
   };
 
   const handleOpenEdit = (setting) => {
-    setEditingSetting(setting);
-    setSelectedOption(legacySettings[setting.key] || setting.defaultVal);
+    let currentOptions = [...(setting.options || [])];
+
+    // For administrator, dynamically populate options from actual connected family circle members
+    if (setting.key === "administrator" && Array.isArray(membersList) && membersList.length > 0) {
+      const connectedNames = membersList.map(m => m.name || m.email?.split("@")[0]).filter(Boolean);
+      if (connectedNames.length > 0) {
+        currentOptions = connectedNames;
+      }
+    }
+
+    setEditingSetting({ ...setting, options: currentOptions });
+    const activeVal = legacySettings[setting.key] || currentOptions[0] || setting.defaultVal;
+    setSelectedOption(activeVal);
   };
 
-  const handleSaveSetting = () => {
+  const handleSaveSetting = async () => {
     if (!editingSetting) return;
+
+    const newOption = selectedOption;
     setLegacySettings(prev => ({
       ...prev,
-      [editingSetting.key]: selectedOption
+      [editingSetting.key]: newOption
     }));
+
     setEditingSetting(null);
     setToastMessage(`${editingSetting.title} updated successfully!`);
     setTimeout(() => setToastMessage(""), 3000);
+
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        await updateLegacySettings(token, {
+          [editingSetting.key]: newOption
+        });
+      }
+    } catch (err) {
+      console.warn("Could not persist legacy setting to backend:", err);
+    }
   };
 
   const handleInviteSuccess = (newMember) => {
@@ -180,9 +297,90 @@ export default function FamilyCirclePage() {
     setTimeout(() => setToastMessage(""), 4000);
   };
 
+  const handleApproveInvitation = async (invitationId) => {
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        await approveInvitation(token, invitationId);
+        setPendingApprovals(prev => prev.filter(i => i.id !== invitationId));
+        // Re-fetch updated circle members so newly approved member shows up immediately
+        const updatedMembers = await getFamilyCircleMembers(token).catch(() => null);
+        if (Array.isArray(updatedMembers) && updatedMembers.length > 0) {
+          setMembersList(updatedMembers);
+        }
+        setToastMessage("✓ Invitation approved! Member added to Family Circle.");
+        setTimeout(() => setToastMessage(""), 3500);
+      }
+    } catch (err) {
+      console.error("Approve invitation error:", err);
+    }
+  };
+
+  const handleDeclineApproval = async (invitationId) => {
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        await declineApproval(token, invitationId);
+        setPendingApprovals(prev => prev.filter(i => i.id !== invitationId));
+        setToastMessage("Invitation declined.");
+        setTimeout(() => setToastMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("Decline approval error:", err);
+    }
+  };
+
+  const handlePromoteToAdmin = async (userId) => {
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        await promoteToAdmin(token, userId);
+        setMembersList(prev => prev.map(m => 
+          m.id === userId ? { ...m, isAdmin: true, role: "ADMIN" } : m
+        ));
+        setToastMessage("Member promoted to admin!");
+        setTimeout(() => setToastMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("Promote to admin error:", err);
+    }
+  };
+
+  const handleDemoteFromAdmin = async (userId) => {
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        await demoteFromAdmin(token, userId);
+        setMembersList(prev => prev.map(m => 
+          m.id === userId ? { ...m, isAdmin: false, role: "MEMBER" } : m
+        ));
+        setToastMessage("Admin demoted to member.");
+        setTimeout(() => setToastMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("Demote from admin error:", err);
+    }
+  };
+
+  const handleRemoveMember = async (userId) => {
+    if (!confirm("Are you sure you want to remove this member from the family circle?")) return;
+    
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        await removeFamilyMember(token, userId);
+        setMembersList(prev => prev.filter(m => m.id !== userId));
+        setToastMessage("Member removed from family circle.");
+        setTimeout(() => setToastMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("Remove member error:", err);
+    }
+  };
+
   const handleAcceptInvitation = async (invitation) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
       if (token && invitation.id && !invitation.id.startsWith("inv-mock")) {
         await acceptFamilyInvitation(token, invitation.id);
       }
@@ -209,7 +407,7 @@ export default function FamilyCirclePage() {
 
   const handleDeclineInvitation = async (invitation) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
       if (token && invitation.id && !invitation.id.startsWith("inv-mock")) {
         await declineFamilyInvitation(token, invitation.id);
       }
@@ -253,7 +451,7 @@ export default function FamilyCirclePage() {
           <motion.div variants={fadeInUp} className="bg-white/80 dark:bg-slate-900/80 border border-[#C7D2FE]/70 dark:border-slate-800 p-1.5 rounded-[20px] inline-flex items-center gap-1.5 mb-8 overflow-x-auto max-w-full shadow-xs">
             {[
               { id: "Members", label: "Members" },
-              { id: "Invitations", label: "Invitations", badge: invitationsList.length },
+              { id: "Invitations", label: "Invitations", badge: invitationsList.length + pendingApprovals.length },
               { id: "Shared Memories", label: "Shared Memories" },
               { id: "Family Tree", label: "Family Tree" },
               { id: "Legacy Access", label: "Legacy Access" }
@@ -284,8 +482,21 @@ export default function FamilyCirclePage() {
             <motion.div variants={staggerContainer} initial="hidden" animate="show">
               {/* Members Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12">
-                {membersList.map((member, index) => {
-                  const isFirst = index === 0;
+                {membersList.map((member) => {
+                  const isSelf = member.id === currentProfile?.id || (member.email && member.email === currentProfile?.email);
+                  const realPhoto = isSelf ? (currentProfile?.photoURL || member.avatar || member.photoURL) : (member.avatar || member.photoURL);
+
+                  const nameToDisplay = (member.name && member.name !== "Admin") 
+                    ? member.name 
+                    : (member.email?.split("@")[0] || "Family Member");
+
+                  const relationshipToDisplay = (member.relationship === "Admin" || member.relationship === "ADMIN")
+                    ? "Circle Creator"
+                    : (member.relationship || member.role || "Family Member");
+
+                  const initials = String(nameToDisplay || "Member").split(" ").map(n => n ? n[0] : "").join("").toUpperCase().slice(0, 2) || "M";
+                  const hasRealPhoto = Boolean(realPhoto && typeof realPhoto === "string" && realPhoto.startsWith("http"));
+
                   return (
                     <motion.div 
                       variants={fadeInUp}
@@ -295,35 +506,34 @@ export default function FamilyCirclePage() {
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="relative">
-                          <img src={member.avatar} alt={member.name} className="w-14 h-14 rounded-full object-cover border border-[#C7D2FE]/50" />
-                          {isFirst && (
+                        <div className="relative shrink-0">
+                          {hasRealPhoto ? (
+                            <img src={realPhoto} alt={nameToDisplay} className="w-14 h-14 rounded-full object-cover border border-[#C7D2FE]/50 shadow-xs" />
+                          ) : (
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#4A3AFF] to-[#6C5DD3] text-white font-black text-lg flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-xs">
+                              {initials}
+                            </div>
+                          )}
+                          {member.isAdmin && (
                             <div className="absolute -bottom-1 -right-1 bg-[#4A3AFF] text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-[#EAEBFF]">
-                              <Check size={10} strokeWidth={3} />
+                              <ShieldCheck size={10} strokeWidth={3} />
                             </div>
                           )}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-[17px] text-stone-900 dark:text-white leading-tight">{member.name}</h3>
+                            <h3 className="font-bold text-[17px] text-stone-900 dark:text-white leading-tight">{nameToDisplay}</h3>
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[13px] font-medium text-stone-600 dark:text-stone-400">{member.role}</span>
+                            <span className="text-[13px] font-medium text-stone-600 dark:text-stone-400">{relationshipToDisplay}</span>
                             {member.isAdmin && (
-                              <span className="bg-white/80 border border-[#C7D2FE] text-[#4A3AFF] text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Admin</span>
+                              <span className="bg-[#4A3AFF] text-white text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Admin</span>
                             )}
                           </div>
                           <p className="text-[12px] font-medium text-stone-500 dark:text-stone-400 mt-1">{member.sharedCount || 0} shared memories</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button className="w-9 h-9 rounded-[10px] bg-[#7B61FF] text-white flex items-center justify-center hover:bg-[#6b4fe6] transition-colors shadow-sm cursor-pointer">
-                          <Heart size={16} strokeWidth={2.5} />
-                        </button>
-                        <button className="w-9 h-9 rounded-[10px] bg-[#7B61FF] text-white flex items-center justify-center hover:bg-[#6b4fe6] transition-colors shadow-sm cursor-pointer">
-                          <Lock size={16} strokeWidth={2.5} />
-                        </button>
-                      </div>
+                      
                     </motion.div>
                   );
                 })}
@@ -373,14 +583,14 @@ export default function FamilyCirclePage() {
           {/* Active Tab Content: Invitations (Interactive Invitations Manager) */}
           {activeTab === "Invitations" && (
             <motion.div variants={staggerContainer} initial="hidden" animate="show">
-              {invitationsList.length === 0 ? (
+              {invitationsList.length === 0 && pendingApprovals.length === 0 ? (
                 <motion.div variants={fadeInUp} className="figma-card p-12 text-center flex flex-col items-center justify-center max-w-xl mx-auto my-8">
                   <div className="w-16 h-16 rounded-full bg-[#EEF2FF] text-[#4A3AFF] flex items-center justify-center mb-4 shadow-xs">
                     <UserPlus size={28} />
                   </div>
                   <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-2">No Pending Invitations</h2>
                   <p className="text-sm font-medium text-stone-500 dark:text-stone-400 mb-6">
-                    You're all caught up! New family circle invitations will appear here when members invite you.
+                    You're all caught up! New family circle invitations and member join requests will appear here.
                   </p>
                   <button 
                     onClick={() => setIsInviteModalOpen(true)}
@@ -391,53 +601,121 @@ export default function FamilyCirclePage() {
                   </button>
                 </motion.div>
               ) : (
-                <div className="space-y-4 max-w-4xl mx-auto my-4">
-                  <div className="p-2 mb-2">
-                    <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-1">Pending Family Invitations ({invitationsList.length})</h2>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Review and accept invitations from family members wishing to connect.</p>
-                  </div>
-
-                  {invitationsList.map((inv) => (
-                    <motion.div 
-                      key={inv.id} 
-                      variants={fadeInUp} 
-                      className="figma-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 transition-all hover:shadow-lg"
-                    >
-                      <div className="flex items-center gap-4">
-                        <img 
-                          src={inv.sender?.avatar || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80"} 
-                          alt={inv.sender?.name} 
-                          className="w-14 h-14 rounded-full object-cover border-2 border-[#C7D2FE]" 
-                        />
+                <div className="space-y-6 max-w-4xl mx-auto my-4">
+                  {/* Section 1: Join Requests Waiting for Admin Approval */}
+                  {pendingApprovals.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="p-2 mb-1 flex items-center justify-between">
                         <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-bold text-[17px] text-stone-900 dark:text-white">{inv.sender?.name || "Family Member"}</h3>
-                            <span className="px-3 py-1 bg-[#EEF2FF] dark:bg-indigo-950 text-[#4A3AFF] dark:text-indigo-300 rounded-full text-xs font-bold border border-[#D1D9FF] dark:border-indigo-800/40">
-                              Wants to connect as {inv.relationship || "Family"}
-                            </span>
-                          </div>
-                          <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mt-1">{inv.sender?.email}</p>
-                          <p className="text-[11px] text-stone-400 mt-0.5">Received {inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : "recently"}</p>
+                          <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-0.5 flex items-center gap-2">
+                            <span>Member Join Requests</span>
+                            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingApprovals.length}</span>
+                          </h2>
+                          <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">People who accepted your invitation link and are waiting for your approval to join.</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        <button
-                          onClick={() => handleDeclineInvitation(inv)}
-                          className="px-4 py-2.5 border border-stone-200 dark:border-slate-700 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"
-                        >
-                          Decline
-                        </button>
-                        <button
-                          onClick={() => handleAcceptInvitation(inv)}
-                          className="px-5 py-2.5 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer active:scale-95 flex items-center gap-1.5"
-                        >
-                          <Check size={16} strokeWidth={2.5} />
-                          <span>Accept & Connect</span>
-                        </button>
+                      {pendingApprovals.map((approval) => {
+                        const displayName = approval.receiverName || approval.receiver?.displayName || approval.receiver?.name || approval.email || "Family Member";
+                        const avatar = approval.receiverAvatar || approval.receiver?.photoURL || approval.receiver?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80";
+
+                        return (
+                          <motion.div 
+                            key={approval.id} 
+                            variants={fadeInUp} 
+                            className="figma-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 transition-all hover:shadow-lg border-l-4 border-l-amber-500"
+                          >
+                            <div className="flex items-center gap-4">
+                              <img 
+                                src={avatar} 
+                                alt={displayName} 
+                                className="w-14 h-14 rounded-full object-cover border-2 border-[#C7D2FE]" 
+                              />
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="font-bold text-[17px] text-stone-900 dark:text-white">{displayName}</h3>
+                                  <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 rounded-full text-xs font-bold border border-amber-200/80 dark:border-amber-800/50 flex items-center gap-1.5">
+                                    <Clock size={13} className="text-amber-500" />
+                                    <span>Wants to join as {approval.relationship || "Family Member"}</span>
+                                  </span>
+                                </div>
+                                <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mt-1">{approval.email || approval.receiver?.email || approval.phoneNumber}</p>
+                                <p className="text-[11px] text-stone-400 mt-0.5">Method: {approval.method || "LINK"} • Pending Admin Approval</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              <button
+                                onClick={() => handleDeclineApproval(approval.id)}
+                                className="px-4 py-2.5 border border-stone-200 dark:border-slate-700 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"
+                              >
+                                Decline
+                              </button>
+                              <button
+                                onClick={() => handleApproveInvitation(approval.id)}
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer active:scale-95 flex items-center gap-1.5"
+                              >
+                                <Check size={16} strokeWidth={2.5} />
+                                <span>Approve</span>
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Section 2: Direct Incoming Invitations */}
+                  {invitationsList.length > 0 && (
+                    <div className="space-y-4 pt-2">
+                      <div className="p-2 mb-1">
+                        <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-0.5">Incoming Invitations ({invitationsList.length})</h2>
+                        <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Review and accept invitations from family members wishing to connect.</p>
                       </div>
-                    </motion.div>
-                  ))}
+
+                      {invitationsList.map((inv) => (
+                        <motion.div 
+                          key={inv.id} 
+                          variants={fadeInUp} 
+                          className="figma-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 transition-all hover:shadow-lg"
+                        >
+                          <div className="flex items-center gap-4">
+                            <img 
+                              src={inv.sender?.avatar || inv.sender?.photoURL || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80"} 
+                              alt={inv.sender?.name || inv.sender?.displayName} 
+                              className="w-14 h-14 rounded-full object-cover border-2 border-[#C7D2FE]" 
+                            />
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="font-bold text-[17px] text-stone-900 dark:text-white">{inv.sender?.displayName || inv.sender?.name || "Family Member"}</h3>
+                                <span className="px-3 py-1 bg-[#EEF2FF] dark:bg-indigo-950 text-[#4A3AFF] dark:text-indigo-300 rounded-full text-xs font-bold border border-[#D1D9FF] dark:border-indigo-800/40">
+                                  Wants to connect as {inv.relationship || "Family"}
+                                </span>
+                              </div>
+                              <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mt-1">{inv.sender?.email}</p>
+                              <p className="text-[11px] text-stone-400 mt-0.5">Received {inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : "recently"}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <button
+                              onClick={() => handleDeclineInvitation(inv)}
+                              className="px-4 py-2.5 border border-stone-200 dark:border-slate-700 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"
+                            >
+                              Decline
+                            </button>
+                            <button
+                              onClick={() => handleAcceptInvitation(inv)}
+                              className="px-5 py-2.5 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer active:scale-95 flex items-center gap-1.5"
+                            >
+                              <Check size={16} strokeWidth={2.5} />
+                              <span>Accept & Connect</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -506,30 +784,70 @@ export default function FamilyCirclePage() {
                 </div>
 
                 {/* Tree Diagram */}
-                <div className="flex flex-col items-center">
-                  
-                  {/* Root Node (You) */}
-                  <div className="flex flex-col items-center z-10">
-                    <img src={FAMILY_TREE_DATA.me.avatar} alt="You" className="w-16 h-16 rounded-full object-cover shadow-md mb-2" />
-                    <span className="font-bold text-[15px] text-stone-900 dark:text-white">{FAMILY_TREE_DATA.me.name}</span>
-                    <span className="text-[12px] font-medium text-stone-500 dark:text-stone-400">{FAMILY_TREE_DATA.me.role}</span>
-                  </div>
+                {(() => {
+                  const myEmail = currentProfile?.email?.toLowerCase();
+                  const myName = currentProfile?.displayName || currentProfile?.name || myEmail?.split("@")[0] || "Mu Safi";
+                  const myAvatar = currentProfile?.photoURL || currentProfile?.avatar;
+                  const myInitials = String(myName).split(" ").map(n => n ? n[0] : "").join("").toUpperCase().slice(0, 2) || "M";
 
-                  {/* Vertical connecting line */}
-                  <div className="w-[1.5px] h-16 bg-stone-300 dark:bg-stone-700 my-4"></div>
+                  const otherMembers = membersList.filter(m => {
+                    if (!m) return false;
+                    if (myEmail && m.email && m.email.toLowerCase() === myEmail) return false;
+                    return true;
+                  });
 
-                  {/* Children Nodes */}
-                  <div className="flex flex-wrap justify-center gap-8 md:gap-12 mt-2">
-                    {FAMILY_TREE_DATA.members.map((member, index) => (
-                      <div key={index} className="flex flex-col items-center z-10">
-                        <img src={member.avatar} alt={member.name} className="w-14 h-14 rounded-full object-cover shadow-sm mb-2" />
-                        <span className="font-bold text-[14px] text-stone-900 dark:text-white">{member.name}</span>
-                        <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">{member.role}</span>
+                  return (
+                    <div className="flex flex-col items-center">
+                      
+                      {/* Root Node (You) */}
+                      <div className="flex flex-col items-center z-10">
+                        {myAvatar && typeof myAvatar === "string" && myAvatar.startsWith("http") ? (
+                          <img src={myAvatar} alt={myName} className="w-16 h-16 rounded-full object-cover shadow-md mb-2" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#4A3AFF] to-[#6C5DD3] text-white font-bold text-base flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-md mb-2">
+                            {myInitials}
+                          </div>
+                        )}
+                        <span className="font-bold text-[15px] text-stone-900 dark:text-white">{myName}</span>
+                        <span className="text-[12px] font-medium text-stone-500 dark:text-stone-400">You</span>
                       </div>
-                    ))}
-                  </div>
-                  
-                </div>
+
+                      {/* Vertical connecting line */}
+                      <div className="w-[1.5px] h-16 bg-stone-300 dark:bg-stone-700 my-4"></div>
+
+                      {/* Children / Connected Member Nodes */}
+                      <div className="flex flex-wrap justify-center gap-8 md:gap-12 mt-2">
+                        {otherMembers.length > 0 ? (
+                          otherMembers.map((member) => {
+                            const mName = member.name || member.email?.split("@")[0] || "Family Member";
+                            const mInitials = String(mName).split(" ").map(n => n ? n[0] : "").join("").toUpperCase().slice(0, 2) || "M";
+                            const mAvatar = member.avatar || member.photoURL;
+                            const mRel = member.relationship || (member.isAdmin ? "Admin" : "Family Member");
+
+                            return (
+                              <div key={member.id || member.email} className="flex flex-col items-center z-10">
+                                {mAvatar && typeof mAvatar === "string" && mAvatar.startsWith("http") ? (
+                                  <img src={mAvatar} alt={mName} className="w-14 h-14 rounded-full object-cover shadow-sm mb-2" />
+                                ) : (
+                                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#4A3AFF] to-[#6C5DD3] text-white font-bold text-sm flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm mb-2">
+                                    {mInitials}
+                                  </div>
+                                )}
+                                <span className="font-bold text-[14px] text-stone-900 dark:text-white">{mName}</span>
+                                <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">{mRel}</span>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center text-xs font-medium text-stone-500 dark:text-stone-400">
+                            No other connected family members yet.
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  );
+                })()}
 
               </div>
             </div>
@@ -537,9 +855,153 @@ export default function FamilyCirclePage() {
 
           {/* Shared Memories Tab */}
           {activeTab === "Shared Memories" && (
-            <motion.div variants={fadeIn} className="figma-card py-20 flex flex-col items-center justify-center border border-dashed border-[#C7D2FE] bg-white/40">
-              <h2 className="text-xl font-bold text-stone-800 dark:text-white mb-2">{activeTab}</h2>
-              <p className="text-stone-500 dark:text-stone-400">This section is active and ready for shared memories across your circle.</p>
+            <motion.div variants={staggerContainer} initial="hidden" animate="show" className="w-full">
+              {loadingMemories ? (
+                <motion.div variants={fadeInUp} className="figma-card py-20 flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 border-4 border-[#4A3AFF] border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-stone-500 dark:text-stone-400">Loading shared memories...</p>
+                </motion.div>
+              ) : sharedMemories.length === 0 ? (
+                <motion.div variants={fadeInUp} className="figma-card p-12 flex flex-col items-center justify-center text-center my-6">
+                  <div className="w-16 h-16 rounded-full bg-[#EEF2FF] text-[#4A3AFF] flex items-center justify-center mb-4 shadow-sm">
+                    <Heart size={32} strokeWidth={2.5} />
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-2">No Shared Family Memories Yet</h2>
+                  <p className="text-stone-500 dark:text-stone-400 max-w-md text-sm leading-relaxed">
+                    When connected family members publish memories with family or public privacy, they will automatically appear here.
+                  </p>
+                </motion.div>
+              ) : (
+                <div className="space-y-6 w-full my-4">
+                  <div className="flex items-center justify-between p-2 mb-2">
+                    <div>
+                      <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-0.5 flex items-center gap-2">
+                        <span>Shared Family Memories</span>
+                        <span className="bg-[#4A3AFF] text-white text-xs font-bold px-2.5 py-0.5 rounded-full">{sharedMemories.length}</span>
+                      </h2>
+                      <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Stories, voices, and photos shared across your connected family circle.</p>
+                    </div>
+                  </div>
+
+                  <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 w-full block">
+                    {sharedMemories.map((memory) => {
+                      const normType = (memory.type || "").toLowerCase();
+                      const isVoice = normType === "voice" || normType === "audio" || !!memory.audioUrl || !!memory.audio;
+                      
+                      const mediaItems = [];
+                      if (!isVoice) {
+                        const addMedia = (url, type = "image") => {
+                          if (!url || typeof url !== "string") return;
+                          const cleanUrl = url.split("?")[0].toLowerCase();
+                          if (/\.(mp3|wav|m4a|aac|ogg)$/i.test(cleanUrl) || type === "voice" || type === "audio") return;
+                          const isVid = (type === "video") || /\.(mp4|mov|avi|m4v)$/i.test(cleanUrl);
+                          if (!mediaItems.some(i => i.url === url)) {
+                            mediaItems.push({ url, type: isVid ? "video" : "image" });
+                          }
+                        };
+
+                        if (Array.isArray(memory.mediaList)) {
+                          memory.mediaList.forEach(m => addMedia(m?.mediaUrl || m?.url, m?.type));
+                        }
+                        if (Array.isArray(memory.media)) {
+                          memory.media.forEach(m => typeof m === "string" ? addMedia(m) : addMedia(m?.url || m?.mediaUrl, m?.type));
+                        }
+                        addMedia(memory.videoUrl, "video");
+                        addMedia(memory.imageUrl);
+                        addMedia(memory.image);
+                      }
+
+                      const hasMedia = !isVoice && mediaItems.length > 0;
+                      const isVideo = !isVoice && (normType === "video" || mediaItems.some(m => m.type === "video"));
+                      
+                      const dateVal = memory.date || memory.createdAt || memory.occurredAt;
+                      const dateStr = dateVal ? new Date(dateVal).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent";
+
+                      const ownerName = memory.ownerDisplayName || memory.owner?.name || memory.ownerEmail?.split("@")[0] || "Family Member";
+                      const ownerAvatar = memory.ownerAvatarUrl || memory.owner?.avatar || memory.owner?.photoURL;
+                      const ownerInitials = String(ownerName).split(" ").map(n => n ? n[0] : "").join("").toUpperCase().slice(0, 2) || "M";
+                      const ownerRel = memory.ownerRelationship || "Family Member";
+
+                      const openView = () => {
+                        window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { ...memory, date: dateStr } }));
+                      };
+
+                      return (
+                        <motion.div
+                          key={memory.id || memory._id}
+                          variants={fadeInUp}
+                          onClick={openView}
+                          className="figma-card overflow-hidden group break-inside-avoid cursor-pointer flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full mb-6"
+                        >
+                          {/* Author Info Header */}
+                          <div className="p-4 pb-2 flex items-center justify-between gap-3 border-b border-stone-100 dark:border-slate-800">
+                            <div className="flex items-center gap-3">
+                              {ownerAvatar && typeof ownerAvatar === "string" && ownerAvatar.startsWith("http") ? (
+                                <img src={ownerAvatar} alt={ownerName} className="w-10 h-10 rounded-full object-cover border border-[#C7D2FE]/60" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#4A3AFF] to-[#6C5DD3] text-white font-bold text-xs flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-xs">
+                                  {ownerInitials}
+                                </div>
+                              )}
+                              <div>
+                                <h4 className="font-bold text-[14px] text-stone-900 dark:text-white leading-tight">{ownerName}</h4>
+                                <span className="text-[11px] font-semibold text-[#4A3AFF] dark:text-indigo-400">{ownerRel}</span>
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-medium text-stone-400">{dateStr}</span>
+                          </div>
+
+                          {/* Card Content by Type */}
+                          <div className="p-4 pt-3 flex flex-col flex-1">
+                            {hasMedia && (
+                              <div className="mb-4">
+                                <CardMediaSlider mediaItems={mediaItems} title={memory.title} />
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 mb-2">
+                              {isVoice ? (
+                                <>
+                                  <Mic size={14} strokeWidth={2.5} className="text-[#f59e0b]" />
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#f59e0b]">VOICE MEMORY</span>
+                                </>
+                              ) : isVideo ? (
+                                <>
+                                  <Film size={14} strokeWidth={2.5} className="text-[#ec4899]" />
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#ec4899]">VIDEO</span>
+                                </>
+                              ) : (
+                                <>
+                                  <FileText size={14} strokeWidth={2.5} className="text-[#10b981]" />
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#10b981]">{hasMedia ? "PHOTO MEMORY" : "WRITTEN STORY"}</span>
+                                </>
+                              )}
+                            </div>
+
+                            <h3 className="text-[18px] font-bold mb-2 text-stone-900 dark:text-white group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
+                            {memory.description && <p className="text-stone-500 dark:text-stone-400 text-xs line-clamp-3 leading-relaxed mb-4">{memory.description}</p>}
+
+                            {isVoice && (
+                              <div className="my-2 w-full" onClick={(e) => e.stopPropagation()}>
+                                <VoicePlayer memory={memory} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Tags footer */}
+                          <div className="p-4 pt-0 mt-auto flex flex-wrap gap-1.5">
+                            {(memory.tags && memory.tags.length > 0 ? memory.tags : ['family']).map((tag) => (
+                              <span key={tag} className="px-2.5 py-0.5 bg-[#EEF2FF] dark:bg-slate-800 text-[#4A3AFF] dark:text-indigo-300 rounded-full text-[10px] font-bold">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -551,6 +1013,7 @@ export default function FamilyCirclePage() {
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={handleInviteSuccess}
+        userToken={userToken}
       />
 
       {/* Edit Setting Modal */}

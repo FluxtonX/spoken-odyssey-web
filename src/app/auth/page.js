@@ -27,14 +27,19 @@ export default function AuthPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [hasPendingInvite, setHasPendingInvite] = useState(false);
 
-  // Check URL query parameters on mount to check if user clicked "signup"
+  // Check URL query parameters and pending invitation token on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const mode = params.get("mode");
       if (mode === "signup") {
         setView("signup");
+      }
+      const pendingToken = localStorage.getItem("pendingInvitationToken");
+      if (pendingToken) {
+        setHasPendingInvite(true);
       }
     }
   }, []);
@@ -52,6 +57,20 @@ export default function AuthPage() {
     return () => clearInterval(interval);
   }, [view, timer]);
 
+  // Resolve redirect destination after auth: pending invite > ?redirect= > default route
+  const getRedirectDestination = (authProfile) => {
+    const pendingToken = localStorage.getItem('pendingInvitationToken');
+    if (pendingToken) {
+      return `/invite/${pendingToken}`;
+    }
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      if (redirect) return redirect;
+    }
+    return getPostAuthRoute(authProfile);
+  };
+
   const handleLoginSubmit = async (event) => {
     event.preventDefault();
     if (!email || !password) return;
@@ -61,10 +80,10 @@ export default function AuthPage() {
     setSuccessMsg("");
 
     try {
-      const profile = await login(email, password);
+      const loginProfile = await login(email, password);
       setSuccessMsg("Logged in successfully! Redirecting...");
       setTimeout(() => {
-        router.replace(getPostAuthRoute(profile));
+        router.replace(getRedirectDestination(loginProfile));
       }, 800);
     } catch (error) {
       if (error?.code === "auth/email-not-verified") {
@@ -85,13 +104,11 @@ export default function AuthPage() {
     setSuccessMsg("");
 
     try {
-      await signup({ name, email, password });
-      setSuccessMsg("Registration successful! Please log in with your email and password.");
-      setPassword("");
+      const signupProfile = await signup({ name, email, password });
+      setSuccessMsg("Registration successful! Redirecting...");
       setTimeout(() => {
-        setSuccessMsg("");
-        setView("login");
-      }, 2500);
+        router.replace(getRedirectDestination(signupProfile));
+      }, 800);
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
     } finally {
@@ -127,12 +144,10 @@ export default function AuthPage() {
     setSuccessMsg("");
 
     try {
-      await loginWithGoogle();
+      const googleProfile = await loginWithGoogle();
       setSuccessMsg("Signed in successfully! Redirecting...");
-      // Always go to /profile after Google sign-in;
-      // profile-setup will be prompted from /profile if the profile is incomplete.
       setTimeout(() => {
-        router.replace("/home");
+        router.replace(getRedirectDestination(googleProfile));
       }, 800);
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
@@ -284,6 +299,16 @@ export default function AuthPage() {
             >
               <ChevronLeft size={18} />
             </button>
+          </div>
+        )}
+
+        {/* Pending Invitation Banner */}
+        {hasPendingInvite && (
+          <div className="mb-5 p-3.5 bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 rounded-2xl text-center shadow-xs animate-fade-in">
+            <p className="text-xs font-bold text-[#4A3AFF] dark:text-indigo-300 flex items-center justify-center gap-1.5">
+              <span>✨</span>
+              <span>Register or sign in to join the Family Circle!</span>
+            </p>
           </div>
         )}
 

@@ -53,13 +53,18 @@ export function normalizeMediaUrl(url) {
 }
 
 async function backendFetch(path, { method = "GET", body, token, isFormData = false } = {}) {
-  const headers = {};
+  const headers = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body && !isFormData) headers["Content-Type"] = "application/json";
 
   const response = await fetch(`${BACKEND_URL}${path}`, {
     method,
     headers,
+    cache: "no-store",
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
   });
 
@@ -184,6 +189,20 @@ export async function getMemoriesFromBackend(token, userId = null) {
   const path = userId ? `/api/memories?userId=${userId}` : "/api/memories";
   const response = await backendFetch(path, { token });
   return response.data;
+}
+
+/** Get family shared memories */
+export async function getFamilySharedMemories(token) {
+  try {
+    const response = await backendFetch("/api/family-circle/shared-memories", { token });
+    return response?.data !== undefined ? response.data : response;
+  } catch (err) {
+    if (err?.status === 404) {
+      const fallback = await backendFetch("/api/memories/family-shared", { token });
+      return fallback?.data !== undefined ? fallback.data : fallback;
+    }
+    throw err;
+  }
 }
 
 /** Create a new memory with media upload (voice blob or photo/video file) using FormData */
@@ -352,6 +371,158 @@ export async function declineFamilyInvitation(token, invitationId) {
   return response.data;
 }
 
+/** Send SMS invitation */
+export async function sendSMSInvitation(token, { phoneNumber, countryCode, relationship } = {}) {
+  const response = await backendFetch("/api/users/family/invitations/sms", {
+    method: "POST",
+    body: { phoneNumber, countryCode, relationship },
+    token,
+  });
+  return response.data;
+}
+
+/** Create shareable link invitation */
+export async function createLinkInvitation(token, { relationship } = {}) {
+  const response = await backendFetch("/api/users/family/invitations/link", {
+    method: "POST",
+    body: { relationship },
+    token,
+  });
+  return response.data || response;
+}
+
+/** Create QR code invitation */
+export async function createQRInvitation(token, { relationship } = {}) {
+  const response = await backendFetch("/api/users/family/invitations/qr", {
+    method: "POST",
+    body: { relationship },
+    token,
+  });
+  return response.data;
+}
+
+/** Validate invitation token (for join via link/QR) */
+export async function validateInvitationToken(token) {
+  const response = await backendFetch(`/api/users/family/invitations/validate?token=${token}`);
+  return response.data;
+}
+
+/** Accept invitation via token (for link/QR joins) */
+export async function acceptInvitationViaToken(token, { invitationToken } = {}) {
+  const response = await backendFetch("/api/users/family/invitations/accept-token", {
+    method: "POST",
+    body: { token: invitationToken },
+    token,
+  });
+  return response.data;
+}
+
+/** Get notifications for user */
+export async function getNotifications(token, { unreadOnly = false, limit = 50 } = {}) {
+  const params = new URLSearchParams();
+  if (unreadOnly) params.append('unreadOnly', 'true');
+  if (limit) params.append('limit', limit.toString());
+  
+  const response = await backendFetch(`/api/notifications?${params.toString()}`, { token });
+  return response.data;
+}
+
+/** Get unread notification count */
+export async function getUnreadNotificationCount(token) {
+  const response = await backendFetch("/api/notifications/unread-count", { token });
+  return response.data;
+}
+
+/** Mark notification as read */
+export async function markNotificationAsRead(token, notificationId) {
+  const response = await backendFetch(`/api/notifications/${notificationId}/read`, {
+    method: "PATCH",
+    token,
+  });
+  return response.data;
+}
+
+/** Mark all notifications as read */
+export async function markAllNotificationsAsRead(token) {
+  const response = await backendFetch("/api/notifications/read-all", {
+    method: "PATCH",
+    token,
+  });
+  return response.data;
+}
+
+/** Delete notification */
+export async function deleteNotification(token, notificationId) {
+  const response = await backendFetch(`/api/notifications/${notificationId}`, {
+    method: "DELETE",
+    token,
+  });
+  return response.data;
+}
+
+/** Get family circle members (new API) */
+export async function getFamilyCircleMembers(token) {
+  const response = await backendFetch("/api/family-circle/members", { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Check if user is family admin */
+export async function isFamilyAdmin(token) {
+  const response = await backendFetch("/api/family-circle/is-admin", { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Get pending approvals for admin */
+export async function getPendingApprovals(token) {
+  const response = await backendFetch("/api/family-circle/pending-approvals", { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Approve pending invitation (admin only) */
+export async function approveInvitation(token, invitationId) {
+  const response = await backendFetch(`/api/family-circle/approvals/${invitationId}/approve`, {
+    method: "POST",
+    token,
+  });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Decline pending invitation (admin only) */
+export async function declineApproval(token, invitationId) {
+  const response = await backendFetch(`/api/family-circle/approvals/${invitationId}/decline`, {
+    method: "POST",
+    token,
+  });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Promote member to admin (admin only) */
+export async function promoteToAdmin(token, userId) {
+  const response = await backendFetch(`/api/family-circle/members/${userId}/promote`, {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+/** Demote admin to member (admin only) */
+export async function demoteFromAdmin(token, userId) {
+  const response = await backendFetch(`/api/family-circle/members/${userId}/demote`, {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+/** Remove member from family circle (admin only) */
+export async function removeFamilyMember(token, userId) {
+  const response = await backendFetch(`/api/family-circle/members/${userId}`, {
+    method: "DELETE",
+    token,
+  });
+  return response.data;
+}
+
 /** Get comments tree for a memory */
 export async function getComments(token, memoryId) {
   const response = await backendFetch(`/api/memories/${memoryId}/comments`, { token });
@@ -425,6 +596,22 @@ export async function sendHeartbeat(token) {
   } catch (_) {
     return null;
   }
+}
+
+/** Get user's legacy access settings */
+export async function getLegacySettings(token) {
+  const response = await backendFetch("/api/legacy-access", { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Update user's legacy access settings */
+export async function updateLegacySettings(token, settingsData) {
+  const response = await backendFetch("/api/legacy-access", {
+    method: "PUT",
+    body: settingsData,
+    token,
+  });
+  return response?.data !== undefined ? response.data : response;
 }
 
 export function getBackendErrorMessage(error, fallback = "Something went wrong. Please try again.") {

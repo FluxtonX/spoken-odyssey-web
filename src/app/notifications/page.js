@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
@@ -9,193 +9,29 @@ import {
   Settings, 
   X, 
   ChevronRight, 
-  CheckCircle2 
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
+import {
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification
+} from "@/services/backend";
 
-const NOTIFICATIONS_DATA = [
-  {
-    id: "n1",
-    unread: true,
-    category: "Social",
-    title: "Eleanor Voss started following you",
-    body: "Your public profile now has 1,241 followers.",
-    time: "2min ago",
-    actionText: "View Profile",
-    actionHref: "/profile",
-    avatarBg: "bg-[#4A3AFF] text-white",
-    initials: "E"
-  },
-  {
-    id: "n2",
-    unread: true,
-    category: "Social",
-    title: "Rosamund Clarke commented on your memory",
-    body: '"The Way Mam Made Tea" — "This is so beautifully written. It took me right back to my own mother\'s kitchen."',
-    time: "14min ago",
-    actionText: "View Memory",
-    actionHref: "/memories",
-    avatarBg: "bg-emerald-500 text-white",
-    initials: "R"
-  },
-  {
-    id: "n3",
-    unread: true,
-    category: "Family",
-    title: "Sarah O'Brien accepted your invitation",
-    body: "Sarah has joined your Family Circle as your daughter.",
-    time: "1h ago",
-    actionText: "View Family",
-    actionHref: "/family",
-    avatarBg: "bg-amber-500 text-white",
-    initials: "S"
-  },
-  {
-    id: "n4",
-    unread: true,
-    category: "System",
-    title: "Your 2024 AI Life Summary is ready",
-    body: "We've analysed 247 of your memories and generated your annual insight report.",
-    time: "2h ago",
-    actionText: "View Insights",
-    actionHref: "/insights",
-    avatarBg: "bg-purple-600 text-white",
-    initials: "AI"
-  },
-  {
-    id: "n5",
-    unread: false,
-    category: "Social",
-    title: "Ciarán O'Brien reacted to your story",
-    body: '"First Day in London" — Ciarán left a ❤️ reaction.',
-    time: "3h ago",
-    actionText: "View Story",
-    actionHref: "/memories",
-    avatarBg: "bg-teal-500 text-white",
-    initials: "C"
-  },
-  {
-    id: "n6",
-    unread: false,
-    category: "Family",
-    title: "Brigid O'Brien shared your memory",
-    body: '"Nana\'s Recipe Book" was shared by Brigid to 3 family members.',
-    time: "5h ago",
-    actionText: "View Memory",
-    actionHref: "/memories",
-    avatarBg: "bg-pink-500 text-white",
-    initials: "B"
-  },
-  {
-    id: "n7",
-    unread: false,
-    category: "Family",
-    title: "Album invitation from Sarah O'Brien",
-    body: 'Sarah has invited you to collaborate on the album "O\'Brien Family Reunion 2024".',
-    time: "Yesterday",
-    actionText: "Accept",
-    actionHref: "/albums",
-    avatarBg: "bg-amber-500 text-white",
-    initials: "S"
-  },
-  {
-    id: "n8",
-    unread: false,
-    category: "System",
-    title: "Storage at 74% capacity",
-    body: "You've used 11.1 GB of your 15 GB free plan. Upgrade to keep recording.",
-    time: "Yesterday",
-    actionText: "Upgrade",
-    actionHref: "/subscription",
-    avatarBg: "bg-[#4A3AFF] text-white",
-    initials: "💾"
-  },
-  {
-    id: "n9",
-    unread: false,
-    category: "Family",
-    title: "Legacy access updated",
-    body: "Ciarán O'Brien now has Legacy Executor access to your account.",
-    time: "2 days ago",
-    actionText: "Manage Legacy",
-    actionHref: "/family",
-    avatarBg: "bg-cyan-600 text-white",
-    initials: "C"
-  },
-  {
-    id: "n10",
-    unread: false,
-    category: "System",
-    title: "Subscription renewal in 7 days",
-    body: "Your free plan renews on January 27, 2026. No charge expected.",
-    time: "2 days ago",
-    actionText: "View Billing",
-    actionHref: "/subscription",
-    avatarBg: "bg-slate-700 text-white",
-    initials: "💳"
-  },
-  {
-    id: "n11",
-    unread: false,
-    category: "Social",
-    title: "Aoife Daly commented on your memory",
-    body: '"Our Last Summer in Clare" — "I was there that day! Do you remember the rain?"',
-    time: "3 days ago",
-    actionText: "Reply",
-    actionHref: "/memories",
-    avatarBg: "bg-amber-600 text-white",
-    initials: "A"
-  },
-  {
-    id: "n12",
-    unread: false,
-    category: "System",
-    title: "New login detected",
-    body: "A new login was detected from Dublin, Ireland on MacBook Pro. If this wasn't you, secure your account.",
-    time: "3 days ago",
-    actionText: "Review",
-    actionHref: "/settings/security",
-    avatarBg: "bg-red-500 text-white",
-    initials: "🔒"
-  },
-  {
-    id: "n13",
-    unread: false,
-    category: "Family",
-    title: "Legacy plan saved successfully",
-    body: "Your legacy release conditions have been updated. Documents are secure.",
-    time: "4 days ago",
-    actionText: "View Legacy",
-    actionHref: "/family",
-    avatarBg: "bg-indigo-600 text-white",
-    initials: "📂"
-  },
-  {
-    id: "n14",
-    unread: false,
-    category: "Family",
-    title: "Brigid O'Brien shared 3 memories",
-    body: 'Brigid added "Galway Bay 1978", "The Summer House", and "Dad\'s 60th" to your Family Timeline.',
-    time: "5 days ago",
-    actionText: "View Timeline",
-    actionHref: "/timeline",
-    avatarBg: "bg-rose-500 text-white",
-    initials: "B"
-  },
-  {
-    id: "n15",
-    unread: false,
-    category: "System",
-    title: "Password changed successfully",
-    body: "Your account password was changed from Dublin, Ireland.",
-    time: "1 week ago",
-    actionText: "",
-    actionHref: "",
-    avatarBg: "bg-stone-700 text-white",
-    initials: "⚙️"
-  }
-];
+const NOTIFICATION_ICONS = {
+  FAMILY_INVITE_ACCEPTED: { bg: "bg-amber-500 text-white", initials: "F" },
+  FAMILY_INVITE_APPROVED: { bg: "bg-emerald-500 text-white", initials: "✓" },
+  FAMILY_INVITE_DECLINED: { bg: "bg-red-500 text-white", initials: "✗" },
+  MEMORY_LIKE: { bg: "bg-rose-500 text-white", initials: "❤" },
+  MEMORY_COMMENT: { bg: "bg-teal-500 text-white", initials: "C" },
+  SYSTEM: { bg: "bg-slate-700 text-white", initials: "⚙" },
+  BILLING: { bg: "bg-purple-600 text-white", initials: "💳" },
+  DEFAULT: { bg: "bg-[#4A3AFF] text-white", initials: "N" }
+};
 
 const INITIAL_PREFERENCES = [
   {
@@ -228,17 +64,74 @@ const INITIAL_PREFERENCES = [
 
 export default function NotificationsPage() {
   const [activeFilter, setActiveFilter] = useState("All");
-  const [notificationsList, setNotificationsList] = useState(NOTIFICATIONS_DATA);
+  const [notificationsList, setNotificationsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [preferences, setPreferences] = useState(INITIAL_PREFERENCES);
   const [toastMessage, setToastMessage] = useState("");
 
-  const unreadCount = notificationsList.filter(n => n.unread).length;
+  const token = localStorage.getItem("token");
 
-  const handleMarkAllRead = () => {
-    setNotificationsList(notificationsList.map(n => ({ ...n, unread: false })));
-    setToastMessage("All notifications marked as read!");
-    setTimeout(() => setToastMessage(""), 3000);
+  useEffect(() => {
+    loadNotifications();
+    loadUnreadCount();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const data = await getNotifications(token, { limit: 50 });
+      setNotificationsList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load notifications:", error);
+      setNotificationsList([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUnreadCount = async () => {
+    try {
+      const data = await getUnreadNotificationCount(token);
+      setUnreadCount(data?.count || 0);
+    } catch (error) {
+      console.error("Failed to load unread count:", error);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsAsRead(token);
+      setNotificationsList(notificationsList.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+      setToastMessage("All notifications marked as read!");
+      setTimeout(() => setToastMessage(""), 3000);
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await markNotificationAsRead(token, notificationId);
+      setNotificationsList(notificationsList.map(n => 
+        n.id === notificationId ? { ...n, isRead: true } : n
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
+  };
+
+  const handleDelete = async (notificationId) => {
+    try {
+      await deleteNotification(token, notificationId);
+      setNotificationsList(notificationsList.filter(n => n.id !== notificationId));
+      setToastMessage("Notification deleted!");
+      setTimeout(() => setToastMessage(""), 3000);
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+    }
   };
 
   const togglePreference = (groupId, itemId) => {
@@ -257,12 +150,52 @@ export default function NotificationsPage() {
     setTimeout(() => setToastMessage(""), 3000);
   };
 
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}min ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getNotificationIcon = (type) => {
+    return NOTIFICATION_ICONS[type] || NOTIFICATION_ICONS.DEFAULT;
+  };
+
   // Filter list
   const filteredNotifications = notificationsList.filter(n => {
     if (activeFilter === "All") return true;
-    if (activeFilter.startsWith("Unread")) return n.unread;
-    return n.category === activeFilter;
+    if (activeFilter === "Unread") return !n.isRead;
+    // Map notification types to categories
+    if (activeFilter === "Family") {
+      return n.type?.includes("FAMILY");
+    }
+    if (activeFilter === "Social") {
+      return n.type?.includes("MEMORY");
+    }
+    if (activeFilter === "System") {
+      return n.type?.includes("SYSTEM") || n.type?.includes("BILLING");
+    }
+    return true;
   });
+
+  if (loading) {
+    return (
+      <WavesBackground>
+        <DashboardHeader />
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="animate-spin text-[#4A3AFF]" size={48} />
+        </div>
+      </WavesBackground>
+    );
+  }
 
   return (
     <WavesBackground>
@@ -297,7 +230,8 @@ export default function NotificationsPage() {
             <div className="flex items-center gap-3">
               <button 
                 onClick={handleMarkAllRead}
-                className="bg-white/80 dark:bg-slate-900/80 border border-[#C7D2FE]/70 dark:border-slate-800 text-stone-800 dark:text-stone-200 px-4 py-2.5 rounded-[14px] font-bold text-xs transition-all shadow-xs hover:bg-[#EEF2FF] flex items-center gap-2 cursor-pointer"
+                disabled={unreadCount === 0}
+                className="bg-white/80 dark:bg-slate-900/80 border border-[#C7D2FE]/70 dark:border-slate-800 text-stone-800 dark:text-stone-200 px-4 py-2.5 rounded-[14px] font-bold text-xs transition-all shadow-xs hover:bg-[#EEF2FF] flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check size={16} strokeWidth={2.5} />
                 <span>Mark all read</span>
@@ -350,62 +284,79 @@ export default function NotificationsPage() {
                 No notifications in this filter category.
               </div>
             ) : (
-              filteredNotifications.map((notif) => (
-                <motion.div 
-                  key={notif.id}
-                  variants={fadeInUp}
-                  className={`figma-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-200 hover:shadow-md relative overflow-hidden ${
-                    notif.unread ? "ring-1 ring-[#4A3AFF]/30 bg-white/90 dark:bg-slate-900/90" : ""
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Unread dot */}
-                    <div className="pt-3 shrink-0 w-2">
-                      {notif.unread && (
-                        <span className="block w-2 h-2 rounded-full bg-red-500 shadow-xs" />
-                      )}
-                    </div>
-
-                    {/* Avatar Icon */}
-                    <div className={`w-11 h-11 rounded-full ${notif.avatarBg} font-bold text-sm flex items-center justify-center shrink-0 shadow-sm border border-white/50`}>
-                      {notif.initials}
-                    </div>
-
-                    {/* Notification Info */}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-[15px] text-stone-900 dark:text-white leading-tight">
-                        {notif.title}
-                      </h3>
-                      {notif.body && (
-                        <p className="text-[13px] font-medium text-stone-600 dark:text-stone-300 mt-1 leading-relaxed">
-                          {notif.body}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[11px] font-medium text-stone-400 dark:text-stone-500">
-                          {notif.time}
-                        </span>
-                        {notif.actionText && notif.actionHref && (
-                          <Link 
-                            href={notif.actionHref}
-                            className="text-[12px] font-bold text-[#4A3AFF] dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
-                          >
-                            <span>{notif.actionText}</span>
-                            <ChevronRight size={12} />
-                          </Link>
+              filteredNotifications.map((notif) => {
+                const iconConfig = getNotificationIcon(notif.type);
+                return (
+                  <motion.div 
+                    key={notif.id}
+                    variants={fadeInUp}
+                    className={`figma-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-200 hover:shadow-md relative overflow-hidden ${
+                      !notif.isRead ? "ring-1 ring-[#4A3AFF]/30 bg-white/90 dark:bg-slate-900/90" : ""
+                    }`}
+                    onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Unread dot */}
+                      <div className="pt-3 shrink-0 w-2">
+                        {!notif.isRead && (
+                          <span className="block w-2 h-2 rounded-full bg-red-500 shadow-xs" />
                         )}
                       </div>
+
+                      {/* Avatar Icon */}
+                      <div className={`w-11 h-11 rounded-full ${iconConfig.bg} font-bold text-sm flex items-center justify-center shrink-0 shadow-sm border border-white/50`}>
+                        {iconConfig.initials}
+                      </div>
+
+                      {/* Notification Info */}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-[15px] text-stone-900 dark:text-white leading-tight">
+                          {notif.title}
+                        </h3>
+                        {notif.message && (
+                          <p className="text-[13px] font-medium text-stone-600 dark:text-stone-300 mt-1 leading-relaxed">
+                            {notif.message}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-[11px] font-medium text-stone-400 dark:text-stone-500">
+                            {formatTime(notif.createdAt)}
+                          </span>
+                          {notif.actionUrl && (
+                            <Link 
+                              href={notif.actionUrl}
+                              className="text-[12px] font-bold text-[#4A3AFF] dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span>View</span>
+                              <ChevronRight size={12} />
+                            </Link>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))
+                    
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(notif.id);
+                      }}
+                      className="text-stone-400 hover:text-red-500 transition-colors cursor-pointer p-1 rounded-full hover:bg-stone-100 dark:hover:bg-slate-800"
+                      title="Delete notification"
+                    >
+                      <X size={16} />
+                    </button>
+                  </motion.div>
+                );
+              })
             )}
           </motion.div>
 
         </div>
       </motion.div>
 
-      {/* Notification Preferences Settings Modal (Exact Screenshot 3 Match) */}
+      {/* Notification Preferences Settings Modal */}
       {isPreferencesOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-left">
           <div className="bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 rounded-[28px] w-full max-w-md p-6 shadow-2xl relative max-h-[85vh] flex flex-col">

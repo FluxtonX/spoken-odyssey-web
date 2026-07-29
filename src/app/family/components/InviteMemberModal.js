@@ -16,7 +16,8 @@ import {
   Search,
   Loader2
 } from "lucide-react";
-import { connectFamilyMember, getSuggestedPeople } from "@/services/backend";
+import { connectFamilyMember, getSuggestedPeople, sendSMSInvitation, createLinkInvitation, createQRInvitation } from "@/services/backend";
+import { COUNTRIES, searchCountries } from "@/data/countryCodes";
 
 export const CATEGORIZED_RELATIONSHIPS = [
   {
@@ -78,7 +79,7 @@ export const CATEGORIZED_RELATIONSHIPS = [
   }
 ];
 
-export const ALL_RELATIONSHIPS = CATEGORIZED_RELATIONSHIPS.flatMap(c => c.options);
+export const ALL_RELATIONSHIPS = Array.from(new Set(CATEGORIZED_RELATIONSHIPS.flatMap(c => c.options)));
 
 export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToken }) {
   const [step, setStep] = useState(1); // 1: Main Options, 2: Email Form, 3: QR Code, 4: SMS Link, 5: Success Sent Modal
@@ -89,12 +90,27 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
   const [filteredMatches, setFilteredMatches] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedLink, setCopiedLink] = useState("");
+  const [qrCodeData, setQrCodeData] = useState("");
+  const [localToken, setLocalToken] = useState("");
+
+  // SMS form state
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES.find(c => c.dialCode === "+1") || COUNTRIES[0]);
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+  const countryDropdownRef = useRef(null);
 
   // Custom Glassy Dropdown State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [relationshipSearch, setRelationshipSearch] = useState("");
   const dropdownRef = useRef(null);
+
+  // Sync token from localStorage when modal opens
+  useEffect(() => {
+    const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+    setLocalToken(token);
+  }, [isOpen]);
 
   // Fetch suggested / registered users on mount to allow instant autocomplete
   useEffect(() => {
@@ -126,6 +142,17 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Click outside listener for country dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
+        setIsCountryDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // Live filter registered users as typing in email or name field
   useEffect(() => {
     if (!emailInput.trim() && !name.trim()) {
@@ -149,6 +176,15 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
     }
   }, [emailInput, name, registeredUsers]);
 
+  // Dispatch modal open/close events for sidebar dimming
+  useEffect(() => {
+    if (isOpen) {
+      window.dispatchEvent(new Event('modal-open'));
+    } else {
+      window.dispatchEvent(new Event('modal-close'));
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSelectUser = (user) => {
@@ -158,11 +194,50 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
     setFilteredMatches([]);
   };
 
-  const handleCopyLink = () => {
-    const inviteLink = `${window.location.origin}/family/join?code=FAMILY-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    navigator.clipboard.writeText(inviteLink);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 3000);
+  const handleCopyLink = async () => {
+    try {
+      setIsSubmitting(true);
+      const tokenFromProp = userToken;
+      const tokenFromState = localToken;
+      const tokenFromStorage = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      const token = tokenFromProp || tokenFromState || tokenFromStorage;
+      
+      console.log("Debug - Token check:", {
+        tokenFromProp,
+        tokenFromState,
+        tokenFromStorage,
+        finalToken: token,
+        hasToken: !!token
+      });
+      
+      if (!token) {
+        alert("Please log in to generate an invitation link.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log("Calling createLinkInvitation with token:", token.substring(0, 20) + "...");
+      const result = await createLinkInvitation(token, { relationship: relationship || "Family Member" });
+      
+      console.log("Debug - Full API response:", JSON.stringify(result, null, 2));
+      
+      const joinLink = result?.data?.joinLink || result?.joinLink || result?.invitation?.joinLink;
+      
+      if (joinLink) {
+        navigator.clipboard.writeText(joinLink);
+        setCopiedLink(joinLink);
+        setQrCodeData(joinLink);
+        setTimeout(() => setCopiedLink(""), 5000);
+      } else {
+        console.error("No joinLink in response. Response structure:", result);
+        alert(`Failed to generate invitation link. Server response: ${JSON.stringify(result)}`);
+      }
+    } catch (err) {
+      console.error("Create link invitation error:", err);
+      alert(`Failed to generate invitation link. Error: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmitEmailInvite = async (e) => {
@@ -209,12 +284,23 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
     setSelectedUser(null);
     setFilteredMatches([]);
     setIsDropdownOpen(false);
+    setPhoneNumber("");
+    setCountrySearch("");
+    setIsCountryDropdownOpen(false);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-left">
-      <div className="bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 rounded-[28px] w-full max-w-lg p-6 shadow-2xl relative overflow-visible transition-all">
+    <>
+      {/* Backdrop overlay - higher z-index to cover sidebar */}
+      <div 
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999]"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 pointer-events-none">
+        <div className="bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 rounded-[28px] w-full max-w-lg p-6 shadow-2xl relative overflow-visible transition-all pointer-events-auto">
         
         {/* Header Title for Success Modal matching Screenshot */}
         {step === 5 ? (
@@ -281,19 +367,15 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
               {/* Option 3: Share a Link */}
               <button
                 type="button"
-                onClick={handleCopyLink}
+                onClick={() => setStep(6)}
                 className="p-5 rounded-2xl border border-stone-200/80 dark:border-slate-800 hover:border-[#4A3AFF] dark:hover:border-[#4A3AFF] bg-white dark:bg-slate-900/50 hover:bg-[#F8F9FF] dark:hover:bg-slate-800/80 transition-all text-left group cursor-pointer shadow-xs hover:shadow-md flex flex-col justify-between"
               >
                 <div className="w-11 h-11 rounded-2xl bg-[#EEF2FF] dark:bg-indigo-950/80 text-[#4A3AFF] dark:text-indigo-400 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                  {copiedLink ? <Check size={22} className="text-emerald-500" /> : <Link2 size={22} />}
+                  <Link2 size={22} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-stone-900 dark:text-white text-[15px] mb-0.5">
-                    {copiedLink ? "Link Copied!" : "Share a Link"}
-                  </h3>
-                  <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">
-                    {copiedLink ? "Paste anywhere to invite" : "Copy and share anywhere"}
-                  </p>
+                  <h3 className="font-bold text-stone-900 dark:text-white text-[15px] mb-0.5">Share a Link</h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Copy and share anywhere</p>
                 </div>
               </button>
 
@@ -534,6 +616,82 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
           </form>
         )}
 
+        {/* STEP 6: Share a Link */}
+        {step === 6 && (
+          <div className="text-center py-4">
+            <div className="flex items-center gap-2 mb-4 text-left">
+              <button type="button" onClick={() => setStep(1)} className="text-stone-500 hover:text-stone-900 text-xs font-bold flex items-center gap-1 transition cursor-pointer">
+                <ArrowLeft size={16} />
+                <span>Back</span>
+              </button>
+            </div>
+            <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-2">Share a Link</h2>
+            <p className="text-xs text-stone-500 mb-6">Generate a secure link to share with your family member.</p>
+
+            {/* Name and Relationship Fields */}
+            <div className="mb-6 text-left">
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">
+                  Their Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-[#4A3AFF] focus:ring-1 focus:ring-[#4A3AFF] outline-none text-sm text-stone-900 dark:text-white placeholder-stone-400 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">
+                  Their Relationship
+                </label>
+                <select
+                  value={relationship}
+                  onChange={(e) => setRelationship(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-[#4A3AFF] focus:ring-1 focus:ring-[#4A3AFF] outline-none text-sm text-stone-900 dark:text-white transition cursor-pointer"
+                >
+                  <option value="">Select relationship...</option>
+                  {ALL_RELATIONSHIPS.map((rel) => (
+                    <option key={rel} value={rel}>{rel}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              onClick={handleCopyLink} 
+              disabled={isSubmitting}
+              className={`w-full px-6 py-3 rounded-xl text-sm font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                copiedLink 
+                  ? "bg-emerald-500 text-white hover:bg-emerald-600" 
+                  : "bg-[#4A3AFF] text-white hover:bg-[#3b2dd1]"
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin inline mr-2" size={16} />
+                  Generating Link...
+                </>
+              ) : copiedLink ? (
+                <>
+                  <Check className="inline mr-2" size={16} />
+                  Link Copied!
+                </>
+              ) : "Generate & Copy Link"}
+            </button>
+            
+            {copiedLink && (
+              <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium break-all">
+                  {copiedLink}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* STEP 3: QR Code Preview */}
         {step === 3 && (
           <div className="text-center py-4">
@@ -544,17 +702,55 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
               </button>
             </div>
             <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-2">Scan QR Code</h2>
-            <p className="text-xs text-stone-500 mb-6">Have your family member scan this code to instantly join your circle.</p>
+            <p className="text-xs text-stone-500 mb-6">Select relationship and generate a QR code for your family member to scan.</p>
 
-            <div className="w-56 h-56 mx-auto bg-white p-4 rounded-3xl shadow-lg border border-stone-200 flex flex-col items-center justify-center mb-6">
-              <img 
-                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://spokenodyssey.com/family/join?code=SPOKEN-FAMILY" 
-                alt="QR Code" 
-                className="w-full h-full object-contain rounded-xl" 
-              />
+            <div className="mb-6 text-left">
+              <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">
+                Their Relationship
+              </label>
+              <select
+                value={relationship}
+                onChange={(e) => setRelationship(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-[#4A3AFF] focus:ring-1 focus:ring-[#4A3AFF] outline-none text-sm text-stone-900 dark:text-white transition cursor-pointer"
+              >
+                <option value="">Select relationship...</option>
+                {ALL_RELATIONSHIPS.map((rel) => (
+                  <option key={rel} value={rel}>{rel}</option>
+                ))}
+              </select>
             </div>
-            <button type="button" onClick={handleCopyLink} className="px-6 py-2.5 bg-[#EEF2FF] text-[#4A3AFF] rounded-xl text-xs font-bold hover:bg-[#4A3AFF] hover:text-white transition cursor-pointer">
-              {copiedLink ? "Link Copied!" : "Copy Join Link"}
+
+            {qrCodeData && (
+              <div className="w-56 h-56 mx-auto bg-white p-4 rounded-3xl shadow-lg border border-stone-200 flex flex-col items-center justify-center mb-6">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeData)}`} 
+                  alt="QR Code" 
+                  className="w-full h-full object-contain rounded-xl" 
+                />
+              </div>
+            )}
+
+            <button 
+              type="button" 
+              onClick={handleCopyLink} 
+              disabled={isSubmitting}
+              className={`w-full py-3.5 rounded-xl text-sm font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                copiedLink 
+                  ? "bg-emerald-500 text-white hover:bg-emerald-600" 
+                  : "bg-[#4A3AFF] text-white hover:bg-[#3b2dd1]"
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin inline mr-2" size={16} />
+                  Generating QR Code...
+                </>
+              ) : copiedLink ? (
+                <>
+                  <Check className="inline mr-2" size={16} />
+                  QR Code & Link Generated!
+                </>
+              ) : "Generate QR Code"}
             </button>
           </div>
         )}
@@ -569,16 +765,127 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
               </button>
             </div>
             <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-4">Invite via SMS</h2>
-            <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">Phone Number</label>
-            <input type="tel" placeholder="+1 (555) 000-0000" className="w-full p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800 border border-stone-200 text-sm mb-6 outline-none focus:border-[#4A3AFF]" />
+            
+            <div className="space-y-4">
+              {/* Country Code Dropdown */}
+              <div className="relative" ref={countryDropdownRef}>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">
+                  Country
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                  className="w-full p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-900 dark:text-white text-sm font-medium outline-none transition-all flex items-center justify-between cursor-pointer shadow-xs hover:border-[#4A3AFF]"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-xl">{selectedCountry.flag}</span>
+                    <span className="font-bold">{selectedCountry.dialCode}</span>
+                    <span className="text-stone-500 dark:text-stone-400">{selectedCountry.name}</span>
+                  </span>
+                  {isCountryDropdownOpen ? (
+                    <ChevronUp size={18} className="text-[#4A3AFF]" />
+                  ) : (
+                    <ChevronDown size={18} className="text-stone-400" />
+                  )}
+                </button>
+
+                {/* Country Dropdown */}
+                {isCountryDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-900 border border-[#C7D2FE] dark:border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden max-h-72 flex flex-col animate-fade-in text-left">
+                    
+                    {/* Search inside Country Dropdown */}
+                    <div className="p-2 border-b border-stone-100 dark:border-slate-800 bg-stone-50/60 dark:bg-slate-800/60 flex items-center gap-2">
+                      <Search size={14} className="text-stone-400" />
+                      <input
+                        type="text"
+                        value={countrySearch}
+                        onChange={(e) => setCountrySearch(e.target.value)}
+                        placeholder="Search country..."
+                        className="w-full text-xs bg-transparent outline-none text-stone-800 dark:text-white font-medium px-2 py-1"
+                      />
+                    </div>
+
+                    {/* Country List */}
+                    <div className="overflow-y-auto p-2 custom-scrollbar flex-1">
+                      {searchCountries(countrySearch).map((country) => (
+                        <button
+                          type="button"
+                          key={country.code}
+                          onClick={() => {
+                            setSelectedCountry(country);
+                            setIsCountryDropdownOpen(false);
+                            setCountrySearch("");
+                          }}
+                          className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-left flex items-center gap-3 transition cursor-pointer ${
+                            selectedCountry.code === country.code
+                              ? "bg-[#EEF2FF] dark:bg-indigo-950/80 text-[#4A3AFF] dark:text-indigo-300 font-bold"
+                              : "text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-slate-800"
+                          }`}
+                        >
+                          <span className="text-lg">{country.flag}</span>
+                          <span className="font-bold">{country.dialCode}</span>
+                          <span>{country.name}</span>
+                          {selectedCountry.code === country.code && <Check size={14} className="text-[#4A3AFF] dark:text-indigo-400 ml-auto" />}
+                        </button>
+                      ))}
+                    </div>
+
+                  </div>
+                )}
+              </div>
+
+              {/* Phone Number Input */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">
+                  Phone Number
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-slate-800 px-3 py-3.5 rounded-2xl border border-stone-200 dark:border-slate-700">
+                    {selectedCountry.dialCode}
+                  </span>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                    placeholder="555 000 0000"
+                    className="flex-1 p-3.5 rounded-2xl bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-900 dark:text-white text-sm font-medium outline-none focus:border-[#4A3AFF] transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
             <button 
               type="button"
-              onClick={() => {
-                setStep(5);
+              onClick={async () => {
+                setIsSubmitting(true);
+                try {
+                  const token = userToken || localStorage.getItem("token");
+                  if (token) {
+                    await sendSMSInvitation(token, {
+                      phoneNumber,
+                      countryCode: selectedCountry.dialCode,
+                      relationship: relationship || "Family Member"
+                    });
+                    setStep(5);
+                  }
+                } catch (err) {
+                  console.error("Send SMS invitation error:", err);
+                  setStep(5);
+                } finally {
+                  setIsSubmitting(false);
+                }
               }}
-              className="w-full py-3.5 bg-[#4A3AFF] text-white font-bold text-sm rounded-2xl shadow-md hover:bg-[#3b2dd1] transition cursor-pointer"
+              disabled={!phoneNumber || isSubmitting}
+              className="w-full mt-6 py-3.5 bg-[#4A3AFF] text-white font-bold text-sm rounded-2xl shadow-md hover:bg-[#3b2dd1] transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Send SMS Invite
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin text-white" size={18} />
+                  <span>Sending...</span>
+                </>
+              ) : (
+                "Send SMS Invite"
+              )}
             </button>
           </div>
         )}
@@ -639,5 +946,6 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
 
       </div>
     </div>
+    </>
   );
 }

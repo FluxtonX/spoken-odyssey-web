@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 import VoicePlayer from "@/components/ui/VoicePlayer";
+import CardMediaSlider from "@/components/ui/CardMediaSlider";
 
 export default function MyArchive() {
   const router = useRouter();
@@ -61,7 +62,10 @@ export default function MyArchive() {
     const addItem = (url, type = "image", mimeType = "") => {
       if (!url || typeof url !== "string") return;
       const mediaType = isVideoLike(url, mimeType, type) ? "video" : "image";
-      items.push({ url, type: mediaType });
+      const normUrl = normalizeMediaUrl(url);
+      if (normUrl && !items.some(i => i.url === normUrl)) {
+        items.push({ url: normUrl, type: mediaType });
+      }
     };
 
     if (Array.isArray(memory.mediaList)) {
@@ -87,7 +91,7 @@ export default function MyArchive() {
 
     const firstVideo = items.find((item) => item.type === "video")?.url;
     const firstImage = items.find((item) => item.type === "image")?.url;
-    return { video: firstVideo, image: firstImage };
+    return { items, video: firstVideo, image: firstImage };
   };
 
   const getMemoryId = (memory) => memory?.id || memory?._id;
@@ -445,16 +449,16 @@ export default function MyArchive() {
           >
             {filteredMemories.map((memory) => {
               const normType = (memory.type || "").toLowerCase();
+              const isVoice = normType === "voice" || normType === "audio" || !!memory.audioUrl || !!memory.audio;
               
-              const mediaSources = getMemoryMediaSources(memory);
+              const mediaSources = isVoice ? { items: [], video: null, image: null } : getMemoryMediaSources(memory);
               const coverImg = normalizeMediaUrl(mediaSources.image);
               const coverVid = normalizeMediaUrl(mediaSources.video);
 
-              const isVideo = normType === "video" || normType === "visual" || !!coverVid;
-              const isVoice = !isVideo && (normType === "voice" || normType === "audio" || (!!memory.audioUrl && !coverVid) || (!!memory.audio && !coverVid));
+              const isVideo = !isVoice && (normType === "video" || !!coverVid);
               const isWritten = !isVideo && !isVoice && (normType === "written" || normType === "text" || normType === "thought" || normType === "milestone");
 
-              const hasMedia = !!coverImg || !!coverVid;
+              const hasMedia = !isVoice && (mediaSources.items?.length > 0 || !!coverImg || !!coverVid);
               const dateStr = formatDateSafely(memory.date || memory.createdAt || memory.occurredAt);
 
               const openView = () => window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { ...memory, date: dateStr } }));
@@ -492,7 +496,7 @@ export default function MyArchive() {
                 );
               }
 
-              if (isVideo) {
+              if (isVideo || hasMedia) {
                 return (
                   <motion.div 
                     variants={fadeInUp}
@@ -500,26 +504,24 @@ export default function MyArchive() {
                     onClick={openView}
                     className="figma-card overflow-hidden group break-inside-avoid cursor-pointer flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-300 w-full mb-6"
                   >
-                    <div className="bg-stone-900 relative overflow-hidden h-56 w-full shrink-0 flex items-center justify-center">
-                      {coverVid ? (
-                        <video src={coverVid} className="w-full h-full object-cover opacity-85" />
-                      ) : coverImg ? (
-                        <img src={coverImg} alt="Video cover" className="w-full h-full object-cover opacity-85" />
-                      ) : (
-                        <div className="w-full h-full bg-slate-900 flex items-center justify-center text-slate-500" />
-                      )}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md shadow-xl group-hover:scale-110 transition-transform">
-                          <Play size={22} fill="currentColor" className="ml-0.5" />
-                        </div>
-                      </div>
-                    </div>
+                    {mediaSources.items.length > 0 && (
+                      <CardMediaSlider mediaItems={mediaSources.items} title={memory.title} />
+                    )}
                     <div className="p-6 md:p-8 flex flex-col justify-between grow">
                       <div>
                         <div className="flex justify-between items-start mb-4">
                           <div className="flex items-center gap-2">
-                            <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" />
-                            <span className="text-[11px] font-bold uppercase tracking-widest text-[#ec4899]">VIDEO</span>
+                            {isVideo ? (
+                              <>
+                                <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-[#ec4899]">VIDEO</span>
+                              </>
+                            ) : (
+                              <>
+                                <ImageIcon size={16} strokeWidth={2.5} className="text-[#3b82f6]" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-[#3b82f6]">PHOTO MEMORY</span>
+                              </>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5">
                             {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
@@ -527,7 +529,7 @@ export default function MyArchive() {
                           </div>
                         </div>
                         <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight">{memory.title}</h3>
-                        <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>
+                        {memory.description && <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>}
                       </div>
                       <div className="flex flex-wrap gap-2 mt-auto">
                         {(memory.tags && memory.tags.length > 0 ? memory.tags : ['memory']).map((tag) => (
