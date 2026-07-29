@@ -57,6 +57,7 @@ export default function PublishWizard() {
 
   // Publish & Validation state
   const [isPublishing, setIsPublishing] = useState(false);
+  const publishingRef = useRef(false);
   const [validationError, setValidationError] = useState("");
 
   // Voice recording handlers using MediaRecorder API
@@ -955,16 +956,15 @@ export default function PublishWizard() {
                         ? `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` 
                         : "01:30";
 
-                      const fileToDataUrl = (file) => {
-                        return new Promise((resolve) => {
+                      const fileToDataUrl = (file) =>
+                        new Promise((resolve) => {
                           if (!file) return resolve(null);
                           if (typeof file === "string") return resolve(file);
                           const reader = new FileReader();
                           reader.onload = () => resolve(reader.result);
-                          reader.onerror = () => resolve(URL.createObjectURL(file));
+                          reader.onerror = () => resolve(undefined);
                           reader.readAsDataURL(file);
                         });
-                      };
 
                       const mediaDataUrls = await Promise.all(visualFiles.map(fileToDataUrl));
                       const persistentAudioUrl = audioBlob ? await fileToDataUrl(audioBlob) : (audioUrl || undefined);
@@ -1069,12 +1069,27 @@ export default function PublishWizard() {
                             publishedMem.image = backendImage?.mediaUrl || backendVideo?.thumbnailUrl || createdBackendMem.thumbnailUrl || publishedMem.image;
                             publishedMem.cover = publishedMem.image;
                           }
+                          
+                          // Overwrite local duplicate with authoritative backend copy
+                          try {
+                            const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+                            const saved = localStorage.getItem(userKey);
+                            if (saved) {
+                              const existing = JSON.parse(saved);
+                              const idx = existing.findIndex(m => m.id === newMem.id);
+                              if (idx !== -1) {
+                                existing[idx] = publishedMem;
+                                localStorage.setItem(userKey, JSON.stringify(existing));
+                              }
+                            }
+                          } catch (e) { console.error("Error updating local store:", e); }
                         }
                       }
                     } catch (err) {
                       console.error("Failed to publish memory", err);
                     } finally {
                       setIsPublishing(false);
+                      publishingRef.current = false;
                       window.dispatchEvent(new CustomEvent("memoryPublished", { detail: { memory: publishedMem } }));
                       setStep(5);
                     }
