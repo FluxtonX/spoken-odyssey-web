@@ -221,12 +221,23 @@ export default function InviteMemberModal({ isOpen, onClose, onSuccess, userToke
       
       console.log("Debug - Full API response:", JSON.stringify(result, null, 2));
       
-      const joinLink = result?.data?.joinLink || result?.joinLink || result?.invitation?.joinLink;
-      
-      if (joinLink) {
-        navigator.clipboard.writeText(joinLink);
-        setCopiedLink(joinLink);
-        setQrCodeData(joinLink);
+      const rawJoinLink = result?.data?.joinLink || result?.joinLink || result?.invitation?.joinLink;
+      const invToken = result?.invitationToken || result?.data?.invitationToken || result?.invitation?.invitationToken;
+
+      let finalJoinLink = rawJoinLink;
+      if (typeof window !== "undefined") {
+        const currentOrigin = window.location.origin;
+        if (invToken) {
+          finalJoinLink = `${currentOrigin}/invite/${invToken}`;
+        } else if (rawJoinLink && (rawJoinLink.includes("localhost:3000") || rawJoinLink.includes("localhost"))) {
+          finalJoinLink = rawJoinLink.replace(/^https?:\/\/[^\/]+/i, currentOrigin);
+        }
+      }
+
+      if (finalJoinLink) {
+        navigator.clipboard.writeText(finalJoinLink);
+        setCopiedLink(finalJoinLink);
+        setQrCodeData(finalJoinLink);
         setTimeout(() => setCopiedLink(""), 5000);
       } else {
         console.error("No joinLink in response. Response structure:", result);
