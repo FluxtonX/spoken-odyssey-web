@@ -510,6 +510,20 @@ export default function MyArchive() {
                     <div className="p-6 md:p-8 flex flex-col justify-between grow">
                       <div>
                         <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={memory.ownerAvatarUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop"} 
+                              alt={memory.ownerDisplayName || "Author"} 
+                              className="w-8 h-8 rounded-full object-cover border border-[#C7D2FE]"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-bold text-[13px] text-stone-900 leading-tight">
+                                {memory.ownerDisplayName || "Author"}
+                              </span>
+                              <span className="text-[11px] text-stone-500 font-medium">{dateStr}</span>
+                            </div>
+                          </div>
+                          
                           <div className="flex items-center gap-2">
                             {isVideo ? (
                               <>
@@ -519,13 +533,9 @@ export default function MyArchive() {
                             ) : (
                               <>
                                 <ImageIcon size={16} strokeWidth={2.5} className="text-[#3b82f6]" />
-                                <span className="text-[11px] font-bold uppercase tracking-widest text-[#3b82f6]">PHOTO MEMORY</span>
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-[#3b82f6]">PHOTO</span>
                               </>
                             )}
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
-                            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
                           </div>
                         </div>
                         <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight">{memory.title}</h3>

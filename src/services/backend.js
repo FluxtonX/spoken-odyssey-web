@@ -261,14 +261,9 @@ export async function shareMemoryOnBackend(token, memoryId) {
   return response.data;
 }
 
-/** React to memory with specific emotion (heart, like, laugh, angry, care) */
+/** React to memory with specific emotion (heart, like, care, haha, wow, angry) */
 export async function reactToMemoryOnBackend(token, memoryId, reactionType) {
-  const response = await backendFetch(`/api/memories/${memoryId}/react`, {
-    method: "POST",
-    body: { reactionType },
-    token,
-  });
-  return response.data;
+  return reactToMemory(token, memoryId, reactionType);
 }
 
 /** Fetch comments for a specific memory */
@@ -303,8 +298,8 @@ export async function getMemoryDetailsFromBackend(token, memoryId) {
 }
 
 /** Get discovery filter memories */
-export async function getDiscoveryMemories(token, filter, theme) {
-  const query = `filter=${filter || ""}&theme=${theme || ""}`;
+export async function getDiscoveryMemories(token, filter, theme, searchQuery = "") {
+  const query = `filter=${encodeURIComponent(filter || "")}&theme=${encodeURIComponent(theme || "")}&q=${encodeURIComponent(searchQuery || "")}`;
   const response = await backendFetch(`/api/memories/discovery?${query}`, { token });
   return response.data;
 }
@@ -319,6 +314,13 @@ export async function searchOnBackend(token, query, type = "all") {
 /** Get suggested profiles to connect with */
 export async function getSuggestedPeople(token) {
   const response = await backendFetch("/api/users/discovery", { token });
+  return response.data;
+}
+
+/** Get featured people for discovery */
+export async function getFeaturedPeople(token, category = "", query = "") {
+  const qStr = `category=${encodeURIComponent(category || "")}&q=${encodeURIComponent(query || "")}`;
+  const response = await backendFetch(`/api/users/featured?${qStr}`, { token });
   return response.data;
 }
 
@@ -553,7 +555,7 @@ export async function reactToComment(token, memoryId, commentId, type) {
 export async function reactToMemory(token, memoryId, type) {
   const response = await backendFetch(`/api/memories/${memoryId}/react`, {
     method: "POST",
-    body: { type },
+    body: { type, reactionType: type },
     token,
   });
   return response.data;
@@ -612,6 +614,13 @@ export async function updateLegacySettings(token, settingsData) {
     token,
   });
   return response?.data !== undefined ? response.data : response;
+}
+
+/** Get user profile details by ID from backend */
+export async function getUserProfileFromBackend(token, userId) {
+  if (!userId) return null;
+  const response = await backendFetch(`/api/users/${userId}`, { token });
+  return response.data;
 }
 
 export function getBackendErrorMessage(error, fallback = "Something went wrong. Please try again.") {
