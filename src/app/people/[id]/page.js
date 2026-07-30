@@ -1,361 +1,688 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Camera,
-  Heart,
-  Image as ImageIcon,
-  MapPin,
-  MessageCircle,
-  MoreHorizontal,
-  Plus,
-  Share2,
-  UserCheck,
-  X,
+import { useState, useEffect } from "react";
+import { usePathname, useRouter, useParams } from "next/navigation";
+import DashboardHeader from "@/components/layout/DashboardHeader";
+import WavesBackground from "@/components/layout/WavesBackground";
+import { 
+  UserPlus, UserCheck, Heart, Award, Star, Briefcase, Calendar, 
+  Folder, Loader2, ArrowLeft, Inbox, Sparkles, BookOpen, Mic, Play,
+  FileText, Image as ImageIcon, Film, Headphones
 } from "lucide-react";
-import { getPersonById, getPersonMemories, people } from "@/data/mockApp";
-import CommentsSection from "@/components/ui/CommentsSection";
-
-const reactions = [
-  { id: "heart", label: "Heart", icon: "♥", color: "text-rose-600" },
-  { id: "like", label: "Like", icon: "👍", color: "text-[var(--brand)]" },
-  { id: "wow", label: "Wow", icon: "😮", color: "text-amber-600" },
-  { id: "haha", label: "Haha", icon: "😄", color: "text-yellow-600" },
-  { id: "angry", label: "Angry", icon: "😡", color: "text-red-600" },
-];
+import { motion } from "framer-motion";
+import { staggerContainer, fadeInUp } from "@/lib/animations";
+import { useAuth } from "@/context/AuthProvider";
+import VoicePlayer from "@/components/ui/VoicePlayer";
+import CardMediaSlider from "@/components/ui/CardMediaSlider";
+import { 
+  getUserProfileFromBackend, 
+  getMemoriesFromBackend, 
+  getAlbumsFromBackend, 
+  followUser, 
+  unfollowUser, 
+  reactToMemory,
+  normalizeMediaUrl 
+} from "@/services/backend";
+import { getFeaturedPersonData } from "@/data/featuredPeopleData";
 
 export default function PersonDetailPage() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const id = pathname.split("/").filter(Boolean).at(-1);
-  const person = getPersonById(id) ?? people[0];
-  const personMemories = getPersonMemories(person.id);
-  const [viewer, setViewer] = useState(null);
+  const pathname = usePathname();
+  const params = useParams();
+  const { isAuthenticated, firebaseUser, getToken } = useAuth();
+
+  // Extract ID reliably from useParams or pathname
+  const id = params?.id || (pathname ? pathname.split("/").filter(Boolean).at(-1) : null);
+
+  // Tab State: "stories" | "milestones" | "albums"
+  const [activeTab, setActiveTab] = useState("stories");
+
+  // Main Data States
+  const [person, setPerson] = useState(null);
+  const [stories, setStories] = useState([]);
+  const [milestones, setMilestones] = useState([]);
+  const [albums, setAlbums] = useState([]);
+
+  const [isLoading, setIsLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
-  const from = searchParams.get("from");
-  const backHref = from === "feed" || from === "discover"
-    ? "/discover"
-    : from === "search"
-      ? "/search"
-      : "/discover";
+  // Reaction maps for stories
+  const [userReactionMap, setUserReactionMap] = useState({});
+  const [reactionsCountMap, setReactionsCountMap] = useState({});
 
-  const handleBack = (e) => {
-    e.preventDefault();
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push(backHref);
+  // Main Data Hydration Effect
+  useEffect(() => {
+    if (!id || id === "[id]") {
+      setIsLoading(false);
+      return;
+    }
+
+    async function loadPersonData() {
+      setIsLoading(true);
+      try {
+        let token = null;
+        if (isAuthenticated && firebaseUser) {
+          try {
+            token = await getToken();
+          } catch (_) {}
+        }
+
+        let dbUser = null;
+        let dbMemories = [];
+        let dbAlbums = [];
+
+        // Attempt to fetch real database user details
+        try {
+          dbUser = await getUserProfileFromBackend(token, id);
+        } catch (_) {}
+
+        // Attempt to fetch user's memories & albums from DB
+        try {
+          if (dbUser?.id || id) {
+            dbMemories = await getMemoriesFromBackend(token, dbUser?.id || id);
+            dbAlbums = await getAlbumsFromBackend(token, dbUser?.id || id);
+          }
+        } catch (_) {}
+
+        // Check if explicit mock featured person slug exists (e.g. "grace-hopper", "nelson-mandela", "maya-angelou")
+        const mockPerson = getFeaturedPersonData(id);
+
+        if (dbUser && (dbUser.id || dbUser.email || dbUser.displayName)) {
+          // ====================================================
+          // REAL DATABASE USER FOUND -> STRICTLY RENDER REAL DB DATA
+          // ====================================================
+          const displayName = dbUser.displayName || dbUser.name || (dbUser.email ? dbUser.email.split("@")[0] : "Storyteller");
+          
+          setPerson({
+            id: dbUser.id,
+            name: displayName,
+            role: dbUser.profession || dbUser.role || dbUser.bio || "Odyssey Creator",
+            avatar: dbUser.photoURL || dbUser.photoKey || dbUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop",
+            cover: dbUser.coverURL || dbUser.coverKey || dbUser.cover || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1400&auto=format&fit=crop",
+            bio: dbUser.bio || "Sharing stories and digital memories on Spoken Odyssey.",
+            followersCount: dbUser.followersCount || 0,
+            storiesCount: Array.isArray(dbMemories) ? dbMemories.length : 0,
+            milestonesCount: Array.isArray(dbMemories) ? dbMemories.filter(m => String(m.type).toLowerCase() === "milestone" || (m.tags && m.tags.includes("milestone"))).length : 0,
+            isFollowing: !!dbUser.isFollowing
+          });
+          setIsFollowing(!!dbUser.isFollowing);
+          setFollowersCount(dbUser.followersCount || 0);
+
+          // Real DB Memories / Stories
+          if (Array.isArray(dbMemories)) {
+            setStories(dbMemories);
+            
+            // Extract milestones from DB memories
+            const dbMs = dbMemories.filter(m => String(m.type).toLowerCase() === "milestone" || (m.tags && m.tags.includes("milestone"))).map((m, idx) => ({
+              id: m.id || `ms-${idx}`,
+              category: (m.tags && m.tags[0]) ? m.tags[0].toUpperCase() : "CAREER",
+              year: m.date ? new Date(m.date).getFullYear().toString() : "2024",
+              title: m.title,
+              description: m.description,
+              iconType: idx % 2 === 0 ? "award" : "star"
+            }));
+            setMilestones(dbMs);
+
+            const initialReactMap = {};
+            const initialCountMap = {};
+            dbMemories.forEach(m => {
+              initialReactMap[m.id] = m.userReaction || null;
+              initialCountMap[m.id] = m.totalReactions ?? m.likes ?? 0;
+            });
+            setUserReactionMap(initialReactMap);
+            setReactionsCountMap(initialCountMap);
+          } else {
+            setStories([]);
+            setMilestones([]);
+          }
+
+          // Real DB Albums
+          if (Array.isArray(dbAlbums)) {
+            setAlbums(dbAlbums);
+          } else {
+            setAlbums([]);
+          }
+
+        } else if (mockPerson) {
+          // ====================================================
+          // FEATURED HISTORICAL FIGURE (e.g., Grace Hopper)
+          // ====================================================
+          setPerson(mockPerson);
+          setIsFollowing(mockPerson.isFollowing || false);
+          setFollowersCount(mockPerson.followersCount || 45200);
+          setStories(mockPerson.stories || []);
+          setMilestones(mockPerson.milestones || []);
+          setAlbums(mockPerson.albums || []);
+
+          const initialReactMap = {};
+          const initialCountMap = {};
+          (mockPerson.stories || []).forEach(m => {
+            initialReactMap[m.id] = null;
+            initialCountMap[m.id] = m.likes || 0;
+          });
+          setUserReactionMap(initialReactMap);
+          setReactionsCountMap(initialCountMap);
+        } else {
+          // ====================================================
+          // FALLBACK DEFAULT FOR UNKNOWN ID
+          // ====================================================
+          setPerson({
+            id: id || "unknown",
+            name: "Odyssey Creator",
+            role: "Member",
+            avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop",
+            cover: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1400&auto=format&fit=crop",
+            bio: "Spoken Odyssey Member",
+            followersCount: 0,
+            storiesCount: 0,
+            milestonesCount: 0,
+            isFollowing: false
+          });
+          setStories([]);
+          setMilestones([]);
+          setAlbums([]);
+        }
+      } catch (err) {
+        console.error("Error loading user profile details:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadPersonData();
+  }, [id, isAuthenticated, firebaseUser, getToken]);
+
+  // Handle Follow / Unfollow Toggle
+  const handleFollowToggle = async () => {
+    if (!person) return;
+    const targetId = person.id;
+    const nextState = !isFollowing;
+    const nextCount = nextState ? followersCount + 1 : Math.max(0, followersCount - 1);
+
+    setIsFollowing(nextState);
+    setFollowersCount(nextCount);
+    setIsFollowLoading(true);
+
+    try {
+      if (isAuthenticated && firebaseUser) {
+        const token = await getToken();
+        if (isFollowing) {
+          await unfollowUser(token, targetId);
+        } else {
+          await followUser(token, targetId);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to toggle follow status:", err);
+      setIsFollowing(isFollowing);
+      setFollowersCount(followersCount);
+    } finally {
+      setIsFollowLoading(false);
     }
   };
 
+  // Handle Story Like Toggle
+  const handleLikeToggle = async (e, story) => {
+    e.stopPropagation();
+    const storyId = story.id;
+    const currentReaction = userReactionMap[storyId] || (story.userReaction ? "heart" : null);
+    const isLiked = !!currentReaction;
+    const nextReaction = isLiked ? null : "heart";
+    const currentCount = reactionsCountMap[storyId] ?? story.likes ?? 0;
+    const newCount = isLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
+
+    setUserReactionMap(prev => ({ ...prev, [storyId]: nextReaction }));
+    setReactionsCountMap(prev => ({ ...prev, [storyId]: newCount }));
+
+    try {
+      if (isAuthenticated && firebaseUser) {
+        const token = await getToken();
+        const resData = await reactToMemory(token, storyId, "heart");
+        if (resData) {
+          const finalReaction = resData.userReaction !== undefined ? resData.userReaction : nextReaction;
+          const finalTotal = resData.totalReactions ?? resData.likes ?? newCount;
+          setUserReactionMap(prev => ({ ...prev, [storyId]: finalReaction }));
+          setReactionsCountMap(prev => ({ ...prev, [storyId]: finalTotal }));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to react to story:", err);
+      setUserReactionMap(prev => ({ ...prev, [storyId]: currentReaction }));
+      setReactionsCountMap(prev => ({ ...prev, [storyId]: currentCount }));
+    }
+  };
+
+  // Open MemoryViewModal Popup
+  const handleOpenMemoryModal = (story) => {
+    window.dispatchEvent(
+      new CustomEvent("openMemoryView", {
+        detail: { ...story, date: story.date || "Public Story" },
+      })
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <WavesBackground>
+        <div className="w-full relative pb-24 min-h-screen">
+          <DashboardHeader />
+          <div className="flex flex-col items-center justify-center py-32">
+            <Loader2 size={40} className="animate-spin text-[#4A3AFF] mb-4" />
+            <p className="text-stone-500 font-bold uppercase tracking-wide text-[13px]">Loading Profile...</p>
+          </div>
+        </div>
+      </WavesBackground>
+    );
+  }
+
   return (
-    <div className="w-full max-w-5xl pb-24 animation-fade-in">
-      <header className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <div className="relative z-0 h-[220px] bg-stone-100 sm:h-[300px] lg:h-[360px]">
-          <button onClick={() => setViewer({ type: "Cover photo", src: person.cover })} className="block h-full w-full">
-            <img src={person.cover} alt={`${person.name} cover`} className="h-full w-full object-cover" />
-          </button>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
-          <button
-            onClick={handleBack}
-            className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-lg border border-white/25 bg-white/90 text-[var(--ink)] shadow-sm backdrop-blur-md cursor-pointer transition active:scale-95 z-20"
-            aria-label="Back"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <button
-            onClick={() => setViewer({ type: "Cover photo", src: person.cover })}
-            className="absolute bottom-4 right-4 hidden h-10 items-center gap-2 rounded-lg bg-white/90 px-3 text-xs font-black text-[var(--ink)] shadow-sm backdrop-blur-md sm:flex"
-          >
-            <Camera size={15} />
-            View Cover
-          </button>
-        </div>
+    <WavesBackground>
+      <motion.div 
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+        className="w-full relative pb-24 min-h-screen"
+      >
+        <DashboardHeader />
 
-        <div className="relative z-10 bg-[var(--surface)] px-4 pb-5 sm:px-6">
-          <div className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 md:flex-row md:items-end md:justify-between">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <button
-                onClick={() => setViewer({ type: "Profile photo", src: person.avatar })}
-                className="relative z-20 -mt-12 h-28 w-28 shrink-0 overflow-hidden rounded-full border-4 border-[var(--surface)] bg-[var(--surface)] shadow-xl sm:-mt-14 sm:h-36 sm:w-36"
-              >
-                <img src={person.avatar} alt={person.name} className="h-full w-full object-cover" />
-              </button>
-
-              <div className="relative z-20 min-w-0 pb-1">
-                <h1 className="text-3xl font-black tracking-tight text-[var(--ink)] sm:text-4xl">{person.name}</h1>
-                <p className="mt-1 text-sm font-black text-[var(--brand)]">{person.role}</p>
-                <p className="mt-2 flex items-center gap-2 text-xs font-black uppercase tracking-wide text-stone-500">
-                  <MapPin size={14} />
-                  {person.location}
-                </p>
-                <div className="mt-3 flex items-center gap-3 text-xs font-bold text-stone-500 dark:text-stone-400">
-                  <span>
-                    <strong className="text-[var(--ink)] dark:text-white font-black">
-                      {((person.id === "sarah" ? 1200 : person.id === "robert" ? 980 : 1530) + (isFollowing ? 1 : 0)).toLocaleString()}
-                    </strong> followers
-                  </span>
-                  <span className="text-stone-300 dark:text-stone-700">•</span>
-                  <span>
-                    <strong className="text-[var(--ink)] dark:text-white font-black">
-                      {person.id === "sarah" ? "432" : person.id === "robert" ? "280" : "512"}
-                    </strong> following
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative z-20 grid grid-cols-[1fr_1fr_auto] gap-2 sm:flex">
-              <button 
-                onClick={() => setIsFollowing(!isFollowing)}
-                className={`flex h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-black transition-all cursor-pointer ${
-                  isFollowing 
-                    ? "bg-stone-100 dark:bg-stone-850 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-800" 
-                    : "bg-[var(--brand)] text-white hover:scale-[1.01] active:scale-95 shadow-sm"
-                }`}
-              >
-                <UserCheck size={16} />
-                {isFollowing ? "Following" : "Follow"}
-              </button>
-              <button className="flex h-11 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 text-sm font-black text-[var(--ink)]">
-                <MessageCircle size={16} />
-                Message
-              </button>
-              <button className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--ink)]">
-                <MoreHorizontal size={18} />
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div>
-              <p className="max-w-2xl text-sm font-medium leading-7 text-stone-600 dark:text-stone-300">{person.bio}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {["Digital Legacy", "Family Archive", "Public Memories"].map((tag) => (
-                  <span key={tag} className="rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs font-black text-stone-600">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <Stat label="Memories" value={person.stats.memories} />
-              <Stat label="Albums" value={person.stats.albums} />
-              <Stat label="Family" value={person.stats.family} />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="mt-6">
-        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm w-full">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-black tracking-tight text-[var(--ink)]">Public Memories</h2>
-              <p className="mt-1 text-sm font-bold text-stone-500">Preview memories shared by this profile.</p>
-            </div>
-            <button className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--brand)]">
-              <Plus size={18} />
+        {/* Master Alignment Wrapper */}
+        <div className="w-full mt-2 md:mt-6 px-4 md:px-8 max-w-6xl mx-auto flex flex-col">
+          
+          {/* Back Button Bar */}
+          <div className="mb-4">
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/70 backdrop-blur-md border border-white/80 rounded-full text-[14px] font-bold text-stone-700 hover:text-stone-900 transition-all shadow-sm"
+            >
+              <ArrowLeft size={16} />
+              Back to Discover
             </button>
           </div>
 
-          {personMemories.length === 0 ? (
-            <div className="rounded-lg bg-[var(--background)] p-5 text-sm font-bold text-stone-500">No public memories in the preview set yet.</div>
-          ) : (
-            <div className="space-y-4">
-              {personMemories.map((memory) => <ProfileMemoryCard key={memory.id} memory={memory} />)}
-            </div>
-          )}
-        </section>
-      </main>
+          {/* ====================================================
+              HEADER PROFILE CARD (Exact Figma Layout with 3D Inset Shadow)
+              ==================================================== */}
+          {person && (
+            <motion.div variants={fadeInUp} className="figma-card w-full rounded-[24px] overflow-hidden mb-8 relative">
+              
+              {/* Cover Banner (h-[200px] md:h-[240px]) */}
+              <div className="w-full h-[200px] md:h-[240px] relative overflow-hidden bg-stone-200">
+                <img
+                  src={person.cover}
+                  alt={person.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+              </div>
 
-      {viewer && <PhotoViewer viewer={viewer} onClose={() => setViewer(null)} />}
-    </div>
-  );
-}
+              {/* Overlapping Avatar Circle */}
+              <div className="absolute top-[140px] md:top-[170px] left-6 md:left-8 w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-white overflow-hidden shadow-lg z-10 bg-white">
+                <img
+                  src={person.avatar}
+                  alt={person.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
 
-function Stat({ label, value }) {
-  return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-center">
-      <p className="text-xl font-black text-[var(--ink)]">{value}</p>
-      <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-stone-500">{label}</p>
-    </div>
-  );
-}
+              {/* Card Body (Below Cover) */}
+              <div className="pt-12 md:pt-14 px-6 md:px-8 pb-6 flex flex-col">
+                
+                {/* Top Row: Name/Role + Follow Button */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-[26px] md:text-[34px] font-bold text-stone-900 tracking-tight leading-tight mb-1">
+                      {person.name}
+                    </h1>
+                    <p className="text-[15px] font-medium text-stone-500">
+                      {person.role}
+                    </p>
+                  </div>
 
-function PhotoViewer({ viewer, onClose }) {
-  return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[var(--ink)]/90 p-4 backdrop-blur-sm">
-      <button onClick={onClose} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20">
-        <X size={20} />
-      </button>
-      <div className="w-full max-w-5xl">
-        <p className="mb-3 text-center text-sm font-black uppercase tracking-wide text-white/70">{viewer.type}</p>
-        <img src={viewer.src} alt={viewer.type} className="mx-auto max-h-[78vh] w-auto max-w-full rounded-lg object-contain shadow-2xl" />
-      </div>
-    </div>
-  );
-}
+                  {/* Follow Button */}
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={isFollowLoading}
+                    className={`px-6 py-2.5 rounded-full text-[14px] font-bold transition-all flex items-center justify-center gap-2 shadow-sm self-start sm:self-auto ${
+                      isFollowing
+                        ? "bg-stone-200 text-stone-800 hover:bg-stone-300"
+                        : "bg-[#4A3AFF] text-white hover:bg-[#3b2bee] shadow-md"
+                    }`}
+                  >
+                    {isFollowLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : isFollowing ? (
+                      <>
+                        <UserCheck size={16} />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} />
+                        Follow
+                      </>
+                    )}
+                  </button>
+                </div>
 
-function ProfileMemoryCard({ memory }) {
-  const [reaction, setReaction] = useState(null);
-  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentsCount, setCommentsCount] = useState(0);
-  const [shareNotice, setShareNotice] = useState("");
-  const holdTimerRef = useRef(null);
-  const selectedReaction = reactions.find((item) => item.id === reaction);
-  const reactionCount = memory.likes + (reaction ? 1 : 0);
+                {/* Divider Line */}
+                <div className="w-full h-[1px] bg-stone-200/80 my-5" />
 
-  useEffect(() => {
-    // Load initial count if stored
-    const saved = localStorage.getItem(`comments_${memory.id}`);
-    if (saved) {
-      try {
-        setCommentsCount(JSON.parse(saved).length);
-      } catch {}
-    } else {
-      setCommentsCount((memory.comments || 0) + 1);
-    }
+                {/* Stats Line */}
+                <div className="flex items-center gap-6 text-[15px] text-stone-500 font-medium">
+                  <div>
+                    <strong className="text-stone-900 font-bold">{followersCount.toLocaleString()}</strong> followers
+                  </div>
+                  <div>
+                    <strong className="text-stone-900 font-bold">{stories.length}</strong> stories
+                  </div>
+                  <div>
+                    <strong className="text-stone-900 font-bold">{milestones.length}</strong> milestones
+                  </div>
+                </div>
 
-    const handleCommentsUpdate = (e) => {
-      setCommentsCount(e.detail);
-    };
-
-    window.addEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
-    return () => {
-      window.removeEventListener(`commentsUpdated_${memory.id}`, handleCommentsUpdate);
-    };
-  }, [memory.id]);
-
-  function clearHoldTimer() {
-    if (holdTimerRef.current) {
-      window.clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  }
-
-  function startReactionHold() {
-    clearHoldTimer();
-    holdTimerRef.current = window.setTimeout(() => {
-      setReactionPickerOpen(true);
-    }, 450);
-  }
-
-  function quickReact() {
-    clearHoldTimer();
-    if (reactionPickerOpen) return;
-    setReaction((current) => (current === "heart" ? null : "heart"));
-  }
-
-  function chooseReaction(nextReaction) {
-    setReaction(nextReaction);
-    setReactionPickerOpen(false);
-  }
-
-  async function shareMemory() {
-    const shareUrl = `${window.location.origin}/memories/${memory.id}`;
-    const shareData = {
-      title: memory.title,
-      text: memory.description,
-      url: shareUrl,
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        setShareNotice("Shared");
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        setShareNotice("Link copied");
-      }
-    } catch {
-      setShareNotice("Share cancelled");
-    }
-
-    window.setTimeout(() => setShareNotice(""), 1800);
-  }
-
-  return (
-    <article className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)]">
-      <Link href={`/memories/${memory.id}`} className="block">
-        <img src={memory.image} alt={memory.title} className="max-h-72 w-full object-cover" />
-        <div className="p-4">
-          <p className="text-[10px] font-black uppercase tracking-wide text-[var(--brand)]">{memory.type}</p>
-          <h3 className="mt-1 text-base font-black text-[var(--ink)]">{memory.title}</h3>
-          <p className="mt-2 text-sm font-medium leading-6 text-stone-600">{memory.description}</p>
-        </div>
-      </Link>
-
-      <div className="border-t border-[var(--border)] p-3">
-        <div className="mb-2 flex items-center justify-between text-[10px] font-bold text-stone-400">
-          <span className="flex items-center gap-1">
-            {reaction && <span className={selectedReaction?.color}>{selectedReaction?.icon}</span>}
-            {reactionCount} reactions
-          </span>
-          <button onClick={() => setCommentsOpen((current) => !current)} className="hover:text-[var(--brand)]">
-            {commentsCount} comments
-          </button>
-        </div>
-
-        <div className="relative flex border-t border-[var(--border)] pt-2">
-          {reactionPickerOpen && (
-            <div className="absolute bottom-full left-0 z-20 mb-2 flex rounded-full border border-[var(--border)] bg-white p-1.5 shadow-xl">
-              {reactions.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => chooseReaction(item.id)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-xl transition hover:-translate-y-1 hover:bg-[var(--brand-soft)]"
-                  aria-label={item.label}
-                >
-                  {item.icon}
-                </button>
-              ))}
-            </div>
+              </div>
+            </motion.div>
           )}
 
-          <button
-            onMouseDown={startReactionHold}
-            onMouseUp={quickReact}
-            onMouseLeave={clearHoldTimer}
-            onTouchStart={startReactionHold}
-            onTouchEnd={quickReact}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-black transition hover:bg-[var(--surface)] ${
-              reaction ? selectedReaction?.color : "text-stone-600 hover:text-[var(--brand)]"
-            }`}
-          >
-            <span className="text-lg leading-none">{reaction ? selectedReaction?.icon : "♥"}</span>
-            {reaction ? selectedReaction?.label : "Like"}
-          </button>
+          {/* ====================================================
+              PALL-STYLE TABS SELECTOR (Stories, Milestones, Albums)
+              ==================================================== */}
+          <motion.div variants={fadeInUp} className="w-full mb-8">
+            <div className="w-full bg-white/70 backdrop-blur-md border border-white/80 rounded-full p-1.5 flex items-center shadow-sm">
+              <button
+                onClick={() => setActiveTab("stories")}
+                className={`flex-1 py-3 px-6 rounded-full text-[15px] font-bold transition-all text-center ${
+                  activeTab === "stories"
+                    ? "bg-[#4A3AFF] text-white shadow-md"
+                    : "bg-transparent text-stone-600 hover:text-stone-900 font-semibold"
+                }`}
+              >
+                Stories
+              </button>
+              <button
+                onClick={() => setActiveTab("milestones")}
+                className={`flex-1 py-3 px-6 rounded-full text-[15px] font-bold transition-all text-center ${
+                  activeTab === "milestones"
+                    ? "bg-[#4A3AFF] text-white shadow-md"
+                    : "bg-transparent text-stone-600 hover:text-stone-900 font-semibold"
+                }`}
+              >
+                Milestones
+              </button>
+              <button
+                onClick={() => setActiveTab("albums")}
+                className={`flex-1 py-3 px-6 rounded-full text-[15px] font-bold transition-all text-center ${
+                  activeTab === "albums"
+                    ? "bg-[#4A3AFF] text-white shadow-md"
+                    : "bg-transparent text-stone-600 hover:text-stone-900 font-semibold"
+                }`}
+              >
+                Albums
+              </button>
+            </div>
+          </motion.div>
 
-          <ProfileAction icon={MessageCircle} label="Comment" onClick={() => setCommentsOpen((current) => !current)} />
-          <ProfileAction icon={Share2} label={shareNotice || "Share"} onClick={shareMemory} />
+          {/* ====================================================
+              TAB 1: STORIES VIEW (Exact Figma 3-Column Grid)
+              ==================================================== */}
+          {activeTab === "stories" && (
+            stories.length === 0 ? (
+              <div className="w-full flex flex-col items-center justify-center py-20 bg-white/70 backdrop-blur-md rounded-[24px] border border-white/80">
+                <Inbox size={44} className="text-stone-300 mb-3" />
+                <h3 className="text-[17px] font-bold text-stone-800 mb-1">No Public Stories Yet</h3>
+                <p className="text-stone-500 text-[14px] font-medium text-center max-w-sm">
+                  This user has not published any public stories yet.
+                </p>
+              </div>
+            ) : (
+              <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                {stories.map((story) => {
+                  const typeStr = String(story.type || "").toLowerCase();
+                  const isVoice = typeStr === "voice";
+                  const isVideo = typeStr === "video";
+                  const isWritten = typeStr === "written" || typeStr === "text";
+                  const isPhoto = !isVoice && !isVideo && !isWritten;
+
+                  const currentReact = userReactionMap[story.id] || (story.userReaction ? "heart" : null);
+                  const isLiked = !!currentReact;
+                  const likeCount = reactionsCountMap[story.id] ?? story.totalReactions ?? story.likes ?? 0;
+
+                  const dateBadgeText = (isVoice ? "VOICE " : isVideo ? "VIDEO " : isWritten ? "WRITTEN " : "PHOTO ") + 
+                    (story.date || (story.createdAt ? new Date(story.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Jul 27, 2026"));
+
+                  const displayTags = (story.tags || ["story"]).slice(0, 3);
+
+                  return (
+                    <motion.div
+                      variants={fadeInUp}
+                      key={story.id}
+                      onClick={() => handleOpenMemoryModal(story)}
+                      className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full"
+                    >
+                      {/* Media Header depending on type */}
+                      {isVideo && (
+                        <div className="w-full h-[180px] overflow-hidden shrink-0 relative border-b border-[#C7D2FE]/50 bg-stone-900" onClick={(e) => e.stopPropagation()}>
+                          <CardMediaSlider 
+                            mediaItems={Array.isArray(story.mediaList) && story.mediaList.length > 0 ? story.mediaList : [{ url: story.mediaUrl || story.mediaKey, type: 'video' }]} 
+                            title={story.title} 
+                          />
+                        </div>
+                      )}
+
+                      {isPhoto && (
+                        <div className="w-full h-[190px] relative overflow-hidden bg-stone-200 border-b border-[#C7D2FE]/40" onClick={(e) => e.stopPropagation()}>
+                          <CardMediaSlider 
+                            mediaItems={Array.isArray(story.mediaList) && story.mediaList.length > 0 ? story.mediaList : [{ url: story.mediaUrl || story.image || "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=800&auto=format&fit=crop", type: 'image' }]} 
+                            title={story.title} 
+                          />
+                        </div>
+                      )}
+
+                      {/* Card Content Body */}
+                      <div className="p-5 flex flex-col flex-grow">
+                        
+                        {/* Author Profile Bar */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={story.ownerAvatarUrl || story.authorAvatar || person.avatar}
+                              alt={story.ownerDisplayName || story.authorName || person.name}
+                              className="w-8 h-8 rounded-full object-cover border border-stone-200"
+                            />
+                            <div>
+                              <h4 className="text-[13px] font-bold text-stone-800 leading-tight">
+                                {story.ownerDisplayName || story.authorName || person.name}
+                              </h4>
+                              <p className="text-[11px] font-bold text-stone-500 tracking-wide uppercase">
+                                {dateBadgeText}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Heart Reaction Button */}
+                          <button
+                            onClick={(e) => handleLikeToggle(e, story)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-bold transition-all ${
+                              isLiked ? "bg-rose-50 text-rose-600 border border-rose-200" : "bg-stone-100 text-stone-500 hover:bg-rose-50 hover:text-rose-500"
+                            }`}
+                          >
+                            <Heart
+                              size={15}
+                              className={isLiked ? "fill-rose-500 text-rose-500" : "text-stone-400"}
+                            />
+                            <span>{likeCount}</span>
+                          </button>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="text-[17px] font-bold text-stone-900 mb-2 leading-snug group-hover:text-[#4A3AFF] transition-colors">
+                          {story.title}
+                        </h3>
+
+                        {/* Voice Player Embed for Voice Memories */}
+                        {isVoice && (
+                          <div className="mb-4 w-full" onClick={(e) => e.stopPropagation()}>
+                            <VoicePlayer memory={story} />
+                          </div>
+                        )}
+
+                        {/* Written Memory Box */}
+                        {isWritten && (
+                          <div className="p-4 bg-[#F4F6FF] rounded-xl border border-[#D1D9FF]/60 mb-4">
+                            <p className="text-[14px] text-stone-700 font-medium italic line-clamp-3 leading-relaxed">
+                              "{story.description}"
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Description Snippet for non-written */}
+                        {!isWritten && (
+                          <p className="text-[14px] text-stone-600 line-clamp-2 mb-4 font-medium leading-relaxed flex-grow">
+                            {story.description}
+                          </p>
+                        )}
+
+                        {/* Card Footer: Hashtags */}
+                        <div className="flex items-center justify-between pt-3 border-t border-[#C7D2FE]/40 mt-auto">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {displayTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="bg-[#4A3AFF] text-white font-bold text-[11px] px-2.5 py-0.5 rounded-md uppercase tracking-wider"
+                              >
+                                #{tag.replace(/^#/, "")}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            )
+          )}
+
+          {/* ====================================================
+              TAB 2: MILESTONES VIEW (Vertical Timeline Figma Design)
+              ==================================================== */}
+          {activeTab === "milestones" && (
+            milestones.length === 0 ? (
+              <div className="w-full flex flex-col items-center justify-center py-20 bg-white/70 backdrop-blur-md rounded-[24px] border border-white/80">
+                <Award size={44} className="text-stone-300 mb-3" />
+                <h3 className="text-[17px] font-bold text-stone-800 mb-1">No Milestones Recorded</h3>
+                <p className="text-stone-500 text-[14px] font-medium text-center max-w-sm">
+                  There are no documented milestones for this profile yet.
+                </p>
+              </div>
+            ) : (
+              <motion.div variants={staggerContainer} className="w-full relative pl-10 md:pl-14 flex flex-col gap-8">
+                
+                {/* Vertical Timeline Axis Line */}
+                <div className="absolute left-[20px] md:left-[27px] top-6 bottom-6 w-[2px] bg-[#4A3AFF]/20" />
+
+                {milestones.map((ms) => (
+                  <motion.div variants={fadeInUp} key={ms.id} className="relative w-full">
+                    
+                    {/* Circular Icon Node */}
+                    <div className="absolute -left-[40px] md:-left-[54px] top-4 w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-[#4A3AFF] bg-white shadow-sm flex items-center justify-center text-[#4A3AFF] z-10">
+                      {ms.iconType === "star" ? (
+                        <Star size={18} />
+                      ) : ms.iconType === "briefcase" ? (
+                        <Briefcase size={18} />
+                      ) : (
+                        <Award size={18} />
+                      )}
+                    </div>
+
+                    {/* Milestone Glass Card */}
+                    <div className="bg-white/80 backdrop-blur-md border border-white/90 rounded-[20px] p-6 shadow-sm flex flex-col">
+                      
+                      {/* Top Header Line: Category Pill + Year */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="bg-[#4A3AFF]/10 text-[#4A3AFF] font-bold text-[12px] uppercase tracking-wider px-3 py-1 rounded-md">
+                          {ms.category || "HONOR"}
+                        </span>
+                        <span className="text-stone-400 font-bold text-[15px]">
+                          {ms.year}
+                        </span>
+                      </div>
+
+                      {/* Milestone Title */}
+                      <h3 className="text-[20px] font-bold text-stone-900 mb-2 leading-snug">
+                        {ms.title}
+                      </h3>
+
+                      {/* Description Paragraph */}
+                      <p className="text-[15px] text-stone-600 font-medium leading-relaxed">
+                        {ms.description}
+                      </p>
+
+                    </div>
+
+                  </motion.div>
+                ))}
+
+              </motion.div>
+            )
+          )}
+
+          {/* ====================================================
+              TAB 3: ALBUMS VIEW
+              ==================================================== */}
+          {activeTab === "albums" && (
+            albums.length === 0 ? (
+              <div className="w-full flex flex-col items-center justify-center py-20 bg-white/70 backdrop-blur-md rounded-[24px] border border-white/80">
+                <Folder size={44} className="text-stone-300 mb-3" />
+                <h3 className="text-[17px] font-bold text-stone-800 mb-1">No Albums Found</h3>
+                <p className="text-stone-500 text-[14px] font-medium text-center max-w-sm">
+                  This user has not created any public albums yet.
+                </p>
+              </div>
+            ) : (
+              <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                {albums.map((album) => (
+                  <motion.div
+                    variants={fadeInUp}
+                    key={album.id}
+                    className="bg-white/80 backdrop-blur-md border border-white/90 rounded-[22px] overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col"
+                  >
+                    <div className="w-full h-[180px] relative overflow-hidden bg-stone-200">
+                      <img
+                        src={album.coverImage || "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=800&auto=format&fit=crop"}
+                        alt={album.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+
+                    <div className="p-5 flex flex-col flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="bg-[#4A3AFF]/10 text-[#4A3AFF] font-bold text-[12px] px-3 py-1 rounded-full">
+                          {album.entries || 0} entries
+                        </span>
+                        <span className="text-[12px] font-semibold text-stone-400">
+                          {album.privacy || "Public"}
+                        </span>
+                      </div>
+
+                      <h3 className="text-[18px] font-bold text-stone-900 mb-1 leading-snug group-hover:text-[#4A3AFF] transition-colors">
+                        {album.title}
+                      </h3>
+                      <p className="text-[13px] text-stone-500 font-medium">
+                        {album.subtitle || "Family Memory Archive"}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )
+          )}
+
         </div>
-
-        {commentsOpen && (
-          <CommentsSection
-            memoryId={memory.id}
-            initialComments={[
-              { id: `${memory.id}-c1`, author: "Alexander", text: "This is a beautiful archive piece." }
-            ]}
-          />
-        )}
-      </div>
-    </article>
-  );
-}
-
-function ProfileAction({ icon: Icon, label, onClick }) {
-  return (
-    <button onClick={onClick} className="flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-black text-stone-600 hover:bg-[var(--surface)] hover:text-[var(--brand)]">
-      <Icon size={16} />
-      {label}
-    </button>
+      </motion.div>
+    </WavesBackground>
   );
 }

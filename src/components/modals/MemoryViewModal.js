@@ -19,7 +19,8 @@ import {
   getMemoryCommentsFromBackend, 
   addMemoryCommentOnBackend,
   reactToCommentOnBackend,
-  shareMemoryOnBackend
+  shareMemoryOnBackend,
+  getMemoryDetailsFromBackend
 } from "@/services/backend";
 
 // Facebook-style Emojis mapping
@@ -240,6 +241,45 @@ export default function MemoryViewModal() {
         if (memId) {
           try {
             const token = isAuthenticated && firebaseUser ? await getToken() : null;
+
+            // Fetch live memory details (reactions) from PostgreSQL
+            if (token) {
+              try {
+                const liveMemory = await getMemoryDetailsFromBackend(token, memId);
+                if (liveMemory) {
+                  // Update reaction counts with fresh DB data
+                  if (liveMemory.reactions && typeof liveMemory.reactions === "object") {
+                    setReactionCounts({
+                      heart: liveMemory.reactions.heart || 0,
+                      like: liveMemory.reactions.like || 0,
+                      care: liveMemory.reactions.care || 0,
+                      haha: liveMemory.reactions.haha || 0,
+                      wow: liveMemory.reactions.wow || 0,
+                      angry: liveMemory.reactions.angry || 0,
+                    });
+                  }
+                  // Update userReaction with fresh DB state
+                  if (liveMemory.userReaction !== undefined) {
+                    setUserReaction(liveMemory.userReaction || null);
+                  }
+                  // Dispatch event so Discovery cards also sync
+                  const freshTotal = liveMemory.totalReactions ?? liveMemory.likes ?? 0;
+                  window.dispatchEvent(
+                    new CustomEvent("memoryReactionUpdated", {
+                      detail: {
+                        memoryId: memId,
+                        userReaction: liveMemory.userReaction || null,
+                        totalReactions: freshTotal,
+                      },
+                    })
+                  );
+                }
+              } catch (detailErr) {
+                console.warn("Failed to fetch live memory details:", detailErr.message);
+              }
+            }
+
+            // Fetch live comments from backend
             const backendComments = await getMemoryCommentsFromBackend(token, memId);
             if (Array.isArray(backendComments)) {
               const realBackendComments = realCommentsOnly(backendComments);
@@ -255,7 +295,7 @@ export default function MemoryViewModal() {
               } catch (_) {}
             }
           } catch (err) {
-            console.warn("Failed to sync comments from backend:", err.message);
+            console.warn("Failed to sync data from backend:", err.message);
           }
         }
       } catch (err) {
@@ -266,6 +306,47 @@ export default function MemoryViewModal() {
     window.addEventListener("openMemoryView", handleOpen);
     return () => window.removeEventListener("openMemoryView", handleOpen);
   }, [isAuthenticated, firebaseUser, getToken]);
+
+  // Smart 5-second background polling for live reaction updates while modal is open
+  useEffect(() => {
+    if (!isOpen || !memory) return;
+    const memId = memory.id || memory._id;
+    if (!memId) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const token = isAuthenticated && firebaseUser ? await getToken() : null;
+        const liveMemory = await getMemoryDetailsFromBackend(token, memId);
+        if (liveMemory) {
+          if (liveMemory.reactions && typeof liveMemory.reactions === "object") {
+            setReactionCounts({
+              heart: liveMemory.reactions.heart || 0,
+              like: liveMemory.reactions.like || 0,
+              care: liveMemory.reactions.care || 0,
+              haha: liveMemory.reactions.haha || 0,
+              wow: liveMemory.reactions.wow || 0,
+              angry: liveMemory.reactions.angry || 0,
+            });
+          }
+          if (liveMemory.userReaction !== undefined) {
+            setUserReaction(liveMemory.userReaction || null);
+          }
+          const freshTotal = liveMemory.totalReactions ?? liveMemory.likes ?? 0;
+          window.dispatchEvent(
+            new CustomEvent("memoryReactionUpdated", {
+              detail: {
+                memoryId: memId,
+                userReaction: liveMemory.userReaction || null,
+                totalReactions: freshTotal,
+              },
+            })
+          );
+        }
+      } catch (_) {}
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [isOpen, memory, isAuthenticated, firebaseUser, getToken]);
 
   const mediaList = useMemo(() => {
     if (!memory) return [];
@@ -485,24 +566,79 @@ export default function MemoryViewModal() {
   const handleSelectReaction = async (reactionId) => {
     setIsReactionPickerOpen(false);
     const memId = memory._id || memory.id;
+    if (!memId) return;
+
+    // Snapshot previous state for rollback
+    const prevUserReaction = userReaction;
+    const prevCounts = { ...reactionCounts };
+
     const isRemoving = userReaction === reactionId;
     const nextReaction = isRemoving ? null : reactionId;
 
-    setUserReaction(nextReaction);
-    setReactionCounts((prev) => ({
-      ...prev,
-      [reactionId]: isRemoving ? Math.max(0, (prev[reactionId] || 0) - 1) : (prev[reactionId] || 0) + 1,
+    const nextCounts = {
+      ...reactionCounts,
+      [reactionId]: isRemoving ? Math.max(0, (reactionCounts[reactionId] || 0) - 1) : (reactionCounts[reactionId] || 0) + 1,
       ...(userReaction && userReaction !== reactionId
-        ? { [userReaction]: Math.max(0, (prev[userReaction] || 0) - 1) }
+        ? { [userReaction]: Math.max(0, (reactionCounts[userReaction] || 0) - 1) }
         : {}),
-    }));
+    };
+
+    // Optimistic UI update
+    setUserReaction(nextReaction);
+    setReactionCounts(nextCounts);
+
+    const totalCount = Object.values(nextCounts).reduce((a, b) => a + b, 0);
+
+    // Broadcast event for UI sync across cards
+    window.dispatchEvent(
+      new CustomEvent("memoryReactionUpdated", {
+        detail: {
+          memoryId: memId,
+          userReaction: nextReaction,
+          totalReactions: totalCount,
+          reactionCounts: nextCounts,
+        },
+      })
+    );
 
     if (isAuthenticated && firebaseUser) {
       try {
         const token = await getToken();
-        await reactToMemoryOnBackend(token, memId, reactionId);
+        const resData = await reactToMemoryOnBackend(token, memId, reactionId);
+
+        if (resData) {
+          // Sync with exact backend state
+          if (resData.userReaction !== undefined) {
+            setUserReaction(resData.userReaction);
+          }
+          if (resData.reactions && typeof resData.reactions === "object") {
+            setReactionCounts({
+              heart: resData.reactions.heart || 0,
+              like: resData.reactions.like || 0,
+              care: resData.reactions.care || 0,
+              haha: resData.reactions.haha || 0,
+              wow: resData.reactions.wow || 0,
+              angry: resData.reactions.angry || 0,
+            });
+          }
+        }
       } catch (err) {
-        console.warn("Could not save reaction on backend:", err.message);
+        console.warn("Could not save reaction on backend, rolling back state:", err.message);
+        // Rollback state on failure
+        setUserReaction(prevUserReaction);
+        setReactionCounts(prevCounts);
+
+        const rolledBackTotal = Object.values(prevCounts).reduce((a, b) => a + b, 0);
+        window.dispatchEvent(
+          new CustomEvent("memoryReactionUpdated", {
+            detail: {
+              memoryId: memId,
+              userReaction: prevUserReaction,
+              totalReactions: rolledBackTotal,
+              reactionCounts: prevCounts,
+            },
+          })
+        );
       }
     }
   };
