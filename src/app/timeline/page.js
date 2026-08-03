@@ -12,11 +12,19 @@ import VoicePlayer from "@/components/ui/VoicePlayer";
 
 const isVideoLike = (url, mimeType = "", type = "") => {
   const cleanUrl = typeof url === "string" ? url.split("?")[0] : "";
+  const normType = String(type || "").toLowerCase();
+  const normMime = String(mimeType || "").toLowerCase();
+
+  if (normMime.startsWith("audio/") || normType === "voice" || normType === "audio") {
+    return false;
+  }
+
   return (
-    String(mimeType || "").toLowerCase().startsWith("video/") ||
-    String(type || "").toLowerCase() === "video" ||
+    normMime.startsWith("video/") ||
+    normType === "video" ||
     cleanUrl.startsWith("data:video/") ||
-    /.(mp4|webm|mov|avi|m4v)$/i.test(cleanUrl)
+    /\.(mp4|mov|avi|m4v)$/i.test(cleanUrl) ||
+    (/\.webm$/i.test(cleanUrl) && !normMime.startsWith("audio/"))
   );
 };
 
@@ -84,16 +92,24 @@ export default function TimelinePage() {
   useEffect(() => {
     async function loadData() {
       if (!isAuthenticated || !firebaseUser) return;
+      
+      const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+      let localData = [];
       try {
+        const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
+        if (saved) localData = JSON.parse(saved);
+      } catch {}
+
+      if (localData.length > 0) {
+        setMemories(dedupeMemories(localData).sort((a, b) => new Date(b.date || b.createdAt || b.occurredAt) - new Date(a.date || a.createdAt || a.occurredAt)));
+        setIsLoading(false);
+      } else {
         setIsLoading(true);
+      }
+
+      try {
         const token = await getToken();
         const data = await getMemoriesFromBackend(token);
-        const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
-        let localData = [];
-        try {
-          const saved = localStorage.getItem(userKey);
-          if (saved) localData = JSON.parse(saved);
-        } catch {}
 
         const sourceMemories = Array.isArray(data) && data.length > 0 ? data : localData;
         const sorted = dedupeMemories(sourceMemories).sort((a, b) => new Date(b.date || b.createdAt || b.occurredAt) - new Date(a.date || a.createdAt || a.occurredAt));

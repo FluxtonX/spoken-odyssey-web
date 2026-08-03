@@ -11,6 +11,7 @@ import {
   unfollowUser,
   getFollowing
 } from "@/services/backend";
+import HighlightText from "@/components/ui/HighlightText";
 
 const tabs = ["All", "Memories", "Albums", "People"];
 
@@ -194,8 +195,12 @@ export default function SearchPage() {
                           <CalendarDays size={12} />
                           {memory.date ? new Date(memory.date).toLocaleDateString() : ""}
                         </div>
-                        <h3 className="mt-1 truncate text-sm font-black text-[var(--ink)] dark:text-white">{memory.title}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-stone-500">{memory.description}</p>
+                        <h3 className="mt-1 truncate text-sm font-black text-[var(--ink)] dark:text-white">
+                          <HighlightText text={memory.title} query={query} />
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-stone-500">
+                          <HighlightText text={memory.description} query={query} />
+                        </p>
                       </div>
                     </Link>
                   ))}
@@ -218,8 +223,12 @@ export default function SearchPage() {
                         className="h-36 w-full object-cover bg-stone-100"
                       />
                       <div className="p-4 flex-1">
-                        <h3 className="text-sm font-black text-[var(--ink)] dark:text-white">{album.title}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-stone-505 dark:text-stone-300">{album.subtitle}</p>
+                        <h3 className="text-sm font-black text-[var(--ink)] dark:text-white">
+                          <HighlightText text={album.title} query={query} />
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-stone-505 dark:text-stone-300">
+                          <HighlightText text={album.subtitle} query={query} />
+                        </p>
                       </div>
                     </Link>
                   ))}
@@ -241,9 +250,15 @@ export default function SearchPage() {
                             className="h-14 w-14 rounded-full object-cover shrink-0 border border-stone-205"
                           />
                           <div className="min-w-0">
-                            <h3 className="truncate text-sm font-black text-[var(--ink)] dark:text-white leading-tight">{person.name}</h3>
-                            <p className="truncate text-xs font-bold text-stone-500">{person.role}</p>
-                            <p className="mt-1 truncate text-xs font-medium text-stone-400">{person.location}</p>
+                            <h3 className="truncate text-sm font-black text-[var(--ink)] dark:text-white leading-tight">
+                              <HighlightText text={person.name} query={query} />
+                            </h3>
+                            <p className="truncate text-xs font-bold text-stone-500">
+                              <HighlightText text={person.role || person.profession} query={query} />
+                            </p>
+                            <p className="mt-1 truncate text-xs font-medium text-stone-400">
+                              <HighlightText text={person.location} query={query} />
+                            </p>
                           </div>
                         </Link>
                         <button

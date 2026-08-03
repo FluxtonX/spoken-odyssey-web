@@ -4,6 +4,8 @@
  * Default port matches spokenOdessie_backend/.env.local → PORT=5001
  */
 
+import { getCachedData, setCachedData, invalidateCachePattern } from "@/lib/cache";
+
 export class BackendError extends Error {
   constructor(message, status = 500, payload = null) {
     super(message);
@@ -118,7 +120,12 @@ export async function syncUserWithBackend(token) {
 }
 
 export async function getProfileFromBackend(token) {
+  const cacheKey = `profile_${token ? token.slice(-16) : "public"}`;
+  const cached = getCachedData(cacheKey, 3 * 60 * 1000);
+  if (cached) return cached;
+
   const response = await backendFetch("/api/auth/me", { token });
+  if (response?.data) setCachedData(cacheKey, response.data);
   return response.data;
 }
 
@@ -138,18 +145,29 @@ export async function updateProfileOnBackend(token, formData) {
     token,
     isFormData: true,
   });
+  invalidateCachePattern("profile_");
   return response.data;
 }
 
 /** Get user's albums from MongoDB */
 export async function getAlbumsFromBackend(token) {
+  const cacheKey = `albums_${token ? token.slice(-16) : "public"}`;
+  const cached = getCachedData(cacheKey, 3 * 60 * 1000);
+  if (cached) return cached;
+
   const response = await backendFetch("/api/albums", { token });
+  if (response?.data) setCachedData(cacheKey, response.data);
   return response.data;
 }
 
 /** Get a single album's details by ID */
 export async function getAlbumDetailsFromBackend(token, albumId) {
+  const cacheKey = `album_detail_${albumId}_${token ? token.slice(-16) : "public"}`;
+  const cached = getCachedData(cacheKey, 3 * 60 * 1000);
+  if (cached) return cached;
+
   const response = await backendFetch(`/api/albums/${albumId}`, { token });
+  if (response?.data) setCachedData(cacheKey, response.data);
   return response.data;
 }
 
@@ -161,6 +179,7 @@ export async function createAlbumOnBackend(token, formData) {
     token,
     isFormData: true,
   });
+  invalidateCachePattern("album");
   return response.data;
 }
 
@@ -172,6 +191,7 @@ export async function updateAlbumOnBackend(token, albumId, formData) {
     token,
     isFormData: true,
   });
+  invalidateCachePattern("album");
   return response.data;
 }
 
@@ -181,25 +201,39 @@ export async function deleteAlbumOnBackend(token, albumId) {
     method: "DELETE",
     token,
   });
+  invalidateCachePattern("album");
   return response.data;
 }
 
 /** Get memories from MongoDB */
 export async function getMemoriesFromBackend(token, userId = null) {
+  const cacheKey = `memories_${userId || "all"}_${token ? token.slice(-16) : "public"}`;
+  const cached = getCachedData(cacheKey, 3 * 60 * 1000);
+  if (cached) return cached;
+
   const path = userId ? `/api/memories?userId=${userId}` : "/api/memories";
   const response = await backendFetch(path, { token });
+  if (response?.data) setCachedData(cacheKey, response.data);
   return response.data;
 }
 
 /** Get family shared memories */
 export async function getFamilySharedMemories(token) {
+  const cacheKey = `family_shared_${token ? token.slice(-16) : "public"}`;
+  const cached = getCachedData(cacheKey, 3 * 60 * 1000);
+  if (cached) return cached;
+
   try {
     const response = await backendFetch("/api/family-circle/shared-memories", { token });
-    return response?.data !== undefined ? response.data : response;
+    const resData = response?.data !== undefined ? response.data : response;
+    if (resData) setCachedData(cacheKey, resData);
+    return resData;
   } catch (err) {
     if (err?.status === 404) {
       const fallback = await backendFetch("/api/memories/family-shared", { token });
-      return fallback?.data !== undefined ? fallback.data : fallback;
+      const fbData = fallback?.data !== undefined ? fallback.data : fallback;
+      if (fbData) setCachedData(cacheKey, fbData);
+      return fbData;
     }
     throw err;
   }
@@ -213,6 +247,7 @@ export async function createMemoryOnBackend(token, formData) {
     token,
     isFormData: true,
   });
+  invalidateCachePattern("memories_|family_shared_|album_");
   return response.data;
 }
 
@@ -222,6 +257,7 @@ export async function deleteMemoryOnBackend(token, memoryId) {
     method: "DELETE",
     token,
   });
+  invalidateCachePattern("memories_|family_shared_|album_");
   return response.data;
 }
 
@@ -233,6 +269,7 @@ export async function updateMemoryOnBackend(token, memoryId, formData) {
     token,
     isFormData: true,
   });
+  invalidateCachePattern("memories_|family_shared_|album_");
   return response.data;
 }
 
@@ -614,6 +651,16 @@ export async function updateLegacySettings(token, settingsData) {
     token,
   });
   return response?.data !== undefined ? response.data : response;
+}
+
+/** Get connected family members for legacy administrator selection */
+export async function getFamilyFromBackend(token) {
+  try {
+    const response = await backendFetch("/api/users/family", { token });
+    return response?.data !== undefined ? response.data : response;
+  } catch (_) {
+    return getFamilyCircleMembers(token);
+  }
 }
 
 /** Get user profile details by ID from backend */

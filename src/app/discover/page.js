@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthProvider";
 import { useRouter } from "next/navigation";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
+import HighlightText from "@/components/ui/HighlightText";
 
 const FILTER_PILLS = [
   "All Stories", "Family", "Immigration", "Heritage", "Love", "Career", "Loss", "Adventure"
@@ -388,12 +389,16 @@ export default function DiscoverPage() {
                       className="figma-card flex flex-col overflow-hidden group cursor-pointer"
                     >
                       {/* Minimized Cover Image Height (h-[95px] md:h-[105px]) */}
-                      <div className="w-full h-[95px] md:h-[105px] relative overflow-hidden bg-stone-200">
-                        <img
-                          src={person.coverURL || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"}
-                          alt={person.displayName}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
+                      <div className="w-full h-[95px] md:h-[105px] relative overflow-hidden">
+                        {person.coverURL || person.cover ? (
+                          <img
+                            src={person.coverURL || person.cover}
+                            alt={person.displayName}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-r from-[#4A3AFF] via-[#6366F1] to-[#818CF8] opacity-90 shadow-inner" />
+                        )}
                       </div>
 
                       {/* Card Body with Overlapping Avatar */}
@@ -407,10 +412,17 @@ export default function DiscoverPage() {
                         </div>
 
                         <h2 className="text-[20px] md:text-[22px] font-semibold text-stone-900 tracking-tight leading-snug mb-0.5">
-                          {person.displayName || person.email?.split("@")[0] || "User Author"}
+                          <HighlightText text={person.displayName || person.email?.split("@")[0] || "User Author"} query={debouncedQuery} />
                         </h2>
                         <p className="text-[13px] md:text-[14px] font-bold text-stone-500 mb-3">
-                          {person.profession || person.location || "Featured Author"}
+                          <HighlightText 
+                            text={
+                              person.location && person.profession 
+                                ? `${person.location} · ${person.profession}` 
+                                : person.location || person.profession || "Featured Author"
+                            } 
+                            query={debouncedQuery} 
+                          />
                         </p>
 
                         <p className="text-[14px] font-medium text-stone-600 leading-relaxed mb-5 line-clamp-2">

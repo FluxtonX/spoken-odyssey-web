@@ -13,7 +13,8 @@ import {
   registerWithBackend, 
   googleLoginWithBackend,
   getProfileFromBackend,
-  sendHeartbeat 
+  sendHeartbeat,
+  getBackendBaseUrl 
 } from "@/services/backend";
 import {
   signInWithGoogle,
@@ -112,11 +113,38 @@ export function AuthProvider({ children }) {
   }, []);
 
   const sendResetEmail = useCallback(async (email) => {
-    await sendPasswordReset(email.trim());
+    const baseUrl = getBackendBaseUrl();
+    try {
+      const response = await fetch(`${baseUrl}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to send password reset email.");
+      }
+      return data;
+    } catch (err) {
+      if (err.name === "TypeError" || err.message?.includes("fetch")) {
+        throw new Error("Could not connect to authentication server. Please check backend connection.");
+      }
+      throw err;
+    }
   }, []);
 
-  const resendVerification = useCallback(async (email, password) => {
-    await resendVerificationEmail(email.trim(), password);
+  const resendVerification = useCallback(async (email) => {
+    const baseUrl = getBackendBaseUrl();
+    const response = await fetch(`${baseUrl}/api/auth/send-verification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim() }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Failed to send verification email.");
+    }
+    return data;
   }, []);
 
   const refreshProfile = useCallback(async () => {

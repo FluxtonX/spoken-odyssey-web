@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
 import { 
@@ -175,8 +175,10 @@ function MemoryCardItem({ memory, onCardClick }) {
 
 export default function AlbumDetailPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const id = pathname.split("/").filter(Boolean).at(-1);
+  const fromParam = searchParams?.get("from");
 
   const { firebaseUser, isAuthenticated, getToken } = useAuth();
   const [album, setAlbum] = useState(null);
@@ -193,8 +195,6 @@ export default function AlbumDetailPage() {
 
   useEffect(() => {
     async function loadAlbumDetails() {
-      setIsLoading(true);
-
       // Check stored albums
       const stored = getStoredAlbums();
       const found = stored.find(a => a.id === id) || {
@@ -207,8 +207,26 @@ export default function AlbumDetailPage() {
         tags: ["career", "work", "craft"]
       };
 
-      let backendMemoriesLoaded = false;
-      let backendAlbumLoaded = false;
+      setAlbum(found);
+
+      // Load initial local memories instantly
+      let allUserMemories = [];
+      try {
+        const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+        const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
+        if (saved) allUserMemories = JSON.parse(saved);
+      } catch (_) {}
+
+      const mockEntries = ALBUM_MEMORIES_MAP[id] || ALBUM_MEMORIES_MAP["career-craft"] || [];
+      const userMatching = allUserMemories.filter(m => 
+        m.albumId === id || 
+        (m.albums && m.albums.includes(id)) || 
+        (m.albumTitle && m.albumTitle.toLowerCase() === (found.title || "").toLowerCase())
+      );
+
+      const combinedInitial = [...mockEntries, ...userMatching];
+      setMemoriesList(combinedInitial);
+      setIsLoading(false);
 
       if (isAuthenticated && firebaseUser && id && !id.startsWith("album-")) {
         try {
@@ -222,12 +240,8 @@ export default function AlbumDetailPage() {
               privacy: backendData.privacy || found.privacy,
               cover: backendData.coverImageUrl || backendData.coverImageKey || found.cover
             });
-            backendAlbumLoaded = true;
             if (Array.isArray(backendData.memories) && backendData.memories.length > 0) {
               setMemoriesList(backendData.memories);
-              backendMemoriesLoaded = true;
-              setIsLoading(false);
-              return;
             }
           }
         } catch (err) {
@@ -397,11 +411,11 @@ export default function AlbumDetailPage() {
           {/* Back Navigation Link */}
           <motion.div variants={fadeInUp} className="mb-6">
             <Link 
-              href="/albums" 
+              href={fromParam === "profile" ? "/profile" : "/albums"} 
               className="text-stone-500 dark:text-stone-400 hover:text-[#4A3AFF] dark:hover:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
             >
               <ArrowLeft size={16} />
-              <span>Back to Albums</span>
+              <span>{fromParam === "profile" ? "Back to profile" : "Back to Albums"}</span>
             </Link>
           </motion.div>
 

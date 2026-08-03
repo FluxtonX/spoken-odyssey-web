@@ -27,6 +27,23 @@ export default function MyArchive() {
   const [userMemories, setUserMemories] = useState([]);
   const [isLoadingMemories, setIsLoadingMemories] = useState(true);
 
+  // Progressive Chunk Loading (12 items per batch)
+  const [visibleCount, setVisibleCount] = useState(12);
+
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [activeType, activeYear, searchQuery, sortOrder]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 700) {
+        setVisibleCount((prev) => prev + 12);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Card Audio Player State
   const [playingAudioId, setPlayingAudioId] = useState(null);
   const audioPlayerRef = useRef(null);
@@ -124,18 +141,23 @@ export default function MyArchive() {
   };
 
   const loadMemories = async () => {
-    setIsLoadingMemories(true);
-    
     let localMems = [];
     try {
       const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
-      const saved = localStorage.getItem(userKey);
+      const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) localMems = parsed;
       }
     } catch (e) {
       console.warn("Could not read local memories:", e);
+    }
+
+    if (localMems.length > 0) {
+      setUserMemories(mergeUniqueMemories(localMems));
+      setIsLoadingMemories(false);
+    } else {
+      setIsLoadingMemories(true);
     }
 
     let backendMems = [];
@@ -149,9 +171,7 @@ export default function MyArchive() {
       }
     }
 
-    // Authenticated users should see backend-owned memories only when backend data exists.
-    // Local cache is a fallback for offline/failed backend loads, so stale memories from another session do not leak in.
-    setUserMemories(backendMems.length > 0 ? mergeUniqueMemories(backendMems) : mergeUniqueMemories(localMems));
+    setUserMemories(backendMems.length > 0 ? mergeUniqueMemories(backendMems, localMems) : mergeUniqueMemories(localMems));
     setIsLoadingMemories(false);
   };
 
@@ -447,7 +467,7 @@ export default function MyArchive() {
                 : "flex flex-col w-full space-y-4"
             )}
           >
-            {filteredMemories.map((memory) => {
+            {filteredMemories.slice(0, visibleCount).map((memory) => {
               const normType = (memory.type || "").toLowerCase();
               const isVoice = normType === "voice" || normType === "audio" || !!memory.audioUrl || !!memory.audio;
               
@@ -656,6 +676,17 @@ export default function MyArchive() {
               );
             })}
           </motion.div>
+        )}
+
+        {visibleCount < filteredMemories.length && (
+          <div className="w-full pt-8 flex justify-center">
+            <button
+              onClick={() => setVisibleCount((prev) => prev + 12)}
+              className="px-8 py-3 rounded-full bg-[#EEF2FF] text-[#4A3AFF] font-bold text-sm border border-[#C7D2FE] hover:bg-[#4A3AFF] hover:text-white transition-all shadow-sm"
+            >
+              Load More Memories ({filteredMemories.length - visibleCount} remaining)
+            </button>
+          </div>
         )}
       </motion.div>
     </div>
