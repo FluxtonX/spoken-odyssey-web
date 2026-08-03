@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { getStoredUserProfile } from "@/data/userProfile";
 import { searchOnBackend, normalizeMediaUrl } from "@/services/backend";
 import { memories as mockMemories } from "@/data/mockApp";
+import HighlightText from "@/components/ui/HighlightText";
 
 export default function DashboardHeader({ onSearchChange }) {
   const router = useRouter();
@@ -227,8 +228,12 @@ export default function DashboardHeader({ onSearchChange }) {
                           className="w-8 h-8 rounded-full object-cover border border-[#C7D2FE]/60" 
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-[13px] text-stone-800 dark:text-white truncate leading-tight">{person.name}</p>
-                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate">{person.role || person.profession || "Family Member"}</p>
+                          <p className="font-bold text-[13px] text-stone-800 dark:text-white truncate leading-tight">
+                            <HighlightText text={person.name} query={searchQuery} />
+                          </p>
+                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate">
+                            <HighlightText text={person.role || person.profession || person.location || "Family Member"} query={searchQuery} />
+                          </p>
                         </div>
                         <ChevronRight size={14} className="text-stone-300" />
                       </div>
@@ -256,8 +261,12 @@ export default function DashboardHeader({ onSearchChange }) {
                           {mem.type === "voice" ? "🎙️" : mem.type === "photo" ? "📸" : "📝"}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-[13px] text-stone-800 dark:text-white truncate leading-tight">{mem.title}</p>
-                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate">{mem.description || mem.date || "Memory"}</p>
+                          <p className="font-bold text-[13px] text-stone-800 dark:text-white truncate leading-tight">
+                            <HighlightText text={mem.title} query={searchQuery} />
+                          </p>
+                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate">
+                            <HighlightText text={mem.description || mem.date || "Memory"} query={searchQuery} />
+                          </p>
                         </div>
                         <ChevronRight size={14} className="text-stone-300" />
                       </div>
@@ -285,8 +294,12 @@ export default function DashboardHeader({ onSearchChange }) {
                           📁
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-[13px] text-stone-800 dark:text-white truncate leading-tight">{album.title}</p>
-                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate">{album.subtitle || "Album Collection"}</p>
+                          <p className="font-bold text-[13px] text-stone-800 dark:text-white truncate leading-tight">
+                            <HighlightText text={album.title} query={searchQuery} />
+                          </p>
+                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate">
+                            <HighlightText text={album.subtitle || "Album Collection"} query={searchQuery} />
+                          </p>
                         </div>
                         <ChevronRight size={14} className="text-stone-300" />
                       </div>

@@ -16,6 +16,8 @@ export default function FamilySharedMemoriesPage() {
   const [activeType, setActiveType] = useState("All");
   const [query, setQuery] = useState("");
 
+  const [visibleCount, setVisibleCount] = useState(12);
+
   const visibleMemories = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return sharedMemories.filter((memory) => {
@@ -103,11 +105,23 @@ export default function FamilySharedMemoriesPage() {
       </header>
 
       {visibleMemories.length ? (
-        <main className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visibleMemories.map((memory) => (
-            <FamilyMemoryCard key={memory.id} memory={memory} />
-          ))}
-        </main>
+        <div className="flex flex-col gap-6">
+          <main className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {visibleMemories.slice(0, visibleCount).map((memory) => (
+              <FamilyMemoryCard key={memory.id} memory={memory} />
+            ))}
+          </main>
+          {visibleCount < visibleMemories.length && (
+            <div className="w-full pt-4 flex justify-center">
+              <button
+                onClick={() => setVisibleCount((prev) => prev + 12)}
+                className="px-6 py-2.5 rounded-full bg-[#EEF2FF] text-[#4A3AFF] font-bold text-sm border border-[#C7D2FE] hover:bg-[#4A3AFF] hover:text-white transition-all shadow-xs"
+              >
+                Load More Family Memories ({visibleMemories.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center">
           <p className="text-lg font-black text-[var(--ink)]">No shared memories found</p>

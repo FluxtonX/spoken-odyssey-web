@@ -25,6 +25,52 @@ import {
 } from "@/services/backend";
 import { getFeaturedPersonData } from "@/data/featuredPeopleData";
 
+const isVideoLike = (url, mimeType = "", type = "") => {
+  const cleanUrl = typeof url === "string" ? url.split("?")[0] : "";
+  return (
+    String(mimeType || "").toLowerCase().startsWith("video/") ||
+    String(type || "").toLowerCase() === "video" ||
+    cleanUrl.startsWith("data:video/") ||
+    /\.(mp4|webm|mov|avi|m4v)$/i.test(cleanUrl)
+  );
+};
+
+const getMemoryMediaSources = (memory) => {
+  const items = [];
+  const addItem = (url, type = "image", mimeType = "") => {
+    if (!url || typeof url !== "string") return;
+    const mediaType = isVideoLike(url, mimeType, type) ? "video" : "image";
+    const normUrl = normalizeMediaUrl(url);
+    if (normUrl && !items.some(i => i.url === normUrl)) {
+      items.push({ url: normUrl, type: mediaType });
+    }
+  };
+
+  if (Array.isArray(memory.mediaList)) {
+    memory.mediaList.forEach((item) => addItem(item?.mediaUrl || item?.url, item?.type, item?.mediaMimeType));
+  }
+  if (Array.isArray(memory.media)) {
+    memory.media.forEach((item) => {
+      if (typeof item === "string") addItem(item);
+      else addItem(item?.url || item?.mediaUrl, item?.type, item?.mediaMimeType || item?.mimeType);
+    });
+  } else if (memory.media) {
+    addItem(typeof memory.media === "string" ? memory.media : (memory.media.url || memory.media.mediaUrl), memory.media.type, memory.media.mediaMimeType);
+  }
+  if (Array.isArray(memory.images)) memory.images.forEach((img) => addItem(typeof img === "string" ? img : img?.url, "image"));
+  if (Array.isArray(memory.videos)) memory.videos.forEach((vid) => addItem(typeof vid === "string" ? vid : vid?.url, "video"));
+
+  addItem(memory.videoUrl, "video");
+  addItem(memory.mediaUrl, undefined, memory.mediaMimeType);
+  addItem(memory.image, "image");
+  addItem(memory.cover, "image");
+  addItem(memory.imageUrl, "image");
+
+  const firstVideo = items.find((item) => item.type === "video")?.url;
+  const firstImage = items.find((item) => item.type === "image")?.url;
+  return { items, video: firstVideo, image: firstImage };
+};
+
 export default function PersonDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -102,6 +148,9 @@ export default function PersonDetailPage() {
             avatar: dbUser.photoURL || dbUser.photoKey || dbUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop",
             cover: dbUser.coverURL || dbUser.coverKey || dbUser.cover || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1400&auto=format&fit=crop",
             bio: dbUser.bio || "Sharing stories and digital memories on Spoken Odyssey.",
+            birthDate: dbUser.birthDate || "",
+            location: dbUser.location || "",
+            profession: dbUser.profession || "",
             followersCount: dbUser.followersCount || 0,
             storiesCount: Array.isArray(dbMemories) ? dbMemories.length : 0,
             milestonesCount: Array.isArray(dbMemories) ? dbMemories.filter(m => String(m.type).toLowerCase() === "milestone" || (m.tags && m.tags.includes("milestone"))).length : 0,
@@ -308,12 +357,16 @@ export default function PersonDetailPage() {
             <motion.div variants={fadeInUp} className="figma-card w-full rounded-[24px] overflow-hidden mb-8 relative">
               
               {/* Cover Banner (h-[200px] md:h-[240px]) */}
-              <div className="w-full h-[200px] md:h-[240px] relative overflow-hidden bg-stone-200">
-                <img
-                  src={person.cover}
-                  alt={person.name}
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-full h-[200px] md:h-[240px] relative overflow-hidden">
+                {person.cover ? (
+                  <img
+                    src={person.cover}
+                    alt={person.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-[#4A3AFF] via-[#6366F1] to-[#818CF8] opacity-90 shadow-inner" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
               </div>
 
@@ -336,8 +389,15 @@ export default function PersonDetailPage() {
                       {person.name}
                     </h1>
                     <p className="text-[15px] font-medium text-stone-500">
-                      {person.role}
+                      {person.location && person.profession 
+                        ? `${person.location} · ${person.profession}` 
+                        : person.location || person.profession || person.role}
                     </p>
+                    {person.birthDate && (
+                      <p className="text-[13px] font-semibold text-stone-500 mt-1 flex items-center gap-1.5">
+                        <span>🎂 Born {new Date(person.birthDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Follow Button */}
@@ -370,7 +430,7 @@ export default function PersonDetailPage() {
                 <div className="w-full h-[1px] bg-stone-200/80 my-5" />
 
                 {/* Stats Line */}
-                <div className="flex items-center gap-6 text-[15px] text-stone-500 font-medium">
+                <div className="flex flex-wrap items-center gap-6 text-[15px] text-stone-500 font-medium">
                   <div>
                     <strong className="text-stone-900 font-bold">{followersCount.toLocaleString()}</strong> followers
                   </div>
@@ -439,10 +499,11 @@ export default function PersonDetailPage() {
             ) : (
               <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
                 {stories.map((story) => {
-                  const typeStr = String(story.type || "").toLowerCase();
-                  const isVoice = typeStr === "voice";
-                  const isVideo = typeStr === "video";
-                  const isWritten = typeStr === "written" || typeStr === "text";
+                  const mediaSources = getMemoryMediaSources(story);
+                  const normType = String(story.type || "").toLowerCase();
+                  const isVoice = normType === "voice" || normType === "audio" || !!story.audioUrl || !!story.audio;
+                  const isVideo = !isVoice && (normType === "video" || !!mediaSources.video);
+                  const isWritten = !isVideo && !isVoice && (normType === "written" || normType === "text" || normType === "thought" || !mediaSources.items.length);
                   const isPhoto = !isVoice && !isVideo && !isWritten;
 
                   const currentReact = userReactionMap[story.id] || (story.userReaction ? "heart" : null);
@@ -464,19 +525,36 @@ export default function PersonDetailPage() {
                       {/* Media Header depending on type */}
                       {isVideo && (
                         <div className="w-full h-[180px] overflow-hidden shrink-0 relative border-b border-[#C7D2FE]/50 bg-stone-900" onClick={(e) => e.stopPropagation()}>
-                          <CardMediaSlider 
-                            mediaItems={Array.isArray(story.mediaList) && story.mediaList.length > 0 ? story.mediaList : [{ url: story.mediaUrl || story.mediaKey, type: 'video' }]} 
-                            title={story.title} 
-                          />
+                          {mediaSources.items.length > 0 ? (
+                            <CardMediaSlider mediaItems={mediaSources.items} title={story.title} />
+                          ) : (
+                            <div className="relative w-full h-full">
+                              <img 
+                                src={normalizeMediaUrl(story.mediaUrl || story.image) || "https://images.unsplash.com/photo-1522276498395-f4f68f7f8454?q=80&w=600&auto=format&fit=crop"} 
+                                alt={story.title} 
+                                className="w-full h-full object-cover opacity-80" 
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
+                                  <Play size={22} fill="currentColor" className="ml-0.5" />
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {isPhoto && (
                         <div className="w-full h-[190px] relative overflow-hidden bg-stone-200 border-b border-[#C7D2FE]/40" onClick={(e) => e.stopPropagation()}>
-                          <CardMediaSlider 
-                            mediaItems={Array.isArray(story.mediaList) && story.mediaList.length > 0 ? story.mediaList : [{ url: story.mediaUrl || story.image || "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=800&auto=format&fit=crop", type: 'image' }]} 
-                            title={story.title} 
-                          />
+                          {mediaSources.items.length > 0 ? (
+                            <CardMediaSlider mediaItems={mediaSources.items} title={story.title} />
+                          ) : (
+                            <img 
+                              src={normalizeMediaUrl(story.mediaUrl || story.image) || "https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=800&auto=format&fit=crop"} 
+                              alt={story.title} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                            />
+                          )}
                         </div>
                       )}
 

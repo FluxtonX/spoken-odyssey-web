@@ -1,15 +1,50 @@
 "use client";
 
-import { ChevronLeft, Lock, KeyRound, ShieldAlert } from "lucide-react";
+import { ChevronLeft, Lock, KeyRound, ShieldAlert, Mail, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useAuth } from "@/context/AuthProvider";
 
 export default function SecuritySettings() {
-  const [passwords, setPasswords] = useState({
-    current: "",
-    newPass: "",
-    confirm: ""
-  });
+  const { firebaseUser, getToken } = useAuth();
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type: "success" | "error", message: string }
+
+  const handleSendResetEmail = async () => {
+    const emailToUse = firebaseUser?.email;
+    if (!emailToUse) {
+      setFeedback({ type: "error", message: "No email address found for this account." });
+      return;
+    }
+
+    setIsSendingEmail(true);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToUse }),
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.success) {
+        setFeedback({
+          type: "success",
+          message: `Password reset email sent to ${emailToUse}! Please check your inbox.`,
+        });
+      } else {
+        setFeedback({
+          type: "error",
+          message: resData.message || "Could not send password reset email. Please try again.",
+        });
+      }
+    } catch (err) {
+      setFeedback({ type: "error", message: "Failed to connect to authentication server." });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-3xl animation-fade-in pb-24">
@@ -37,42 +72,36 @@ export default function SecuritySettings() {
             Reset Password
           </h2>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-2 pl-2">Current Password</label>
-              <input 
-                type="password" 
-                placeholder="••••••••"
-                className="w-full p-4 rounded-xl bg-stone-50/50 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-800 text-stone-855 dark:text-white placeholder-stone-400 focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-semibold transition-all shadow-inner"
-                value={passwords.current}
-                onChange={(e) => setPasswords({...passwords, current: e.target.value})}
-              />
+          {feedback && (
+            <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-bold border ${
+              feedback.type === "success" 
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                : "bg-red-50 text-red-700 border-red-200"
+            }`}>
+              {feedback.type === "success" ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+              <span>{feedback.message}</span>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-2 pl-2">New Password</label>
-              <input 
-                type="password" 
-                placeholder="••••••••"
-                className="w-full p-4 rounded-xl bg-stone-50/50 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-800 text-stone-855 dark:text-white placeholder-stone-400 focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-semibold transition-all shadow-inner"
-                value={passwords.newPass}
-                onChange={(e) => setPasswords({...passwords, newPass: e.target.value})}
-              />
+          <div className="p-5 rounded-2xl border border-stone-150/60 dark:border-stone-800/50 bg-stone-50/10 dark:bg-stone-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] text-[var(--brand)] flex items-center justify-center shrink-0">
+                <Mail size={18} />
+              </div>
+              <div>
+                <span className="font-extrabold text-sm text-stone-855 dark:text-stone-200 block">Send Password Reset Link</span>
+                <span className="text-xs font-semibold text-stone-400 leading-normal block max-w-sm mt-0.5">
+                  Receive a secure Brevo email with a link to safely reset your password.
+                </span>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-2 pl-2">Confirm New Password</label>
-              <input 
-                type="password" 
-                placeholder="••••••••"
-                className="w-full p-4 rounded-xl bg-stone-50/50 dark:bg-stone-900/40 border border-stone-200 dark:border-stone-800 text-stone-855 dark:text-white placeholder-stone-400 focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-semibold transition-all shadow-inner"
-                value={passwords.confirm}
-                onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
-              />
-            </div>
-
-            <button className="w-full py-4 rounded-xl bg-[var(--brand)] text-white font-black hover:scale-[1.01] active:scale-95 transition-all shadow-md cursor-pointer mt-6">
-              Update Password
+            <button 
+              onClick={handleSendResetEmail}
+              disabled={isSendingEmail}
+              className="px-5 py-3 rounded-xl bg-[var(--brand)] text-white text-xs font-black hover:scale-[1.01] active:scale-95 transition-all shadow-md self-end sm:self-center cursor-pointer disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSendingEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+              <span>{isSendingEmail ? "Sending..." : "Send Reset Email"}</span>
             </button>
           </div>
         </div>

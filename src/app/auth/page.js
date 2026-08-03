@@ -29,6 +29,13 @@ export default function AuthPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [hasPendingInvite, setHasPendingInvite] = useState(false);
 
+  // Reset Password OTP States
+  const [resetOtpCode, setResetOtpCode] = useState("");
+  const [newResetPassword, setNewResetPassword] = useState("");
+  const [confirmResetPassword, setConfirmResetPassword] = useState("");
+  const [showResetPass, setShowResetPass] = useState(false);
+  const [showConfirmResetPass, setShowConfirmResetPass] = useState(false);
+
   // Check URL query parameters and pending invitation token on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -126,13 +133,59 @@ export default function AuthPage() {
 
     try {
       await sendResetEmail(email);
-      setSuccessMsg("Password reset instructions have been sent to your email.");
-      setTimeout(() => {
-        setSuccessMsg("");
-        setView("login");
-      }, 1800);
+      setView("reset_verify");
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetOtpSubmit = async (event) => {
+    event.preventDefault();
+    if (!resetOtpCode || resetOtpCode.length !== 6) {
+      setErrorMsg("Please enter the 6-digit verification code sent to your email.");
+      return;
+    }
+    if (newResetPassword.length < 6) {
+      setErrorMsg("New password must be at least 6 characters.");
+      return;
+    }
+    if (newResetPassword !== confirmResetPassword) {
+      setErrorMsg("Passwords do not match. Please verify.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          otpCode: resetOtpCode.trim(),
+          password: newResetPassword,
+        }),
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.success) {
+        setSuccessMsg("Password reset successfully! Redirecting to sign in...");
+        setTimeout(() => {
+          setSuccessMsg("");
+          setView("login");
+          setResetOtpCode("");
+          setNewResetPassword("");
+          setConfirmResetPassword("");
+        }, 1800);
+      } else {
+        setErrorMsg(resData.message || "Invalid or expired OTP code.");
+      }
+    } catch (err) {
+      setErrorMsg("Network error resetting password. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -450,6 +503,138 @@ export default function AuthPage() {
                 Send reset link
               </button>
             </form>
+          </div>
+        )}
+
+        {/* 1c. IN-APP 6-DIGIT OTP VERIFICATION VIEW */}
+        {view === "reset_verify" && (
+          <div className="animate-fade-in">
+            <button
+              onClick={() => {
+                setErrorMsg("");
+                setSuccessMsg("");
+                setView("reset");
+              }}
+              className="text-stone-400 hover:text-stone-600 transition text-sm font-semibold flex items-center gap-1.5 mb-6 cursor-pointer"
+            >
+              &larr; Change Email
+            </button>
+
+            <div className="mb-6 text-left">
+              <div className="w-12 h-12 rounded-2xl bg-[#EEF2FF] text-[#4A3AFF] flex items-center justify-center mb-4 border border-[#C7D2FE]/60 shadow-sm">
+                <Lock size={22} />
+              </div>
+              <h1 className="text-2xl font-black tracking-tight text-stone-900 dark:text-white mb-2 font-sans">
+                Enter Verification Code
+              </h1>
+              <p className="text-xs lg:text-[13px] font-semibold text-stone-500 leading-relaxed">
+                We sent a 6-digit OTP code to <strong className="text-stone-800 dark:text-white">{email}</strong> via Brevo. Enter the code and your new password below.
+              </p>
+            </div>
+
+            <form onSubmit={handleResetOtpSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">
+                  6-Digit OTP Code
+                </label>
+                <input 
+                  type="text" 
+                  maxLength={6}
+                  placeholder="849204" 
+                  required
+                  className="w-full p-3 text-center tracking-[0.5em] font-mono text-xl rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-bold text-stone-800 placeholder-stone-300 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)]"
+                  value={resetOtpCode}
+                  onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, ""))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">New Password</label>
+                <div className="relative">
+                  <input 
+                    type={showResetPass ? "text" : "password"} 
+                    placeholder="••••••••" 
+                    required
+                    minLength={6}
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
+                    value={newResetPassword}
+                    onChange={(e) => setNewResetPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPass(!showResetPass)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition cursor-pointer p-1"
+                    title={showResetPass ? "Hide password" : "Show password"}
+                  >
+                    {showResetPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5 pl-0.5">Confirm New Password</label>
+                <div className="relative">
+                  <input 
+                    type={showConfirmResetPass ? "text" : "password"} 
+                    placeholder="••••••••" 
+                    required
+                    minLength={6}
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-[#C7D2FE]/70 bg-[#F0F1FF]/30 focus:bg-white focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] outline-none font-medium text-stone-800 placeholder-stone-400 transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.6)] text-sm"
+                    value={confirmResetPassword}
+                    onChange={(e) => setConfirmResetPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmResetPass(!showConfirmResetPass)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition cursor-pointer p-1"
+                    title={showConfirmResetPass ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmResetPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isSubmitting || resetOtpCode.length !== 6}
+                className="w-full py-3.5 rounded-xl bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-60 text-white font-bold transition-all text-center flex items-center justify-center gap-2 text-sm cursor-pointer shadow-sm mt-4"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Resetting Password...</span>
+                  </>
+                ) : (
+                  <span>Reset Password</span>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-xs">
+              <button 
+                type="button"
+                onClick={async () => {
+                  if (isResending) return;
+                  setIsResending(true);
+                  setSuccessMsg("");
+                  setErrorMsg("");
+                  try {
+                    await sendResetEmail(email);
+                    setSuccessMsg("A new 6-digit OTP code has been sent via Brevo!");
+                    setTimeout(() => setSuccessMsg(""), 4000);
+                  } catch (err) {
+                    setErrorMsg(getAuthErrorMessage(err));
+                  } finally {
+                    setIsResending(false);
+                  }
+                }}
+                disabled={isResending}
+                className="inline-flex items-center gap-1.5 font-extrabold text-[#4A3AFF] hover:underline cursor-pointer"
+              >
+                {isResending ? <RefreshCw size={12} className="animate-spin" /> : <Mail size={12} />}
+                <span>{isResending ? "Resending Code..." : "Resend OTP Code"}</span>
+              </button>
+            </div>
           </div>
         )}
 

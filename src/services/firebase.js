@@ -145,5 +145,8 @@ export function getAuthErrorMessage(error, fallback = "Authentication failed. Pl
   if (error?.code && FIREBASE_ERROR_MESSAGES[error.code]) {
     return FIREBASE_ERROR_MESSAGES[error.code];
   }
+  if (error?.message) {
+    return error.message;
+  }
   return getBackendErrorMessage(error, fallback);
 }

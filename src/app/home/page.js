@@ -24,11 +24,19 @@ const formatDateSafely = (dateVal) => {
 
 const isVideoLike = (url, mimeType = "", type = "") => {
   const cleanUrl = typeof url === "string" ? url.split("?")[0] : "";
+  const normType = String(type || "").toLowerCase();
+  const normMime = String(mimeType || "").toLowerCase();
+
+  if (normMime.startsWith("audio/") || normType === "voice" || normType === "audio") {
+    return false;
+  }
+
   return (
-    String(mimeType || "").toLowerCase().startsWith("video/") ||
-    String(type || "").toLowerCase() === "video" ||
+    normMime.startsWith("video/") ||
+    normType === "video" ||
     cleanUrl.startsWith("data:video/") ||
-    /\.(mp4|webm|mov|avi|m4v)$/i.test(cleanUrl)
+    /\.(mp4|mov|avi|m4v)$/i.test(cleanUrl) ||
+    (/\.webm$/i.test(cleanUrl) && !normMime.startsWith("audio/"))
   );
 };
 
@@ -99,8 +107,8 @@ function MemoryCard({ memory, index }) {
   const coverImg = normalizeMediaUrl(mediaSources.image);
 
   const normType = (memory.type || "").toLowerCase();
-  const isVideo = normType === "video" || normType === "visual" || !!coverVid;
-  const isVoice = !isVideo && (normType === "voice" || normType === "audio" || (!!memory.audioUrl && !coverVid) || (!!memory.audio && !coverVid));
+  const isVoice = normType === "voice" || normType === "audio" || (!!memory.audioUrl && !coverVid) || (!!memory.audio && !coverVid);
+  const isVideo = !isVoice && (normType === "video" || normType === "visual" || !!coverVid);
   
   const openView = () => {
     window.dispatchEvent(new CustomEvent("openMemoryView", { detail: {
