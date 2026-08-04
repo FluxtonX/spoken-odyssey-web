@@ -9,7 +9,7 @@ import AuthLayout from "@/components/layout/AuthLayout";
 import { useAuth } from "@/context/AuthProvider";
 import { getAuthErrorMessage } from "@/services/firebase";
 import { getPostAuthRoute } from "@/lib/routes";
-import { verifyMockEmailOnBackend } from "@/services/backend";
+import { verifyMockEmailOnBackend, getBackendBaseUrl } from "@/services/backend";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -161,7 +161,8 @@ export default function AuthPage() {
     setSuccessMsg("");
 
     try {
-      const response = await fetch("/api/auth/reset-password", {
+      const baseUrl = getBackendBaseUrl();
+      const response = await fetch(`${baseUrl}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
