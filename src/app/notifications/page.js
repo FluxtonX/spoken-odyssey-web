@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
+import { useAuth } from "@/context/AuthProvider";
 import {
   getNotifications,
   getUnreadNotificationCount,
@@ -23,14 +24,24 @@ import {
 } from "@/services/backend";
 
 const NOTIFICATION_ICONS = {
-  FAMILY_INVITE_ACCEPTED: { bg: "bg-amber-500 text-white", initials: "F" },
-  FAMILY_INVITE_APPROVED: { bg: "bg-emerald-500 text-white", initials: "✓" },
-  FAMILY_INVITE_DECLINED: { bg: "bg-red-500 text-white", initials: "✗" },
-  MEMORY_LIKE: { bg: "bg-rose-500 text-white", initials: "❤" },
-  MEMORY_COMMENT: { bg: "bg-teal-500 text-white", initials: "C" },
+  FOLLOW: { bg: "bg-blue-500 text-white", initials: "👤" },
+  MEMORY_LIKE: { bg: "bg-rose-500 text-white", initials: "❤️" },
+  MEMORY_COMMENT: { bg: "bg-teal-500 text-white", initials: "💬" },
+  COMMENT_REPLY: { bg: "bg-indigo-600 text-white", initials: "↩️" },
+  COMMENT_REACTION: { bg: "bg-pink-500 text-white", initials: "❤️" },
+  MEMORY_SHARED: { bg: "bg-[#4A3AFF] text-white", initials: "📤" },
+  NEW_USER_NEARBY: { bg: "bg-cyan-500 text-white", initials: "🌍" },
+  FAMILY_INVITE_SENT: { bg: "bg-amber-500 text-white", initials: "💌" },
+  FAMILY_INVITE_ACCEPTED: { bg: "bg-indigo-500 text-white", initials: "🤝" },
+  FAMILY_INVITE_APPROVED: { bg: "bg-emerald-500 text-white", initials: "✅" },
+  FAMILY_INVITE_DECLINED: { bg: "bg-red-500 text-white", initials: "🚫" },
+  FAMILY_MEMBER_CONNECTED: { bg: "bg-emerald-600 text-white", initials: "🏡" },
+  FAMILY_MEMORY_SHARED: { bg: "bg-purple-500 text-white", initials: "📖" },
   SYSTEM: { bg: "bg-slate-700 text-white", initials: "⚙" },
   BILLING: { bg: "bg-purple-600 text-white", initials: "💳" },
-  DEFAULT: { bg: "bg-[#4A3AFF] text-white", initials: "N" }
+  AI_SUMMARY: { bg: "bg-gradient-to-r from-[#4A3AFF] to-[#6366F1] text-white", initials: "✨" },
+  SECURITY: { bg: "bg-amber-600 text-white", initials: "🔒" },
+  DEFAULT: { bg: "bg-[#4A3AFF] text-white", initials: "🔔" }
 };
 
 const INITIAL_PREFERENCES = [
@@ -63,6 +74,7 @@ const INITIAL_PREFERENCES = [
 ];
 
 export default function NotificationsPage() {
+  const { getToken, isAuthenticated } = useAuth();
   const [activeFilter, setActiveFilter] = useState("All");
   const [notificationsList, setNotificationsList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,15 +83,18 @@ export default function NotificationsPage() {
   const [preferences, setPreferences] = useState(INITIAL_PREFERENCES);
   const [toastMessage, setToastMessage] = useState("");
 
-  const token = localStorage.getItem("token");
-
   useEffect(() => {
-    loadNotifications();
-    loadUnreadCount();
-  }, []);
+    if (isAuthenticated) {
+      loadNotifications();
+      loadUnreadCount();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const loadNotifications = async () => {
     try {
+      const token = await getToken();
       const data = await getNotifications(token, { limit: 50 });
       setNotificationsList(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -92,6 +107,7 @@ export default function NotificationsPage() {
 
   const loadUnreadCount = async () => {
     try {
+      const token = await getToken();
       const data = await getUnreadNotificationCount(token);
       setUnreadCount(data?.count || 0);
     } catch (error) {
@@ -101,6 +117,7 @@ export default function NotificationsPage() {
 
   const handleMarkAllRead = async () => {
     try {
+      const token = await getToken();
       await markAllNotificationsAsRead(token);
       setNotificationsList(notificationsList.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
@@ -113,6 +130,7 @@ export default function NotificationsPage() {
 
   const handleMarkAsRead = async (notificationId) => {
     try {
+      const token = await getToken();
       await markNotificationAsRead(token, notificationId);
       setNotificationsList(notificationsList.map(n => 
         n.id === notificationId ? { ...n, isRead: true } : n
@@ -125,6 +143,7 @@ export default function NotificationsPage() {
 
   const handleDelete = async (notificationId) => {
     try {
+      const token = await getToken();
       await deleteNotification(token, notificationId);
       setNotificationsList(notificationsList.filter(n => n.id !== notificationId));
       setToastMessage("Notification deleted!");
@@ -173,15 +192,15 @@ export default function NotificationsPage() {
   const filteredNotifications = notificationsList.filter(n => {
     if (activeFilter === "All") return true;
     if (activeFilter === "Unread") return !n.isRead;
-    // Map notification types to categories
+    const nType = String(n.type || "").toUpperCase();
     if (activeFilter === "Family") {
-      return n.type?.includes("FAMILY");
+      return nType.startsWith("FAMILY");
     }
     if (activeFilter === "Social") {
-      return n.type?.includes("MEMORY");
+      return nType.startsWith("MEMORY") || nType === "FOLLOW" || nType === "NEW_USER_NEARBY";
     }
     if (activeFilter === "System") {
-      return n.type?.includes("SYSTEM") || n.type?.includes("BILLING");
+      return nType.startsWith("SYSTEM") || nType.startsWith("BILLING") || nType === "AI_SUMMARY" || nType === "SECURITY";
     }
     return true;
   });
@@ -322,16 +341,44 @@ export default function NotificationsPage() {
                           <span className="text-[11px] font-medium text-stone-400 dark:text-stone-500">
                             {formatTime(notif.createdAt)}
                           </span>
-                          {notif.actionUrl && (
-                            <Link 
-                              href={notif.actionUrl}
-                              className="text-[12px] font-bold text-[#4A3AFF] dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <span>View</span>
-                              <ChevronRight size={12} />
-                            </Link>
-                          )}
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!notif.isRead) handleMarkAsRead(notif.id);
+                              
+                              const followerId = notif.metadata?.followerId || notif.senderId;
+                              let memoryId = notif.metadata?.memoryId;
+                              if (!memoryId && notif.actionUrl && notif.actionUrl.includes("memoryId=")) {
+                                try {
+                                  const urlObj = new URL(notif.actionUrl, "http://localhost");
+                                  memoryId = urlObj.searchParams.get("memoryId");
+                                } catch (_) {}
+                              }
+
+                              const isFollowNotif = notif.type === "FOLLOW" || notif.actionUrl?.startsWith("/people/");
+                              const isMemoryNotif = !!memoryId || notif.actionUrl?.includes("memory") || notif.type?.startsWith("MEMORY") || notif.type?.startsWith("COMMENT");
+
+                              if (isFollowNotif && followerId) {
+                                window.location.href = `/people/${followerId}`;
+                                return;
+                              }
+
+                              if (isMemoryNotif && memoryId) {
+                                window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { id: memoryId, memoryId } }));
+                                window.location.href = `/memories?memoryId=${memoryId}`;
+                                return;
+                              }
+
+                              if (notif.actionUrl) {
+                                window.location.href = notif.actionUrl;
+                              }
+                            }}
+                            className="text-[12px] font-bold text-[#4A3AFF] dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5 cursor-pointer bg-transparent border-0 p-0"
+                          >
+                            <span>View</span>
+                            <ChevronRight size={12} />
+                          </button>
                         </div>
                       </div>
                     </div>
