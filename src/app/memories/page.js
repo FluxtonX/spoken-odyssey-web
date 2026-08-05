@@ -214,6 +214,19 @@ export default function MyArchive() {
     };
   }, [isAuthenticated, firebaseUser, getToken]);
 
+  // Auto open memory view modal if memoryId is passed in URL query parameters
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const memId = urlParams.get("memoryId");
+      if (memId) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { id: memId, memoryId: memId } }));
+        }, 350);
+      }
+    }
+  }, []);
+
   // Play/pause card audio directly with dynamic time tracking
   const handleToggleCardAudio = (e, memory) => {
     e.stopPropagation();

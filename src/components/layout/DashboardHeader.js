@@ -1,18 +1,27 @@
 "use client";
 
-import { Bell, ChevronRight, Search, Loader2, BookOpen, Image as ImageIcon, User, X } from "lucide-react";
+import { Bell, ChevronRight, Search, Loader2, BookOpen, Image as ImageIcon, User, X, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthProvider";
 import { useRouter } from "next/navigation";
 import { getStoredUserProfile } from "@/data/userProfile";
-import { searchOnBackend, normalizeMediaUrl } from "@/services/backend";
+import { 
+  searchOnBackend, 
+  normalizeMediaUrl,
+  getBackendBaseUrl,
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead
+} from "@/services/backend";
 import { memories as mockMemories } from "@/data/mockApp";
 import HighlightText from "@/components/ui/HighlightText";
+import { io } from "socket.io-client";
 
 export default function DashboardHeader({ onSearchChange }) {
   const router = useRouter();
-  const { profile, firebaseUser, logout, getToken } = useAuth();
+  const { profile, firebaseUser, logout, getToken, isAuthenticated } = useAuth();
   
   const [userProfile, setUserProfile] = useState(null);
   
@@ -27,9 +36,12 @@ export default function DashboardHeader({ onSearchChange }) {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
-  // Dropdown States
+  // Dropdown States & Real Notifications Data
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [liveToast, setLiveToast] = useState(null);
 
   // Close dropdowns on click outside
   const searchRef = useRef(null);
@@ -54,6 +66,116 @@ export default function DashboardHeader({ onSearchChange }) {
     window.addEventListener("profileUpdated", loadProfile);
     return () => window.removeEventListener("profileUpdated", loadProfile);
   }, []);
+
+  // Fetch real notifications and unread count from backend
+  const fetchNotificationData = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const [notifData, countData] = await Promise.all([
+        getNotifications(token, { limit: 5 }),
+        getUnreadNotificationCount(token)
+      ]);
+      setNotifications(Array.isArray(notifData) ? notifData : []);
+      setUnreadCount(countData?.count || 0);
+    } catch (err) {
+      console.warn("Failed to fetch dashboard header notifications:", err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotificationData();
+    const interval = setInterval(fetchNotificationData, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  // Real-Time Socket.io Connection (Instant Push Without Web Refresh)
+  useEffect(() => {
+    const currentUserId = profile?.id || profile?.uid || firebaseUser?.uid;
+    if (!isAuthenticated || !currentUserId) return;
+
+    const backendUrl = getBackendBaseUrl() || "http://localhost:5001";
+    const socket = io(backendUrl, {
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      socket.emit("join:user_room", currentUserId);
+    });
+
+    socket.on("notification:new", (newNotif) => {
+      // Instantly prepend new notification to state
+      setNotifications((prev) => [newNotif, ...prev.slice(0, 4)]);
+      setUnreadCount((prev) => prev + 1);
+
+      // Trigger floating live toast banner
+      setLiveToast(newNotif);
+      setTimeout(() => {
+        setLiveToast((current) => (current?.id === newNotif.id ? null : current));
+      }, 6000);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isAuthenticated, profile?.id, profile?.uid, firebaseUser?.uid]);
+
+  const handleHeaderMarkAllRead = async () => {
+    try {
+      const token = await getToken();
+      await markAllNotificationsAsRead(token);
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.warn("Failed to mark all read:", err);
+    }
+  };
+
+  const handleNotificationItemClick = async (notif) => {
+    if (!notif.isRead) {
+      try {
+        const token = await getToken();
+        await markNotificationAsRead(token, notif.id);
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (_) {}
+    }
+    setShowNotifications(false);
+
+    // Extract targets from notification metadata / actionUrl
+    const followerId = notif.metadata?.followerId || notif.senderId;
+    let memoryId = notif.metadata?.memoryId;
+    if (!memoryId && notif.actionUrl && notif.actionUrl.includes("memoryId=")) {
+      try {
+        const urlObj = new URL(notif.actionUrl, "http://localhost");
+        memoryId = urlObj.searchParams.get("memoryId");
+      } catch (_) {}
+    }
+
+    const isFollowNotif = notif.type === "FOLLOW" || notif.actionUrl?.startsWith("/people/");
+    const isMemoryNotif = !!memoryId || notif.actionUrl?.includes("memory") || notif.type?.startsWith("MEMORY") || notif.type?.startsWith("COMMENT");
+
+    if (isFollowNotif && followerId) {
+      router.push(`/people/${followerId}`);
+      return;
+    }
+
+    if (isMemoryNotif && memoryId) {
+      // Trigger openMemoryView modal custom event immediately
+      window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { id: memoryId, memoryId } }));
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/memories")) {
+        router.push(`/memories?memoryId=${memoryId}`);
+      }
+      return;
+    }
+
+    if (notif.actionUrl) {
+      router.push(notif.actionUrl);
+    } else {
+      router.push("/notifications");
+    }
+  };
 
   // Debounced Live Search logic across Memories, Albums, and People/Family
   useEffect(() => {
@@ -327,40 +449,70 @@ export default function DashboardHeader({ onSearchChange }) {
         <div className="relative" ref={notifRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#C7D2FE]/40 bg-white/40 backdrop-blur-md shadow-sm hover:bg-stone-50 transition active:scale-95" 
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#C7D2FE]/40 bg-white/40 backdrop-blur-md shadow-sm hover:bg-stone-50 transition active:scale-95 cursor-pointer" 
             aria-label="Notifications"
           >
-            <Bell size={18} className="text-stone-600" />
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-indigo-500 ring-2 ring-white" />
+            <Bell size={18} className="text-stone-600 dark:text-stone-300" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-[#4A3AFF] text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white shadow-xs">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
           
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-84 dropdown-menu animate-fade-in z-50 bg-white dark:bg-slate-900 border border-[#C7D2FE]/70 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
               <div className="p-4 border-b border-stone-100 dark:border-slate-800 flex items-center justify-between">
-                <h3 className="font-bold text-stone-900 dark:text-white text-[15px]">Notifications</h3>
-                <button 
-                  onClick={() => setShowNotifications(false)}
-                  className="text-xs text-[#4A3AFF] dark:text-indigo-400 font-bold hover:underline cursor-pointer"
-                >
-                  Mark all read
-                </button>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-stone-900 dark:text-white text-[15px]">Notifications</h3>
+                  {unreadCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#4A3AFF] text-white text-[10px] font-bold">
+                      {unreadCount} new
+                    </span>
+                  )}
+                </div>
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={handleHeaderMarkAllRead}
+                    className="text-xs text-[#4A3AFF] dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+                  >
+                    Mark all read
+                  </button>
+                )}
               </div>
-              <div className="max-h-[300px] overflow-y-auto divide-y divide-stone-100 dark:divide-slate-800/60">
-                {[
-                  { text: "Sarah shared 3 new memories with your Family Circle", time: "2h ago", unread: true },
-                  { text: "Your monthly AI Life Summary is ready to view", time: "Yesterday", unread: true },
-                  { text: "Brigid accepted your Family Circle invitation", time: "3 days ago", unread: false }
-                ].map((notif, i) => (
-                  <div key={i} className="flex gap-3 p-4 hover:bg-stone-50/80 dark:hover:bg-slate-800/60 transition cursor-pointer">
-                    <div className="pt-1.5 shrink-0">
-                      <div className={`h-2 w-2 rounded-full ${notif.unread ? 'bg-[#4A3AFF]' : 'bg-transparent'}`} />
-                    </div>
-                    <div>
-                      <p className={`text-[13px] leading-snug ${notif.unread ? 'text-stone-800 dark:text-stone-200 font-semibold' : 'text-stone-600 dark:text-stone-400'}`}>{notif.text}</p>
-                      <p className="text-[11px] text-stone-400 mt-1">{notif.time}</p>
-                    </div>
+              <div className="max-h-[320px] overflow-y-auto divide-y divide-stone-100 dark:divide-slate-800/60">
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-xs font-medium text-stone-500">
+                    No recent notifications
                   </div>
-                ))}
+                ) : (
+                  notifications.map((notif) => (
+                    <div 
+                      key={notif.id} 
+                      onClick={() => handleNotificationItemClick(notif)}
+                      className={`flex gap-3 p-4 hover:bg-stone-50/80 dark:hover:bg-slate-800/60 transition cursor-pointer ${
+                        !notif.isRead ? 'bg-[#EEF2FF]/40 dark:bg-slate-800/40' : ''
+                      }`}
+                    >
+                      <div className="pt-1.5 shrink-0">
+                        <div className={`h-2 w-2 rounded-full ${!notif.isRead ? 'bg-[#4A3AFF]' : 'bg-transparent'}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[13px] leading-snug ${!notif.isRead ? 'text-stone-900 dark:text-white font-bold' : 'text-stone-700 dark:text-stone-300 font-medium'}`}>
+                          {notif.title}
+                        </p>
+                        {notif.message && (
+                          <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate mt-0.5">
+                            {notif.message}
+                          </p>
+                        )}
+                        <p className="text-[10px] font-semibold text-stone-400 mt-1">
+                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
               <Link 
                 href="/notifications" 
@@ -415,6 +567,34 @@ export default function DashboardHeader({ onSearchChange }) {
           )}
         </div>
       </div>
+
+      {/* Floating Live Real-Time Toast Banner (Facebook-style) */}
+      {liveToast && (
+        <div 
+          onClick={() => handleNotificationItemClick(liveToast)}
+          className="fixed top-5 right-5 z-50 flex items-center gap-3 p-4 bg-stone-900/95 text-white backdrop-blur-md border border-[#4A3AFF]/50 rounded-2xl shadow-2xl animate-fade-in max-w-sm cursor-pointer hover:bg-stone-900 transition-all active:scale-95"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#4A3AFF] flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+            <Sparkles size={18} className="text-white animate-pulse" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-extrabold text-xs text-[#818cf8] uppercase tracking-wider">{liveToast.title}</p>
+              <span className="text-[10px] text-stone-400 font-semibold">Just now</span>
+            </div>
+            <p className="font-semibold text-xs text-white leading-snug mt-0.5 truncate">{liveToast.message}</p>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setLiveToast(null);
+            }}
+            className="text-stone-400 hover:text-white transition p-1 rounded-full hover:bg-stone-800 shrink-0 cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

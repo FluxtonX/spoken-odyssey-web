@@ -43,6 +43,7 @@ import { useAuth } from "@/context/AuthProvider";
 import VideoPlayer from "@/components/ui/VideoPlayer";
 import { 
   normalizeMediaUrl, 
+  getBackendBaseUrl,
   deleteMemoryOnBackend, 
   updateMemoryOnBackend, 
   reactToMemoryOnBackend, 
@@ -52,6 +53,7 @@ import {
   shareMemoryOnBackend,
   getMemoryDetailsFromBackend
 } from "@/services/backend";
+import { io } from "socket.io-client";
 
 // Facebook-style Emojis mapping
 const REACTION_EMOJIS = [
@@ -377,6 +379,115 @@ function MemoryViewModalContent() {
 
     return () => clearInterval(pollInterval);
   }, [isOpen, memory, isAuthenticated, firebaseUser, getToken]);
+
+  // Real-Time Socket.io connection for Instant Comments, Replies & Reactions (Zero Refresh)
+  useEffect(() => {
+    if (!isOpen || !memory) return;
+    const memId = memory.id || memory._id;
+    if (!memId) return;
+
+    const backendUrl = getBackendBaseUrl() || "http://localhost:5001";
+    const socket = io(backendUrl, {
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      socket.emit("join:memory_room", memId);
+    });
+
+    // Listen for live comments & replies
+    socket.on("comment:new", (eventData) => {
+      if (!eventData || String(eventData.memoryId) !== String(memId)) return;
+      const newComment = eventData.comment;
+      if (!newComment) return;
+
+      const newId = newComment.id || newComment._id;
+      const newText = (newComment.text || "").trim();
+
+      setComments((prevComments) => {
+        // 1. Check if comment ID already exists
+        const existsById = prevComments.some(c => (c.id || c._id) === newId);
+        if (existsById) return prevComments;
+
+        if (eventData.parentCommentId) {
+          // It's a reply to an existing comment
+          return prevComments.map((c) => {
+            if ((c.id || c._id) === eventData.parentCommentId) {
+              const currentReplies = Array.isArray(c.replies) ? c.replies : [];
+              const replyExists = currentReplies.some(r => (r.id || r._id) === newId);
+              if (replyExists) return c;
+
+              // Filter out matching temporary local reply if text matches
+              const cleanReplies = currentReplies.filter(r => {
+                const isTemp = String(r.id || r._id || "").startsWith("reply-");
+                const rText = (r.text || "").trim();
+                if (isTemp && rText === newText) return false;
+                return true;
+              });
+
+              return { ...c, replies: [...cleanReplies, newComment] };
+            }
+            return c;
+          });
+        } else {
+          // Top-level comment: Filter out matching temporary local comment if text matches
+          const cleanComments = prevComments.filter(c => {
+            const isTemp = String(c.id || c._id || "").startsWith("comment-");
+            const cText = (c.text || "").trim();
+            if (isTemp && cText === newText) return false;
+            return true;
+          });
+
+          return [...cleanComments, newComment];
+        }
+      });
+    });
+
+    // Listen for live comment reactions
+    socket.on("comment:reaction", (eventData) => {
+      if (!eventData || String(eventData.memoryId) !== String(memId)) return;
+      const { commentId, reactions } = eventData;
+      if (!commentId || !reactions) return;
+
+      setComments((prevComments) => {
+        return prevComments.map((c) => {
+          if ((c.id || c._id) === commentId) {
+            return { ...c, reactionsCount: reactions };
+          }
+          if (Array.isArray(c.replies)) {
+            const updatedReplies = c.replies.map((r) => {
+              if ((r.id || r._id) === commentId) {
+                return { ...r, reactionsCount: reactions };
+              }
+              return r;
+            });
+            return { ...c, replies: updatedReplies };
+          }
+          return c;
+        });
+      });
+    });
+
+    // Listen for live story reactions
+    socket.on("memory:reaction", (eventData) => {
+      if (!eventData || String(eventData.memoryId) !== String(memId)) return;
+      if (eventData.reactions && typeof eventData.reactions === "object") {
+        setReactionCounts({
+          heart: eventData.reactions.heart || 0,
+          like: eventData.reactions.like || 0,
+          care: eventData.reactions.care || 0,
+          haha: eventData.reactions.haha || 0,
+          wow: eventData.reactions.wow || 0,
+          angry: eventData.reactions.angry || 0,
+        });
+      }
+    });
+
+    return () => {
+      socket.emit("leave:memory_room", memId);
+      socket.disconnect();
+    };
+  }, [isOpen, memory]);
 
   const mediaList = useMemo(() => {
     if (!memory) return [];
