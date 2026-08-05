@@ -739,6 +739,25 @@ export default function PublishWizard() {
               </div>
 
               <div>
+                <label className="block text-[13px] font-bold text-stone-700 mb-2 flex items-center justify-between">
+                  <span>Description / Story</span>
+                  <span className="text-stone-400 text-xs font-normal">Optional</span>
+                </label>
+                <textarea 
+                  rows={3}
+                  value={writtenContent}
+                  onChange={(e) => setWrittenContent(e.target.value)}
+                  placeholder={
+                    memoryType === "visual" ? "Add a description or story for these photos & videos..." :
+                    memoryType === "voice" ? "Add notes, story, or transcript for this voice recording..." :
+                    memoryType === "milestone" ? "Describe why this milestone was significant..." :
+                    "Write your memory reflection..."
+                  }
+                  className="w-full border border-stone-200 rounded-2xl p-4 focus:outline-none focus:border-[#4A3AFF] focus:ring-2 focus:ring-[#4A3AFF]/20 transition-all font-medium text-stone-800 shadow-sm text-sm resize-none"
+                />
+              </div>
+
+              <div>
                 <label className="block text-[13px] font-medium text-stone-500 mb-3">Mood</label>
                 <div className="flex flex-wrap gap-2.5">
                   {MOODS.map((m) => (
@@ -813,9 +832,15 @@ export default function PublishWizard() {
                   <span className="text-[11px] font-bold tracking-widest uppercase">{memoryType || "VOICE"} MEMORY</span>
                 </div>
                 
-                <h3 className="text-2xl font-bold text-stone-900 mb-4">
+                <h3 className="text-2xl font-bold text-stone-900 mb-3">
                   {title || "Untitled Memory"}
                 </h3>
+
+                {writtenContent?.trim() && (
+                  <p className="text-stone-600 text-sm font-medium line-clamp-3 mb-4 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-100 italic">
+                    &quot;{writtenContent.trim()}&quot;
+                  </p>
+                )}
 
                 {memoryType === "visual" && visualFiles.length > 0 && (
                   <div className="mb-4 text-xs font-bold text-[#4A3AFF]">
@@ -985,10 +1010,19 @@ export default function PublishWizard() {
                       const memType = memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : memoryType === "milestone" ? "Milestone" : "Voice";
                       const chosenVisibility = visibility || "Private";
 
+                      const milestoneDesc = lifeChapter 
+                        ? `Life milestone (${lifeChapter}) scored ${significance}/5 in significance.` 
+                        : "Life milestone memory captured on Spoken Odyssey.";
+
                       const newMem = {
                         id: `mem-${Date.now()}`,
-                        title: title.trim() || (memoryType === "voice" ? "Voice Recording" : memoryType === "visual" ? "Visual Memory" : "Memory"),
-                        description: writtenContent?.trim() || (memoryType === "written" ? "Written memory reflection" : memoryType === "visual" ? "Visual memory album" : "Voice recording memory"),
+                        title: title.trim() || (memoryType === "voice" ? "Voice Recording" : memoryType === "visual" ? "Visual Memory" : memoryType === "milestone" ? "Life Milestone" : "Memory"),
+                        description: writtenContent?.trim() || (
+                          memoryType === "written" ? "Written memory reflection" : 
+                          memoryType === "visual" ? "Visual memory album" : 
+                          memoryType === "milestone" ? milestoneDesc : 
+                          "Voice recording memory"
+                        ),
                         type: memType,
                         date: new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
                         albumId: targetAlbum,

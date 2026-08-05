@@ -128,6 +128,7 @@ export default function SettingsPage() {
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordModalFeedback, setPasswordModalFeedback] = useState(null);
   const [passwordModalMode, setPasswordModalMode] = useState("normal"); // "normal" | "otp"
   const [modalOtpCode, setModalOtpCode] = useState("");
@@ -185,6 +186,9 @@ export default function SettingsPage() {
       return;
     }
 
+    setIsUpdatingPassword(true);
+    setPasswordModalFeedback(null);
+
     try {
       const baseUrl = getBackendBaseUrl();
       const response = await fetch(`${baseUrl}/api/auth/reset-password`, {
@@ -215,6 +219,8 @@ export default function SettingsPage() {
       }
     } catch (_) {
       setPasswordModalFeedback({ type: "error", message: "Network error resetting password." });
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -228,9 +234,13 @@ export default function SettingsPage() {
       return;
     }
 
+    setIsUpdatingPassword(true);
+    setPasswordModalFeedback(null);
+
     try {
       const token = await getToken();
-      const response = await fetch("/api/auth/change-password", {
+      const baseUrl = getBackendBaseUrl();
+      const response = await fetch(`${baseUrl}/api/auth/change-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -258,6 +268,8 @@ export default function SettingsPage() {
       }
     } catch (err) {
       setPasswordModalFeedback({ type: "error", message: "Network error updating password." });
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -1583,10 +1595,18 @@ export default function SettingsPage() {
                 </button>
                 <button
                   type="button"
+                  disabled={isUpdatingPassword}
                   onClick={passwordModalMode === "otp" ? handleResetWithOtpFromModal : handleUpdatePasswordSubmit}
-                  className="flex-1 py-3 bg-[#4A3AFF] hover:bg-[#3b2ee0] text-white font-bold rounded-xl text-[14px] shadow-md transition-all active:scale-95"
+                  className="flex-1 py-3 bg-[#4A3AFF] hover:bg-[#3b2ee0] text-white font-bold rounded-xl text-[14px] shadow-md transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {passwordModalMode === "otp" ? "Reset Password with OTP" : "Update Password"}
+                  {isUpdatingPassword ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <span>{passwordModalMode === "otp" ? "Reset Password with OTP" : "Update Password"}</span>
+                  )}
                 </button>
               </div>
             </motion.div>

@@ -13,14 +13,25 @@ import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
 import HighlightText from "@/components/ui/HighlightText";
 
-const FILTER_PILLS = [
-  "All Stories", "Family", "Immigration", "Heritage", "Love", "Career", "Loss", "Adventure"
+const STORY_FILTERS = [
+  "All Stories", "Visual Stories", "Voice Recordings", "Written Stories", "Family", "Heritage", "Love", "Career", "Adventure"
 ];
 
-const formatDateSafely = (dateVal) => {
+const PEOPLE_FILTERS = [
+  "All People", "Mutual Connections", "Family Circle", "Designers & Tech", "Storytellers", "Writers & Historians", "Most Followed"
+];
+
+const formatDateSafely = (dateVal, memoryItem) => {
+  if (!dateVal && memoryItem?.year) {
+    return `${memoryItem.month || "August"} ${memoryItem.year}`;
+  }
   if (!dateVal) return "Public Memory";
+  const strVal = String(dateVal).trim();
+  if (/^\d{4}$/.test(strVal)) {
+    return `${memoryItem?.month || "August"} ${strVal}`;
+  }
   const d = new Date(dateVal);
-  if (isNaN(d.getTime())) return "Public Memory";
+  if (isNaN(d.getTime())) return strVal;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
@@ -34,13 +45,28 @@ const isVideoLike = (url, mimeType = "", type = "") => {
   );
 };
 
+const getCleanMediaKey = (u) => {
+  if (!u || typeof u !== "string") return "";
+  try {
+    const clean = decodeURIComponent(u.split("?")[0]);
+    const parts = clean.split("/");
+    const lastPart = parts[parts.length - 1] || "";
+    return lastPart.toLowerCase().trim();
+  } catch (_) {
+    const clean = u.split("?")[0];
+    const parts = clean.split("/");
+    return (parts[parts.length - 1] || "").toLowerCase().trim();
+  }
+};
+
 const getMemoryMediaSources = (memory) => {
   const items = [];
   const addItem = (url, type = "image", mimeType = "") => {
     if (!url || typeof url !== "string") return;
     const mediaType = isVideoLike(url, mimeType, type) ? "video" : "image";
     const normUrl = normalizeMediaUrl(url);
-    if (normUrl && !items.some(i => i.url === normUrl)) {
+    const cleanKey = getCleanMediaKey(normUrl);
+    if (normUrl && cleanKey && !items.some(i => getCleanMediaKey(i.url) === cleanKey)) {
       items.push({ url: normUrl, type: mediaType });
     }
   };
@@ -72,7 +98,7 @@ const getMemoryMediaSources = (memory) => {
 
 export default function DiscoverPage() {
   const router = useRouter();
-  const { firebaseUser, isAuthenticated, getToken } = useAuth();
+  const { firebaseUser, isAuthenticated, getToken, profile } = useAuth();
   
   // Tab state: "latest-stories" vs "featured-people"
   const [activeTab, setActiveTab] = useState("latest-stories");
@@ -81,6 +107,15 @@ export default function DiscoverPage() {
   // Search state & Debounce state
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    if (newTab === "latest-stories") {
+      setActiveFilter("All Stories");
+    } else {
+      setActiveFilter("All People");
+    }
+  };
   
   const [isLoading, setIsLoading] = useState(true);
   
@@ -125,13 +160,20 @@ export default function DiscoverPage() {
     return () => window.removeEventListener("memoryReactionUpdated", handleReactionUpdate);
   }, []);
 
+  // Infinite Scroll Pagination State
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
   // Main Data Hydration from PostgreSQL Database
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
+      setPage(1);
+      setHasMore(true);
       try {
         let token = null;
-        if (isAuthenticated && firebaseUser) {
+        if (isAuthenticated) {
           try {
             token = await getToken();
           } catch (tErr) {
@@ -140,12 +182,15 @@ export default function DiscoverPage() {
         }
 
         if (activeTab === "latest-stories") {
-          // Fetch Real Public Memories from Database
-          const categoryFilter = activeFilter !== "All Stories" ? activeFilter : "";
-          const data = await getDiscoveryMemories(token, "public", categoryFilter, debouncedQuery);
-          
+          // Fetch Real Public Memories from Database with Pagination (Page 1, 20 Items)
+          const categoryFilter = activeFilter !== "All Stories" && activeFilter !== "All" ? activeFilter : "";
+          const res = await getDiscoveryMemories(token, "public", categoryFilter, debouncedQuery, 1, 20);
+          const data = res?.data || (Array.isArray(res) ? res : []);
+          const pagination = res?.pagination || null;
+
           if (Array.isArray(data)) {
             setDbMemoriesList(data);
+            setHasMore(pagination ? pagination.hasMore : data.length >= 20);
             const initialReactions = {};
             const initialLiked = {};
             data.forEach(m => {
@@ -156,22 +201,31 @@ export default function DiscoverPage() {
             setUserReactionMap(prev => ({ ...prev, ...initialLiked }));
           } else {
             setDbMemoriesList([]);
+            setHasMore(false);
           }
         } else {
           // Fetch Real Database Users
-          const categoryFilter = activeFilter !== "All Stories" ? activeFilter : "";
+          const categoryFilter = activeFilter !== "All People" && activeFilter !== "All" ? activeFilter : "";
           const dbUsers = await getFeaturedPeople(token, categoryFilter, debouncedQuery);
           
           if (Array.isArray(dbUsers)) {
-            setPeopleList(dbUsers);
+            const currentUserId = profile?.id || profile?.uid || firebaseUser?.uid || "localUser";
+            const myFollowersList = JSON.parse(localStorage.getItem(`spokenOdysseyFollowers_${currentUserId}`) || "[]");
+
+            const sanitizedUsers = dbUsers.map(u => ({
+              ...u,
+              isFollowerOfMe: Boolean(u.isFollowerOfMe || myFollowersList.includes(u.id))
+            }));
+
+            setPeopleList(sanitizedUsers);
             const initialFollowMap = {};
             const initialCountMap = {};
-            dbUsers.forEach(u => {
+            sanitizedUsers.forEach(u => {
               initialFollowMap[u.id] = u.isFollowing || false;
               initialCountMap[u.id] = u.followersCount || 0;
             });
-            setFollowingMap(prev => ({ ...initialFollowMap, ...prev }));
-            setFollowersCountMap(prev => ({ ...initialCountMap, ...prev }));
+            setFollowingMap(initialFollowMap);
+            setFollowersCountMap(initialCountMap);
           } else {
             setPeopleList([]);
           }
@@ -186,7 +240,64 @@ export default function DiscoverPage() {
     }
 
     loadData();
-  }, [isAuthenticated, firebaseUser, activeTab, activeFilter, debouncedQuery]);
+  }, [isAuthenticated, firebaseUser, profile, activeTab, activeFilter, debouncedQuery]);
+
+  // Infinite Scroll Handler to load next 20 memories
+  const loadMoreMemories = async () => {
+    if (!hasMore || isFetchingMore || isLoading || activeTab !== "latest-stories") return;
+    setIsFetchingMore(true);
+
+    try {
+      let token = null;
+      if (isAuthenticated) {
+        try {
+          token = await getToken();
+        } catch (_) {}
+      }
+
+      const nextPage = page + 1;
+      const categoryFilter = activeFilter !== "All Stories" && activeFilter !== "All" ? activeFilter : "";
+      const res = await getDiscoveryMemories(token, "public", categoryFilter, debouncedQuery, nextPage, 20);
+      const newItems = res?.data || (Array.isArray(res) ? res : []);
+      const pagination = res?.pagination || null;
+
+      if (Array.isArray(newItems) && newItems.length > 0) {
+        setDbMemoriesList(prev => {
+          const existingIds = new Set(prev.map(m => m.id));
+          const uniqueNew = newItems.filter(m => !existingIds.has(m.id));
+          return [...prev, ...uniqueNew];
+        });
+        setPage(nextPage);
+        setHasMore(pagination ? pagination.hasMore : newItems.length >= 20);
+
+        const newReactions = {};
+        const newLiked = {};
+        newItems.forEach(m => {
+          newReactions[m.id] = m.totalReactions ?? m.likes ?? 0;
+          newLiked[m.id] = m.userReaction || null;
+        });
+        setReactionsCountMap(prev => ({ ...prev, ...newReactions }));
+        setUserReactionMap(prev => ({ ...prev, ...newLiked }));
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.warn("Infinite scroll load error:", err);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  };
+
+  // Scroll threshold listener for infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 600) {
+        loadMoreMemories();
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasMore, isFetchingMore, isLoading, page, activeTab, activeFilter, debouncedQuery]);
 
   // Handle follow / unfollow button toggle with API persistence
   const handleFollowToggle = async (e, person) => {
@@ -195,7 +306,9 @@ export default function DiscoverPage() {
     const currentlyFollowing = followingMap[personId] ?? person.isFollowing ?? false;
     const currentCount = followersCountMap[personId] ?? person.followersCount ?? 0;
 
-    setFollowingMap(prev => ({ ...prev, [personId]: !currentlyFollowing }));
+    const nextFollowingState = !currentlyFollowing;
+
+    setFollowingMap(prev => ({ ...prev, [personId]: nextFollowingState }));
     setFollowersCountMap(prev => ({
       ...prev,
       [personId]: currentlyFollowing ? Math.max(0, currentCount - 1) : currentCount + 1,
@@ -203,7 +316,28 @@ export default function DiscoverPage() {
     setFollowLoadingMap(prev => ({ ...prev, [personId]: true }));
 
     try {
-      if (isAuthenticated && firebaseUser) {
+      const storedTimestamps = JSON.parse(localStorage.getItem("spokenOdysseyFollowTimestamps") || "{}");
+      if (nextFollowingState) {
+        storedTimestamps[personId] = Date.now();
+      } else {
+        delete storedTimestamps[personId];
+      }
+      localStorage.setItem("spokenOdysseyFollowTimestamps", JSON.stringify(storedTimestamps));
+
+      const currentUserId = profile?.id || profile?.uid || firebaseUser?.uid || "localUser";
+      const targetFollowersKey = `spokenOdysseyFollowers_${personId}`;
+      const targetFollowers = JSON.parse(localStorage.getItem(targetFollowersKey) || "[]");
+      if (nextFollowingState) {
+        if (!targetFollowers.includes(currentUserId)) targetFollowers.push(currentUserId);
+      } else {
+        const idx = targetFollowers.indexOf(currentUserId);
+        if (idx !== -1) targetFollowers.splice(idx, 1);
+      }
+      localStorage.setItem(targetFollowersKey, JSON.stringify(targetFollowers));
+    } catch (_) {}
+
+    try {
+      if (isAuthenticated) {
         const token = await getToken();
         if (currentlyFollowing) {
           await unfollowUser(token, personId);
@@ -277,6 +411,8 @@ export default function DiscoverPage() {
   // Grid Stories from Database
   const gridStoriesList = dbMemoriesList.length > 1 ? dbMemoriesList.slice(1) : dbMemoriesList;
 
+  const currentFilters = activeTab === "latest-stories" ? STORY_FILTERS : PEOPLE_FILTERS;
+
   return (
     <WavesBackground>
       <motion.div 
@@ -315,7 +451,7 @@ export default function DiscoverPage() {
             <div className="w-full mb-8">
               <div className="w-full bg-white/70 backdrop-blur-md border border-white/80 rounded-full p-1.5 flex items-center shadow-sm">
                 <button
-                  onClick={() => setActiveTab("latest-stories")}
+                  onClick={() => handleTabChange("latest-stories")}
                   className={`flex-1 py-3.5 px-6 rounded-full text-[15px] font-bold transition-all text-center ${
                     activeTab === "latest-stories"
                       ? "bg-[#4A3AFF] text-white shadow-md"
@@ -325,7 +461,7 @@ export default function DiscoverPage() {
                   Latest Stories
                 </button>
                 <button
-                  onClick={() => setActiveTab("featured-people")}
+                  onClick={() => handleTabChange("featured-people")}
                   className={`flex-1 py-3.5 px-6 rounded-full text-[15px] font-bold transition-all text-center ${
                     activeTab === "featured-people"
                       ? "bg-[#4A3AFF] text-white shadow-md"
@@ -340,7 +476,7 @@ export default function DiscoverPage() {
 
           {/* Filter Pills Bar */}
           <motion.div variants={fadeInUp} className="w-full flex overflow-x-auto hide-scrollbar gap-3 mb-10 pb-2">
-            {FILTER_PILLS.map(filter => (
+            {currentFilters.map(filter => (
               <button
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
@@ -380,6 +516,8 @@ export default function DiscoverPage() {
                   const isFollowing = followingMap[person.id] ?? person.isFollowing ?? false;
                   const followersCount = followersCountMap[person.id] ?? person.followersCount ?? 0;
                   const isBtnLoading = followLoadingMap[person.id] || false;
+                  const coverSrc = normalizeMediaUrl(person.coverURL || person.coverKey || person.cover);
+                  const avatarSrc = normalizeMediaUrl(person.photoURL || person.photoKey || person.avatar) || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop";
 
                   return (
                     <motion.div
@@ -390,9 +528,9 @@ export default function DiscoverPage() {
                     >
                       {/* Minimized Cover Image Height (h-[95px] md:h-[105px]) */}
                       <div className="w-full h-[95px] md:h-[105px] relative overflow-hidden">
-                        {person.coverURL || person.cover ? (
+                        {coverSrc ? (
                           <img
-                            src={person.coverURL || person.cover}
+                            src={coverSrc}
                             alt={person.displayName}
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           />
@@ -403,12 +541,29 @@ export default function DiscoverPage() {
 
                       {/* Card Body with Overlapping Avatar */}
                       <div className="px-6 md:px-8 pb-6 flex flex-col flex-grow relative">
-                        <div className="relative -mt-10 md:-mt-12 mb-3 shrink-0">
+                        <div className="relative -mt-10 md:-mt-12 mb-3 shrink-0 flex items-end justify-between">
                           <img
-                            src={person.photoURL || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop"}
+                            src={avatarSrc}
                             alt={person.displayName}
                             className="w-18 h-18 md:w-20 md:h-20 rounded-full object-cover border-4 border-white shadow-md bg-stone-100"
                           />
+                          {person.isFollowerOfMe && !isFollowing ? (
+                            <span className="text-[11px] font-bold text-[#4338ca] bg-[#e0e7ff] border border-[#c7d2fe] px-3 py-1 rounded-full shadow-xs mb-1 flex items-center gap-1">
+                              👋 Follows you
+                            </span>
+                          ) : person.mutualConnectionsCount > 0 ? (
+                            <span className="text-[11px] font-bold text-[#4A3AFF] bg-[#EEF2FF] border border-[#C7D2FE]/60 px-3 py-1 rounded-full shadow-xs mb-1">
+                              ✨ {person.mutualConnectionsCount} mutual connection{person.mutualConnectionsCount > 1 ? "s" : ""}
+                            </span>
+                          ) : person.isFamily ? (
+                            <span className="text-[11px] font-bold text-[#10b981] bg-[#ecfdf5] border border-[#a7f3d0] px-3 py-1 rounded-full shadow-xs mb-1">
+                              🏡 Family Member
+                            </span>
+                          ) : person.isSuggested ? (
+                            <span className="text-[11px] font-bold text-[#f59e0b] bg-[#fffbeb] border border-[#fde68a] px-3 py-1 rounded-full shadow-xs mb-1">
+                              💡 Suggested for you
+                            </span>
+                          ) : null}
                         </div>
 
                         <h2 className="text-[20px] md:text-[22px] font-semibold text-stone-900 tracking-tight leading-snug mb-0.5">
@@ -440,7 +595,9 @@ export default function DiscoverPage() {
                             className={`px-5 py-2 rounded-xl font-bold text-[13px] flex items-center gap-2 transition-all cursor-pointer shadow-sm ${
                               isFollowing
                                 ? "bg-stone-200 text-stone-800 hover:bg-stone-300 border border-stone-300"
-                                : "bg-[#4A3AFF] text-white hover:bg-[#3b2ee0]"
+                                : person.isFollowerOfMe
+                                  ? "bg-gradient-to-r from-[#4A3AFF] to-[#6366F1] text-white hover:shadow-md"
+                                  : "bg-[#4A3AFF] text-white hover:bg-[#3b2ee0]"
                             }`}
                           >
                             {isBtnLoading ? (
@@ -448,12 +605,17 @@ export default function DiscoverPage() {
                             ) : isFollowing ? (
                               <>
                                 <UserCheck size={15} />
-                                Following
+                                <span>Following</span>
+                              </>
+                            ) : person.isFollowerOfMe ? (
+                              <>
+                                <UserPlus size={15} />
+                                <span>Follow Back</span>
                               </>
                             ) : (
                               <>
                                 <UserPlus size={15} />
-                                Follow
+                                <span>Follow</span>
                               </>
                             )}
                           </button>
@@ -559,10 +721,11 @@ export default function DiscoverPage() {
                   <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
                     {gridStoriesList.map(story => {
                       const normType = (story.type || "").toLowerCase();
-                      const isVoice = normType === "voice" || normType === "audio" || !!story.audioUrl || !!story.audio;
-                      const mediaSources = isVoice ? { items: [], video: null, image: null } : getMemoryMediaSources(story);
+                      const mediaSources = getMemoryMediaSources(story);
+                      const isVoice = normType === "voice" || normType === "audio" || (!!story.audioUrl && !mediaSources.video && !mediaSources.image);
                       const isVideo = !isVoice && (normType === "video" || !!mediaSources.video);
-                      const isWritten = !isVideo && !isVoice && (normType === "written" || normType === "text" || normType === "thought" || !mediaSources.items.length);
+                      const isPhoto = !isVoice && !isVideo && (normType === "photo" || normType === "visual" || normType === "image" || !!mediaSources.image);
+                      const isWritten = !isVoice && !isVideo && !isPhoto;
                       const dateStr = formatDateSafely(story.date || story.createdAt || story.occurredAt);
 
                       const displayHashtags = Array.isArray(story.tags) ? story.tags.filter(Boolean).slice(0, 3) : [];
@@ -815,6 +978,13 @@ export default function DiscoverPage() {
                       );
                     })}
                   </motion.div>
+                )}
+
+                {isFetchingMore && (
+                  <div className="w-full flex items-center justify-center py-8">
+                    <Loader2 size={24} className="animate-spin text-[#4A3AFF] mr-2" />
+                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading more public stories...</span>
+                  </div>
                 )}
 
               </motion.div>

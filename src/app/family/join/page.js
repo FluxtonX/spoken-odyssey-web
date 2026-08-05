@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { validateInvitationToken, acceptInvitationViaToken } from "@/services/backend";
 import { useAuth } from "@/context/AuthProvider";
 import { UserPlus, CheckCircle, XCircle, Loader2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function FamilyJoinPage() {
+function FamilyJoinContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
@@ -246,5 +246,18 @@ export default function FamilyJoinPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function FamilyJoinPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-900 text-white">
+        <Loader2 size={32} className="animate-spin text-purple-500 mb-2" />
+        <span className="text-xs font-bold uppercase tracking-wider">Validating invitation...</span>
+      </div>
+    }>
+      <FamilyJoinContent />
+    </Suspense>
   );
 }

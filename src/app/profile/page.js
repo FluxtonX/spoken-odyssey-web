@@ -35,7 +35,8 @@ import {
   Check,
   AlertCircle,
   FolderHeart,
-  Heart
+  Heart,
+  Maximize2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
@@ -80,6 +81,9 @@ export default function ProfilePage() {
 
   // Selected Memory Modal State (Opens MemoryDetailModal in-place on Profile Page)
   const [selectedMemory, setSelectedMemory] = useState(null);
+
+  // High-Res Image Lightbox State for Profile & Cover Photos
+  const [viewingImage, setViewingImage] = useState(null);
 
   // Main Data Loading States
   const [isLoading, setIsLoading] = useState(true);
@@ -426,12 +430,16 @@ export default function ProfilePage() {
             <div className="figma-card w-full rounded-[28px] overflow-hidden bg-white/70 backdrop-blur-md border border-[#C7D2FE]/70 shadow-sm flex flex-col relative">
               
               {/* Top Cover Banner */}
-              <div className="w-full h-[180px] md:h-[220px] relative overflow-hidden">
+              <div 
+                onClick={() => coverURL && setViewingImage({ title: `${displayName}'s Cover Photo`, url: coverURL })}
+                className={`w-full h-[180px] md:h-[220px] relative overflow-hidden group ${coverURL ? 'cursor-pointer' : ''}`}
+                title={coverURL ? "Click to view full cover photo" : "Cover Photo"}
+              >
                 {coverURL ? (
                   <img
                     src={coverURL}
                     alt="Cover"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-r from-[#4A3AFF] via-[#6366F1] to-[#818CF8] opacity-90 shadow-inner" />
@@ -439,10 +447,19 @@ export default function ProfilePage() {
                 {/* Curved Dark Arch Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
 
+                {coverURL && (
+                  <div className="absolute bottom-3 left-4 px-3 py-1 rounded-full bg-black/50 text-white text-[12px] font-bold flex items-center gap-1.5 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <Maximize2 size={13} /> View Cover Photo
+                  </div>
+                )}
+
                 {/* Edit Profile Button Overlay (Opens In-Page Modal) */}
                 <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="absolute top-4 right-4 md:top-6 md:right-6 border border-white/60 text-white font-bold bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-[13px] hover:bg-black/60 transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditModalOpen(true);
+                  }}
+                  className="absolute top-4 right-4 md:top-6 md:right-6 border border-white/60 text-white font-bold bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-[13px] hover:bg-black/60 transition-all flex items-center gap-2 cursor-pointer shadow-md z-20"
                 >
                   <Edit3 size={14} />
                   <span>Edit profile</span>
@@ -455,12 +472,21 @@ export default function ProfilePage() {
                 {/* Left Side: Overlapping Avatar & User Bio */}
                 <div className="flex flex-col">
                   {/* Overlapping Avatar */}
-                  <div className="-mt-14 md:-mt-16 mb-4 shrink-0 relative z-10">
-                    <img
-                      src={avatarURL}
-                      alt={displayName}
-                      className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-white shadow-xl bg-stone-100"
-                    />
+                  <div className="-mt-14 md:-mt-16 mb-4 shrink-0 relative z-10 self-start">
+                    <div 
+                      onClick={() => setViewingImage({ title: `${displayName}'s Profile Picture`, url: avatarURL })}
+                      className="w-24 h-24 md:w-28 md:h-28 rounded-full relative cursor-pointer group overflow-hidden border-4 border-white shadow-xl bg-stone-100 transition-all duration-300 hover:shadow-2xl active:scale-95"
+                      title="Click to view full profile picture"
+                    >
+                      <img
+                        src={avatarURL}
+                        alt={displayName}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center text-white">
+                        <Maximize2 size={22} className="drop-shadow-md transform scale-90 group-hover:scale-100 transition-transform duration-300" />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Name Header */}
@@ -719,31 +745,61 @@ export default function ProfilePage() {
                   {albums.map((alb) => {
                     const getRealAlbumMemoriesCount = (albumItem) => {
                       if (!albumItem) return 0;
-                      const albId = String(albumItem.id || "").toLowerCase();
-                      const albTitle = String(albumItem.title || "").toLowerCase();
+                      const albId = String(albumItem.id || albumItem._id || "").toLowerCase();
+                      const albTitle = String(albumItem.title || albumItem.name || "").toLowerCase();
 
-                      const matching = safeMemories.filter(m => {
-                        if (!m) return false;
-                        const mAlbId = String(m.albumId || "").toLowerCase();
-                        const mAlbTitle = String(m.albumTitle || m.album || "").toLowerCase();
-                        const inAlbumsList = Array.isArray(m.albums) && m.albums.some(a => String(a).toLowerCase() === albId);
+                      const countedMemoryIds = new Set();
+
+                      // 1. Check direct memories array on the album object
+                      if (Array.isArray(albumItem.memories)) {
+                        albumItem.memories.forEach(m => {
+                          if (m) {
+                            const idKey = m.id || m._id || m.memoryId;
+                            if (idKey) countedMemoryIds.add(String(idKey));
+                          }
+                        });
+                      }
+
+                      // 2. Check matching memories from user memories list
+                      safeMemories.forEach(m => {
+                        if (!m) return;
+                        const memIdKey = String(m.id || m._id || m.memoryId || "");
+
+                        const mAlbId = String(m.albumId || m.album_id || (typeof m.album === "object" ? (m.album?.id || m.album?._id) : "") || "").toLowerCase();
+                        const mAlbTitle = String(m.albumTitle || m.albumName || (typeof m.album === "string" ? m.album : (m.album?.title || m.album?.name)) || "").toLowerCase();
+
+                        const inAlbumsList = Array.isArray(m.albums) && m.albums.some(a => {
+                          const val = typeof a === "object" ? (a.id || a._id || a.title || a.name) : a;
+                          const strVal = String(val || "").toLowerCase();
+                          return (albId && strVal === albId) || (albTitle && strVal === albTitle);
+                        });
+
+                        const inAlbumIdsList = Array.isArray(m.albumIds) && m.albumIds.some(a => {
+                          const strVal = String(a || "").toLowerCase();
+                          return albId && strVal === albId;
+                        });
 
                         const isCareerCraftMatch = (mAlbId === "career-craft" || mAlbId === "career-and-craft") && (albId === "career-and-craft" || albId === "career-craft");
 
-                        return (mAlbId && mAlbId === albId) || 
-                               isCareerCraftMatch ||
-                               inAlbumsList ||
-                               (mAlbTitle && albTitle && mAlbTitle === albTitle) ||
-                               (albTitle && mAlbTitle.includes(albTitle));
+                        const isMatch = 
+                          (albId && mAlbId === albId) ||
+                          isCareerCraftMatch ||
+                          inAlbumsList ||
+                          inAlbumIdsList ||
+                          (albTitle && mAlbTitle && (mAlbTitle === albTitle || mAlbTitle.includes(albTitle) || albTitle.includes(mAlbTitle)));
+
+                        if (isMatch) {
+                          countedMemoryIds.add(memIdKey || `mem-${Math.random()}`);
+                        }
                       });
 
-                      const mapCount = (typeof ALBUM_MEMORIES_MAP !== "undefined" && (ALBUM_MEMORIES_MAP[albId] || ALBUM_MEMORIES_MAP[albumItem.id])?.length) || 0;
+                      const calculatedCount = countedMemoryIds.size;
+                      const dbCount = typeof albumItem._count?.memories === "number" ? albumItem._count.memories : (typeof albumItem.count === "number" ? albumItem.count : 0);
+                      const entriesCount = typeof albumItem.entries === "number" ? albumItem.entries : 0;
                       const presetCount = typeof albumItem.memoryCount === "number" ? albumItem.memoryCount : 0;
-                      const entriesCount = typeof albumItem.entries === "number" && albumItem.entries > 0 ? albumItem.entries : 0;
-                      const memoriesArrCount = Array.isArray(albumItem.memories) ? albumItem.memories.length : 0;
+                      const mapCount = (typeof ALBUM_MEMORIES_MAP !== "undefined" && (ALBUM_MEMORIES_MAP[albId] || ALBUM_MEMORIES_MAP[albumItem.id])?.length) || 0;
 
-                      const baseCount = Math.max(entriesCount, memoriesArrCount, mapCount, presetCount);
-                      return baseCount + matching.length;
+                      return Math.max(calculatedCount, dbCount, entriesCount, presetCount, mapCount);
                     };
 
                     const albumMemoriesCount = getRealAlbumMemoriesCount(alb);
@@ -788,8 +844,14 @@ export default function ProfilePage() {
               {/* Default Birth Milestone if BirthDate Exists */}
               {rawBirthDate && (
                 <div className="figma-card w-full rounded-2xl bg-white/70 backdrop-blur-md border border-[#C7D2FE] p-5 md:p-6 shadow-sm flex items-center gap-6">
-                  <div className="bg-[#EEF2FF] text-[#4A3AFF] font-black text-[16px] md:text-[18px] px-5 py-2.5 rounded-xl border border-[#C7D2FE]/60 shrink-0">
-                    {new Date(rawBirthDate).getFullYear()}
+                  <div className="bg-[#EEF2FF] text-[#4A3AFF] font-black text-[15px] md:text-[16px] px-4 py-2.5 rounded-xl border border-[#C7D2FE]/60 shrink-0">
+                    {(() => {
+                      const d = new Date(rawBirthDate);
+                      if (!isNaN(d.getTime())) {
+                        return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                      }
+                      return String(rawBirthDate);
+                    })()}
                   </div>
                   <div className="w-3 h-3 rounded-full bg-[#4A3AFF] shrink-0" />
                   <span className="text-[16px] md:text-[18px] font-bold text-stone-900">
@@ -813,8 +875,19 @@ export default function ProfilePage() {
                       onClick={() => window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { ...story, date: formatDateSafely(story.createdAt || story.date) } }))}
                       className="figma-card w-full rounded-2xl bg-white/70 backdrop-blur-md border border-[#C7D2FE] p-5 md:p-6 shadow-sm hover:shadow-md transition-all flex items-center gap-6 cursor-pointer group"
                     >
-                      <div className="bg-[#EEF2FF] text-[#4A3AFF] font-black text-[16px] md:text-[18px] px-5 py-2.5 rounded-xl border border-[#C7D2FE]/60 shrink-0">
-                        {new Date(story.createdAt || story.date || Date.now()).getFullYear()}
+                      <div className="bg-[#EEF2FF] text-[#4A3AFF] font-black text-[15px] md:text-[16px] px-4 py-2.5 rounded-xl border border-[#C7D2FE]/60 shrink-0">
+                        {(() => {
+                          const raw = story.createdAt || story.date || story.occurredAt;
+                          if (!raw && story.year) return `${story.month ? String(story.month).slice(0, 3) : "Aug"} ${story.year}`;
+                          if (!raw) return "Recent";
+                          const str = String(raw).trim();
+                          if (/^\d{4}$/.test(str)) return `${story.month ? String(story.month).slice(0, 3) : "Aug"} ${str}`;
+                          const d = new Date(raw);
+                          if (!isNaN(d.getTime())) {
+                            return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                          }
+                          return str;
+                        })()}
                       </div>
                       <div className="w-3 h-3 rounded-full bg-[#4A3AFF] shrink-0" />
                       <span className="text-[16px] md:text-[18px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors">
@@ -1028,6 +1101,52 @@ export default function ProfilePage() {
             onClose={() => setSelectedMemory(null)}
           />
         )}
+
+        {/* FULLSCREEN IMAGE LIGHTBOX VIEWER FOR PROFILE & COVER PHOTOS */}
+        <AnimatePresence>
+          {viewingImage && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingImage(null)}
+              className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-8 animate-fade-in"
+            >
+              {/* Header */}
+              <div className="w-full flex items-center justify-between text-white z-10 max-w-5xl">
+                <div className="flex items-center gap-2">
+                  <ImageIcon size={20} className="text-[#818CF8]" />
+                  <span className="font-bold text-base text-white">{viewingImage.title}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewingImage(null)}
+                  className="w-10 h-10 rounded-full bg-white/20 hover:bg-white text-white hover:text-black flex items-center justify-center backdrop-blur-md transition-colors cursor-pointer"
+                  title="Close viewer"
+                >
+                  <X size={20} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* Main Image */}
+              <div 
+                className="flex-1 w-full max-w-5xl flex items-center justify-center my-4 relative"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <img
+                  src={viewingImage.url}
+                  alt={viewingImage.title}
+                  className="max-h-[82vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
+                />
+              </div>
+
+              {/* Footer notice */}
+              <div className="text-stone-400 text-xs font-semibold select-none">
+                Click outside or press Esc to close
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </motion.div>
     </WavesBackground>

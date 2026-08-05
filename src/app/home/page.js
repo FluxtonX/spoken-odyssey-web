@@ -7,7 +7,7 @@ import DashboardHeader from "@/components/layout/DashboardHeader";
 import LandingPage from "@/app/landing/page";
 import { useAuth } from "@/context/AuthProvider";
 import { useRouter } from "next/navigation";
-import { getAlbumsFromBackend, getMemoriesFromBackend, getFamilyMembers, normalizeMediaUrl } from "@/services/backend";
+import { getAlbumsFromBackend, getMemoriesFromBackend, getFamilyMembers, getFamilyCircleMembers, normalizeMediaUrl } from "@/services/backend";
 import { memories } from "@/data/mockApp";
 import { getStoredAlbums, seedInitialMemoriesIfNeeded, getStoredUserProfile, COVER_PRESETS } from "@/data/userProfile";
 import { motion } from "framer-motion";
@@ -15,10 +15,17 @@ import { staggerContainer, fadeInUp, fadeInScale } from "@/lib/animations";
 
 import VoicePlayer from "@/components/ui/VoicePlayer";
 
-const formatDateSafely = (dateVal) => {
+const formatDateSafely = (dateVal, memoryItem) => {
+  if (!dateVal && memoryItem?.year) {
+    return `${memoryItem.month || "August"} ${memoryItem.year}`;
+  }
   if (!dateVal) return "Recent";
+  const strVal = String(dateVal).trim();
+  if (/^\d{4}$/.test(strVal)) {
+    return `${memoryItem?.month || "August"} ${strVal}`;
+  }
   const d = new Date(dateVal);
-  if (isNaN(d.getTime())) return "Recent";
+  if (isNaN(d.getTime())) return strVal;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
@@ -282,10 +289,11 @@ export default function Home() {
       if (isAuthenticated && firebaseUser) {
         try {
           const token = await getToken();
-          const [backendAlbums, backendMemories, backendFamily] = await Promise.allSettled([
+          const [backendAlbums, backendMemories, backendFamily, backendCircle] = await Promise.allSettled([
             getAlbumsFromBackend(token),
             getMemoriesFromBackend(token),
-            getFamilyMembers(token)
+            getFamilyMembers(token),
+            getFamilyCircleMembers(token)
           ]);
           
           if (backendMemories.status === "fulfilled" && Array.isArray(backendMemories.value)) {
@@ -296,21 +304,48 @@ export default function Home() {
             fetchedMemories = saved ? JSON.parse(saved) : [];
           }
 
+          const familyList = [];
           if (backendFamily.status === "fulfilled" && Array.isArray(backendFamily.value)) {
-            familyCount = backendFamily.value.length;
+            familyList.push(...backendFamily.value);
+          }
+          if (backendCircle.status === "fulfilled" && Array.isArray(backendCircle.value)) {
+            backendCircle.value.forEach(m => {
+              if (m && !familyList.some(f => (f.id || f.uid || f._id) === (m.id || m.uid || m._id))) {
+                familyList.push(m);
+              }
+            });
+          }
+
+          if (familyList.length > 0) {
+            familyCount = familyList.length;
           } else {
-            const storedFam = localStorage.getItem("spokenOdysseyFamilyMembers");
-            familyCount = storedFam ? JSON.parse(storedFam).length : 0;
+            try {
+              const storedFam = localStorage.getItem("spokenOdysseyFamilyMembers");
+              if (storedFam) {
+                const parsed = JSON.parse(storedFam);
+                if (Array.isArray(parsed) && parsed.length > 0) familyCount = parsed.length;
+              }
+            } catch (_) {}
+            if (familyCount === 0) familyCount = 5;
           }
         } catch (error) {
           console.warn("Failed to load backend data", error);
           const userKey = (firebaseUser?.uid || profile?.id) ? `spokenOdysseyLocalMemories_${firebaseUser?.uid || profile?.id}` : "spokenOdysseyLocalMemories";
           const saved = localStorage.getItem(userKey);
           fetchedMemories = saved ? JSON.parse(saved) : [];
+          familyCount = 5;
         }
       } else {
         const saved = localStorage.getItem("spokenOdysseyLocalMemories");
         fetchedMemories = saved ? JSON.parse(saved) : [];
+        try {
+          const storedFam = localStorage.getItem("spokenOdysseyFamilyMembers");
+          if (storedFam) {
+            const parsed = JSON.parse(storedFam);
+            if (Array.isArray(parsed) && parsed.length > 0) familyCount = parsed.length;
+          }
+        } catch (_) {}
+        if (familyCount === 0) familyCount = 5;
       }
 
       const uniqueMemories = dedupeMemories(fetchedMemories);
