@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DashboardHeader from "@/components/layout/DashboardHeader";
@@ -22,7 +22,8 @@ import {
   Check, 
   Loader2,
   ChevronRight,
-  X
+  X,
+  Award
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { getStoredAlbums } from "@/data/userProfile";
@@ -35,8 +36,6 @@ import ShareModal from "@/components/ui/ShareModal";
 import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
 
 function MemoryCardItem({ memory, onCardClick }) {
-  const type = (memory.type || "Voice").toLowerCase();
-
   const handleCardClick = () => {
     window.dispatchEvent(new CustomEvent("openMemoryView", { detail: memory }));
     onCardClick?.(memory);
@@ -53,8 +52,27 @@ function MemoryCardItem({ memory, onCardClick }) {
     (typeof memory.coverImageUrl === 'string' && memory.coverImageUrl);
 
   const coverImg = normalizeMediaUrl(rawImg);
+  const typeStr = String(memory.type || "").toLowerCase();
 
-  if (type === "photo" || type === "visual" || coverImg) {
+  // Genuinely a voice recording
+  const isVoice = 
+    typeStr === "voice" || 
+    typeStr === "audio" || 
+    Boolean((memory.audioUrl || memory.audio) && !coverImg);
+
+  // Photo or Video (visual) memory
+  const isVisual = 
+    typeStr === "photo" || 
+    typeStr === "video" || 
+    typeStr === "visual" || 
+    Boolean(coverImg);
+
+  // Milestone memory
+  const isMilestone = 
+    typeStr === "milestone" || 
+    (Array.isArray(memory.tags) && memory.tags.some(t => String(t).toLowerCase() === "milestone"));
+
+  if (isVisual) {
     return (
       <div 
         onClick={handleCardClick}
@@ -76,21 +94,21 @@ function MemoryCardItem({ memory, onCardClick }) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#4A3AFF] dark:text-indigo-400 flex items-center gap-1">
-                <ImageIcon size={12} /> Photo
+                <ImageIcon size={12} /> {typeStr === "video" ? "Video" : "Photo"}
               </span>
-              <span className="text-xs font-semibold text-stone-400">{memory.date}</span>
+              <span className="text-xs font-semibold text-stone-400">{memory.date || memory.createdAt}</span>
             </div>
             <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 leading-tight group-hover:text-[#4A3AFF] transition-colors">
               {memory.title}
             </h3>
             <p className="text-xs font-medium text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed mb-4">
-              {memory.description}
+              {memory.description || memory.content}
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5 mt-auto">
             {(memory.tags || []).map(tag => (
               <span key={tag} className="px-2.5 py-0.5 bg-[#EEF2FF] dark:bg-indigo-950/60 text-[#4A3AFF] dark:text-indigo-300 rounded-full text-[10px] font-bold border border-[#D1D9FF] dark:border-indigo-800/40">
-                {tag}
+                #{String(tag).replace(/^#/, "")}
               </span>
             ))}
           </div>
@@ -99,7 +117,7 @@ function MemoryCardItem({ memory, onCardClick }) {
     );
   }
 
-  if (type === "written") {
+  if (isVoice) {
     return (
       <div 
         onClick={handleCardClick}
@@ -107,22 +125,34 @@ function MemoryCardItem({ memory, onCardClick }) {
       >
         <div>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <FileText size={12} /> Written
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#f59e0b] flex items-center gap-1">
+              <Mic size={12} /> Voice
             </span>
-            <span className="text-xs font-semibold text-stone-400">{memory.date}</span>
+            <span className="text-xs font-semibold text-stone-400">{memory.date || memory.createdAt}</span>
           </div>
           <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 leading-tight group-hover:text-[#4A3AFF] transition-colors">
             {memory.title}
           </h3>
-          <p className="text-xs font-medium text-stone-600 dark:text-stone-300 line-clamp-3 leading-relaxed mb-6">
-            {memory.description}
+          <p className="text-xs font-medium text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed mb-4">
+            {memory.description || memory.content}
           </p>
+
+          {/* Audio Waveform Bar */}
+          <div className="flex items-center gap-3 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-full p-1.5 pr-4 mb-4 w-full">
+            <button className="h-8 w-8 shrink-0 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center hover:scale-105 transition-transform shadow-xs">
+              <Play size={14} fill="currentColor" className="ml-0.5" />
+            </button>
+            <div className="flex-1 flex items-center overflow-hidden">
+              <div className="w-full border-t-2 border-dotted border-[#4A3AFF]/60 opacity-80" />
+            </div>
+            <span className="text-[11px] font-bold text-stone-500 dark:text-stone-400">{memory.duration || "Voice"}</span>
+          </div>
         </div>
+
         <div className="flex flex-wrap gap-1.5 mt-auto">
           {(memory.tags || []).map(tag => (
             <span key={tag} className="px-2.5 py-0.5 bg-[#EEF2FF] dark:bg-indigo-950/60 text-[#4A3AFF] dark:text-indigo-300 rounded-full text-[10px] font-bold border border-[#D1D9FF] dark:border-indigo-800/40">
-              {tag}
+              #{String(tag).replace(/^#/, "")}
             </span>
           ))}
         </div>
@@ -130,7 +160,7 @@ function MemoryCardItem({ memory, onCardClick }) {
     );
   }
 
-  // Default: Voice memory card
+  // Written / Milestone / Text Memory Card
   return (
     <div 
       onClick={handleCardClick}
@@ -138,34 +168,38 @@ function MemoryCardItem({ memory, onCardClick }) {
     >
       <div>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#f59e0b] flex items-center gap-1">
-            <Mic size={12} /> Voice
+          <span className={`text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1 ${
+            isMilestone ? "text-purple-600 dark:text-purple-400" : "text-emerald-600 dark:text-emerald-400"
+          }`}>
+            {isMilestone ? <Award size={12} /> : <FileText size={12} />} 
+            {isMilestone ? "Milestone" : "Written"}
           </span>
-          <span className="text-xs font-semibold text-stone-400">{memory.date}</span>
+          <span className="text-xs font-semibold text-stone-400">
+            {(() => {
+              const raw = memory.date || memory.createdAt || memory.occurredAt || memory.displayDate;
+              if (!raw && memory.year) return `${memory.month || "August"} ${memory.year}`;
+              if (!raw) return "Recent";
+              const str = String(raw).trim();
+              if (/^\d{4}$/.test(str)) return `${memory.month || "August"} ${str}`;
+              const d = new Date(raw);
+              if (!isNaN(d.getTime())) return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+              return str;
+            })()}
+          </span>
         </div>
         <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 leading-tight group-hover:text-[#4A3AFF] transition-colors">
           {memory.title}
         </h3>
-        <p className="text-xs font-medium text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed mb-4">
-          {memory.description}
+        <p className="text-xs font-medium text-stone-600 dark:text-stone-300 line-clamp-3 leading-relaxed mb-6">
+          {(isMilestone && (memory.description === "Voice recording memory" || !memory.description)) 
+            ? "Life milestone memory" 
+            : (memory.description || memory.content || "No written description provided.")}
         </p>
-
-        {/* Audio Waveform Bar */}
-        <div className="flex items-center gap-3 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-full p-1.5 pr-4 mb-4 w-full">
-          <button className="h-8 w-8 shrink-0 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center hover:scale-105 transition-transform shadow-xs">
-            <Play size={14} fill="currentColor" className="ml-0.5" />
-          </button>
-          <div className="flex-1 flex items-center overflow-hidden">
-            <div className="w-full border-t-2 border-dotted border-[#4A3AFF]/60 opacity-80" />
-          </div>
-          <span className="text-[11px] font-bold text-stone-500 dark:text-stone-400">{memory.duration || "4:32"}</span>
-        </div>
       </div>
-
       <div className="flex flex-wrap gap-1.5 mt-auto">
         {(memory.tags || []).map(tag => (
           <span key={tag} className="px-2.5 py-0.5 bg-[#EEF2FF] dark:bg-indigo-950/60 text-[#4A3AFF] dark:text-indigo-300 rounded-full text-[10px] font-bold border border-[#D1D9FF] dark:border-indigo-800/40">
-            {tag}
+            #{String(tag).replace(/^#/, "")}
           </span>
         ))}
       </div>
@@ -173,7 +207,7 @@ function MemoryCardItem({ memory, onCardClick }) {
   );
 }
 
-export default function AlbumDetailPage() {
+function AlbumDetailContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -820,5 +854,18 @@ export default function AlbumDetailPage() {
         </div>
       )}
     </WavesBackground>
+  );
+}
+
+export default function AlbumDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
+        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin mb-2" />
+        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading album...</span>
+      </div>
+    }>
+      <AlbumDetailContent />
+    </Suspense>
   );
 }

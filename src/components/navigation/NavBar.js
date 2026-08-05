@@ -9,11 +9,11 @@ import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
 import { Plus, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings, CreditCard, User, ChevronRight } from "lucide-react";
 
-import { getFamilyInvitations, normalizeMediaUrl } from "@/services/backend";
+import { getFamilyInvitations, getFamilySharedMemories, getFamilyBadgeCount, markFamilySeen, normalizeMediaUrl } from "@/services/backend";
 
 export default function NavBar() {
   const pathname = usePathname();
-  const { isAuthenticated, profile, firebaseUser } = useAuth();
+  const { isAuthenticated, profile, firebaseUser, getToken } = useAuth();
   const [pendingFamilyCount, setPendingFamilyCount] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -22,22 +22,46 @@ export default function NavBar() {
   const rawAvatar = profile?.avatarUrl || profile?.avatar || profile?.photoURL || profile?.image;
   const userAvatar = rawAvatar ? normalizeMediaUrl(rawAvatar) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=4A3AFF&color=fff`;
 
-  useEffect(() => {
-    async function loadInvitationsCount() {
-      try {
-        const token = localStorage.getItem("token");
+  const handleClearFamilyBadge = async () => {
+    setPendingFamilyCount(0);
+    try {
+      if (isAuthenticated && firebaseUser) {
+        const token = await getToken();
         if (token) {
-          const invites = await getFamilyInvitations(token);
-          if (Array.isArray(invites)) {
-            setPendingFamilyCount(invites.length);
+          await markFamilySeen(token);
+        }
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    async function loadFamilyBadgeCount() {
+      if (!isAuthenticated || !firebaseUser) {
+        setPendingFamilyCount(0);
+        return;
+      }
+      try {
+        const token = await getToken();
+        if (token) {
+          const badgeData = await getFamilyBadgeCount(token);
+          const count = typeof badgeData === "number" ? badgeData : (badgeData?.count || 0);
+
+          if (pathname === "/family" || pathname?.startsWith("/family")) {
+            setPendingFamilyCount(0);
+            await markFamilySeen(token);
+          } else {
+            setPendingFamilyCount(count);
           }
         }
       } catch (err) {
-        console.warn("Could not load invitations count for NavBar:", err);
+        console.warn("Could not load family badge count for NavBar:", err);
       }
     }
-    loadInvitationsCount();
-  }, [pathname]);
+
+    loadFamilyBadgeCount();
+    window.addEventListener("familyActivityUpdated", loadFamilyBadgeCount);
+    return () => window.removeEventListener("familyActivityUpdated", loadFamilyBadgeCount);
+  }, [pathname, isAuthenticated, firebaseUser, getToken]);
 
   // Listen for modal open/close events
   useEffect(() => {
@@ -143,10 +167,16 @@ export default function NavBar() {
             <div className="hidden lg:block text-[11px] font-bold text-stone-500 tracking-wider pl-8 mb-3 uppercase">MENU</div>
             {menuItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+              const isFamilyTab = item.name === "Family";
               return (
                 <Link
                   key={item.name}
                   href={item.href}
+                  onClick={() => {
+                    if (isFamilyTab) {
+                      handleClearFamilyBadge();
+                    }
+                  }}
                   className={clsx(
                     "group relative flex items-center justify-center lg:justify-start gap-4 py-2.5 px-4 lg:px-5 lg:mx-3 transition-all mb-1 rounded-[14px] w-[calc(100%-24px)] mx-auto",
                     isActive
@@ -157,12 +187,12 @@ export default function NavBar() {
                   <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={clsx(isActive ? "text-[var(--brand)] drop-shadow-sm" : "text-stone-400 group-hover:text-stone-600")} />
                   <span className="hidden text-[14px] lg:block">{item.name}</span>
                   {item.badge && (
-                    <span className="hidden lg:flex ml-auto mr-4 h-5 w-5 items-center justify-center rounded-full bg-[#4A3AFF] text-[10px] font-bold text-white">
+                    <span className="hidden lg:flex ml-auto mr-4 h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-[#4A3AFF] text-[10px] font-bold text-white shadow-xs animate-fade-in">
                       {item.badge}
                     </span>
                   )}
                   {item.badge && (
-                    <span className="lg:hidden absolute top-2 right-2 h-2 w-2 rounded-full bg-[var(--brand)]" />
+                    <span className="lg:hidden absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-[#4A3AFF] ring-2 ring-white animate-fade-in" />
                   )}
                 </Link>
               );

@@ -161,7 +161,12 @@ export default function FamilyCirclePage() {
   useEffect(() => {
     async function loadFamilyData() {
       try {
-        const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+        let token = null;
+        if (auth.getToken) {
+          try { token = await auth.getToken(); } catch (_) {}
+        }
+        if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+
         if (token) {
           // Load family circle members (new API)
           const circleMembers = await getFamilyCircleMembers(token).catch(() => null);
@@ -181,14 +186,12 @@ export default function FamilyCirclePage() {
             const uniqueMap = new Map();
             shared.forEach(m => {
               if (!m) return;
-              const idKey = m.id || m._id;
-              const titleKey = `${String(m.title || "").trim().toLowerCase()}_${String(m.createdAt || m.date || "").slice(0, 10)}`;
-              if (idKey && !uniqueMap.has(idKey) && !uniqueMap.has(titleKey)) {
+              const idKey = m.id || m._id || `mem_${uniqueMap.size}`;
+              if (!uniqueMap.has(idKey)) {
                 uniqueMap.set(idKey, m);
-                uniqueMap.set(titleKey, m);
               }
             });
-            setSharedMemories(Array.from(new Set(uniqueMap.values())));
+            setSharedMemories(Array.from(uniqueMap.values()));
           }
 
           // Check if user is admin
@@ -221,7 +224,7 @@ export default function FamilyCirclePage() {
       }
     }
     loadFamilyData();
-  }, []);
+  }, [auth.isAuthenticated, auth.firebaseUser]);
 
   // Load shared memories when Shared Memories tab is active
   useEffect(() => {
@@ -229,10 +232,27 @@ export default function FamilyCirclePage() {
       if (activeTab === "Shared Memories") {
         setLoadingMemories(true);
         try {
-          const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+          let token = null;
+          if (auth.getToken) {
+            try { token = await auth.getToken(); } catch (_) {}
+          }
+          if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+
           if (token) {
             const memories = await getFamilySharedMemories(token).catch(() => []);
-            setSharedMemories(Array.isArray(memories) ? memories : []);
+            if (Array.isArray(memories)) {
+              const uniqueMap = new Map();
+              memories.forEach(m => {
+                if (!m) return;
+                const idKey = m.id || m._id || `mem_${uniqueMap.size}`;
+                if (!uniqueMap.has(idKey)) {
+                  uniqueMap.set(idKey, m);
+                }
+              });
+              setSharedMemories(Array.from(uniqueMap.values()));
+            } else {
+              setSharedMemories([]);
+            }
           }
         } catch (err) {
           console.warn("Could not load shared memories:", err);
@@ -243,7 +263,7 @@ export default function FamilyCirclePage() {
       }
     }
     loadSharedMemories();
-  }, [activeTab]);
+  }, [activeTab, auth.isAuthenticated, auth.firebaseUser]);
 
   const togglePermission = (id) => {
     setPermissions(permissions.map(p => 

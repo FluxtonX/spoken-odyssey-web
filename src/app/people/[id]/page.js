@@ -109,7 +109,7 @@ export default function PersonDetailPage() {
       setIsLoading(true);
       try {
         let token = null;
-        if (isAuthenticated && firebaseUser) {
+        if (isAuthenticated) {
           try {
             token = await getToken();
           } catch (_) {}
@@ -154,7 +154,9 @@ export default function PersonDetailPage() {
             followersCount: dbUser.followersCount || 0,
             storiesCount: Array.isArray(dbMemories) ? dbMemories.length : 0,
             milestonesCount: Array.isArray(dbMemories) ? dbMemories.filter(m => String(m.type).toLowerCase() === "milestone" || (m.tags && m.tags.includes("milestone"))).length : 0,
-            isFollowing: !!dbUser.isFollowing
+            isFollowing: !!dbUser.isFollowing,
+            isFollowerOfMe: !!dbUser.isFollowerOfMe,
+            isMutual: !!dbUser.isMutual
           });
           setIsFollowing(!!dbUser.isFollowing);
           setFollowersCount(dbUser.followersCount || 0);
@@ -180,8 +182,8 @@ export default function PersonDetailPage() {
               initialReactMap[m.id] = m.userReaction || null;
               initialCountMap[m.id] = m.totalReactions ?? m.likes ?? 0;
             });
-            setUserReactionMap(initialReactMap);
-            setReactionsCountMap(initialCountMap);
+            setUserReactionMap(prev => ({ ...initialReactMap, ...prev }));
+            setReactionsCountMap(prev => ({ ...initialCountMap, ...prev }));
           } else {
             setStories([]);
             setMilestones([]);
@@ -189,7 +191,12 @@ export default function PersonDetailPage() {
 
           // Real DB Albums
           if (Array.isArray(dbAlbums)) {
-            setAlbums(dbAlbums);
+            setAlbums(dbAlbums.map((a, idx) => ({
+              id: a.id || `alb-${idx}`,
+              title: a.title,
+              cover: a.coverImageUrl || a.coverImage || "https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80",
+              count: a.memoriesCount || (a.memories ? a.memories.length : 0) || 0
+            })));
           } else {
             setAlbums([]);
           }
@@ -385,8 +392,17 @@ export default function PersonDetailPage() {
                 {/* Top Row: Name/Role + Follow Button */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h1 className="text-[26px] md:text-[34px] font-bold text-stone-900 tracking-tight leading-tight mb-1">
-                      {person.name}
+                    <h1 className="text-[26px] md:text-[34px] font-bold text-stone-900 tracking-tight leading-tight mb-1 flex items-center gap-3 flex-wrap">
+                      <span>{person.name}</span>
+                      {person.isFollowerOfMe && !isFollowing ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#e0e7ff] text-[#4338ca] border border-[#c7d2fe] rounded-full text-[12px] font-bold shadow-xs">
+                          👋 Follows you
+                        </span>
+                      ) : person.isMutual ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#EEF2FF] text-[#4A3AFF] border border-[#C7D2FE]/60 rounded-full text-[12px] font-bold shadow-xs">
+                          ✨ Mutual Connection
+                        </span>
+                      ) : null}
                     </h1>
                     <p className="text-[15px] font-medium text-stone-500">
                       {person.location && person.profession 
@@ -406,8 +422,10 @@ export default function PersonDetailPage() {
                     disabled={isFollowLoading}
                     className={`px-6 py-2.5 rounded-full text-[14px] font-bold transition-all flex items-center justify-center gap-2 shadow-sm self-start sm:self-auto ${
                       isFollowing
-                        ? "bg-stone-200 text-stone-800 hover:bg-stone-300"
-                        : "bg-[#4A3AFF] text-white hover:bg-[#3b2bee] shadow-md"
+                        ? "bg-stone-200 text-stone-800 hover:bg-stone-300 border border-stone-300"
+                        : person?.isFollowerOfMe
+                          ? "bg-gradient-to-r from-[#4A3AFF] to-[#6366F1] text-white hover:shadow-md cursor-pointer"
+                          : "bg-[#4A3AFF] text-white hover:bg-[#3b2bee] shadow-md cursor-pointer"
                     }`}
                   >
                     {isFollowLoading ? (
@@ -415,12 +433,17 @@ export default function PersonDetailPage() {
                     ) : isFollowing ? (
                       <>
                         <UserCheck size={16} />
-                        Following
+                        <span>Following</span>
+                      </>
+                    ) : person?.isFollowerOfMe ? (
+                      <>
+                        <UserPlus size={16} />
+                        <span>Follow Back</span>
                       </>
                     ) : (
                       <>
                         <UserPlus size={16} />
-                        Follow
+                        <span>Follow</span>
                       </>
                     )}
                   </button>

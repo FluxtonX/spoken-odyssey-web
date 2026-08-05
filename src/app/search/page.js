@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Album, ArrowLeft, CalendarDays, FileText, Search, SlidersHorizontal, UserRound, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
@@ -15,7 +15,7 @@ import HighlightText from "@/components/ui/HighlightText";
 
 const tabs = ["All", "Memories", "Albums", "People"];
 
-export default function SearchPage() {
+function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromPage = searchParams.get("from");
@@ -298,5 +298,18 @@ function ResultSection({ title, count, icon: Icon, children }) {
       </div>
       {children}
     </section>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
+        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin mb-2" />
+        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading search...</span>
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   );
 }

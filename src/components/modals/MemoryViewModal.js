@@ -1,12 +1,42 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Component } from "react";
+
+class ModalErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidMount() {
+    this.handleReset = () => {
+      this.setState({ hasError: false });
+    };
+    window.addEventListener("openMemoryView", this.handleReset);
+  }
+  componentWillUnmount() {
+    if (this.handleReset) {
+      window.removeEventListener("openMemoryView", this.handleReset);
+    }
+  }
+  componentDidCatch(error, info) {
+    console.warn("MemoryViewModal error caught by boundary:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
 import { 
   X, Mic, FileText, Image as ImageIcon, Calendar, Clock, Smile, Globe, Heart, 
   Bookmark, Share2, Download, Edit2, Trash2, Play, Pause, ChevronLeft, ChevronRight, 
   Sparkles, Lock, Users, Maximize2, Check, Loader2, Film, ThumbsUp, Laugh, Frown, Send, 
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp, Reply, Copy, MessageCircle, 
-  Mail, ExternalLink, MoreVertical, Gauge, CornerDownRight
+  Mail, ExternalLink, MoreVertical, Gauge, CornerDownRight, Award
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
@@ -106,7 +136,7 @@ const flattenReplies = (repliesList, rootAuthor = "") => {
   return flat;
 };
 
-export default function MemoryViewModal() {
+function MemoryViewModalContent() {
   const { isAuthenticated, firebaseUser, getToken } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -352,10 +382,18 @@ export default function MemoryViewModal() {
     if (!memory) return [];
     const list = [];
 
+    const getCleanMediaKey = (u) => {
+      if (!u || typeof u !== "string") return "";
+      const clean = u.split("?")[0];
+      const parts = clean.split("/");
+      return parts[parts.length - 1];
+    };
+
     const addMediaItem = (rawUrl, defaultType = "image", mimeType = "", thumbnailUrl = "") => {
       const norm = normalizeMediaUrl(rawUrl);
       if (!norm) return;
-      if (!list.some((m) => m.url === norm)) {
+      const cleanKey = getCleanMediaKey(norm);
+      if (cleanKey && !list.some((m) => getCleanMediaKey(m.url) === cleanKey)) {
         const isVid = isVideoLike(norm, mimeType, defaultType);
         list.push({
           url: norm,
@@ -432,6 +470,8 @@ export default function MemoryViewModal() {
     return list;
   }, [memory]);
 
+  const hasMedia = mediaList.length > 0;
+
   const rawAudioUrl = 
     memory?.audioUrl || 
     memory?.audio || 
@@ -441,8 +481,12 @@ export default function MemoryViewModal() {
   
   const audioSrc = normalizeMediaUrl(rawAudioUrl);
   const hasVideoMedia = mediaList.some((item) => item.type === "video");
-  const isVoice = !hasVideoMedia && (memory?.type?.toLowerCase() === "voice" || memory?.type?.toLowerCase() === "audio" || !!audioSrc);
-  const hasMedia = mediaList.length > 0;
+  const memoryTypeStr = String(memory?.type || "").toLowerCase();
+  const isMilestone = memoryTypeStr === "milestone" || (Array.isArray(memory?.tags) && memory.tags.some(t => String(t).toLowerCase() === "milestone"));
+  const isVoice = !isMilestone && !hasVideoMedia && (memoryTypeStr === "voice" || memoryTypeStr === "audio" || (Boolean(memory?.audioUrl || memory?.audio) && !hasMedia));
+  const currentUserId = firebaseUser?.uid || firebaseUser?.id || firebaseUser?.sub || null;
+  const memoryOwnerId = memory?.ownerId || memory?.ownerFirebaseUid || memory?.owner?.id || null;
+  const isOwner = !!(currentUserId && memoryOwnerId && String(currentUserId).trim() === String(memoryOwnerId).trim());
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -463,12 +507,14 @@ export default function MemoryViewModal() {
 
   const memoryDate = useMemo(() => {
     if (!memory) return "Recent";
-    if (typeof memory.date === "string" && memory.date.trim()) return memory.date;
-    const rawVal = memory.date || memory.createdAt || memory.occurredAt;
+    const rawVal = memory.date || memory.createdAt || memory.occurredAt || memory.displayDate;
+    if (!rawVal && memory.year) return `${memory.month || "August"} ${memory.year}`;
     if (!rawVal) return "Recent";
+    const strVal = String(rawVal).trim();
+    if (/^\d{4}$/.test(strVal)) return `${memory.month || "August"} ${strVal}`;
     const d = new Date(rawVal);
-    if (isNaN(d.getTime())) return "Recent";
-    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    if (!isNaN(d.getTime())) return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    return strVal;
   }, [memory]);
 
   // Total count including root comments, replies, and sub-replies
@@ -494,6 +540,34 @@ export default function MemoryViewModal() {
     } catch (_) {}
     return count;
   }, [comments]);
+
+  const displayTitle = useMemo(() => {
+    if (!memory) return "Memory";
+    if (typeof memory.title === "string") return memory.title;
+    if (memory.title && typeof memory.title === "object") {
+      return memory.title.title || memory.title.text || memory.title.name || "Memory";
+    }
+    return String(memory.title || "Memory");
+  }, [memory]);
+
+  const displayDescription = useMemo(() => {
+    if (!memory) return "";
+    if (typeof memory.description === "string") return memory.description;
+    if (memory.description && typeof memory.description === "object") {
+      return memory.description.description || memory.description.text || memory.description.content || "";
+    }
+    return String(memory.description || "");
+  }, [memory]);
+
+  const displayTags = useMemo(() => {
+    if (!memory || !memory.tags) return ["reflection", "archive"];
+    const tagsArr = Array.isArray(memory.tags) ? memory.tags : [memory.tags];
+    return tagsArr.map((t) => {
+      if (typeof t === "string") return t;
+      if (t && typeof t === "object") return t.name || t.label || t.tag || "tag";
+      return String(t || "");
+    }).filter(Boolean);
+  }, [memory]);
 
   if (!isOpen || !memory) return null;
 
@@ -983,6 +1057,7 @@ export default function MemoryViewModal() {
         localStorage.setItem("spokenOdysseyLocalMemories", JSON.stringify(updated));
       }
 
+      let backendUpdatedData = null;
       if (isAuthenticated && firebaseUser) {
         try {
           const token = await getToken();
@@ -992,15 +1067,19 @@ export default function MemoryViewModal() {
           formData.append("mood", editMood);
           formData.append("visibility", editVisibility);
           formData.append("privacy", editVisibility);
-          await updateMemoryOnBackend(token, memId, formData);
+          backendUpdatedData = await updateMemoryOnBackend(token, memId, formData);
         } catch (err) {
-          console.warn("Backend update error:", err.message);
+          console.error("Backend memory update error:", err.message);
+          alert(`Failed to save changes to database: ${err.message}`);
         }
       }
 
-      setMemory(updatedMem);
+      const finalMem = backendUpdatedData ? { ...updatedMem, ...backendUpdatedData } : updatedMem;
+
+      setMemory(finalMem);
       setIsEditing(false);
-      window.dispatchEvent(new CustomEvent("memoryUpdated", { detail: { memory: updatedMem } }));
+      window.dispatchEvent(new CustomEvent("memoryUpdated", { detail: { memory: finalMem } }));
+      window.dispatchEvent(new CustomEvent("familyActivityUpdated"));
     } catch (e) {
       console.error("Failed to update memory:", e);
     } finally {
@@ -1039,7 +1118,7 @@ export default function MemoryViewModal() {
                 <span className="text-xs font-extrabold tracking-widest uppercase opacity-90">VOICE MEMORY</span>
               </div>
 
-              <h2 className="text-2xl sm:text-4xl font-bold mb-2 leading-tight">{memory.title}</h2>
+              <h2 className="text-2xl sm:text-4xl font-bold mb-2 leading-tight">{displayTitle}</h2>
               <p className="text-white/80 text-xs sm:text-sm font-medium mb-6">{memoryDate}</p>
 
               {/* Functional Custom Audio Player Bar */}
@@ -1232,7 +1311,7 @@ export default function MemoryViewModal() {
                       </span>
                     )}
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-black text-white leading-tight drop-shadow-md">{memory.title}</h2>
+                  <h2 className="text-xl sm:text-2xl font-black text-white leading-tight drop-shadow-md">{displayTitle}</h2>
                   <p className="text-white/80 text-[11px] sm:text-xs font-semibold drop-shadow-sm">{memoryDate}</p>
                 </div>
 
@@ -1275,13 +1354,15 @@ export default function MemoryViewModal() {
               </button>
 
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-full bg-[#10b981]/10 text-[#10b981] flex items-center justify-center">
-                  <FileText size={16} strokeWidth={2.5} />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isMilestone ? 'bg-purple-100 text-purple-600' : 'bg-[#10b981]/10 text-[#10b981]'}`}>
+                  {isMilestone ? <Award size={16} strokeWidth={2.5} /> : <FileText size={16} strokeWidth={2.5} />}
                 </div>
-                <span className="text-xs font-extrabold tracking-widest uppercase text-[#10b981]">WRITTEN JOURNAL</span>
+                <span className={`text-xs font-extrabold tracking-widest uppercase ${isMilestone ? 'text-purple-600' : 'text-[#10b981]'}`}>
+                  {isMilestone ? "MILESTONE MEMORY" : "WRITTEN JOURNAL"}
+                </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl font-bold mb-2 text-stone-900 leading-tight">{memory.title}</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold mb-2 text-stone-900 leading-tight">{displayTitle}</h2>
               <p className="text-stone-400 text-sm font-medium">{memoryDate}</p>
             </div>
           )}
@@ -1362,10 +1443,11 @@ export default function MemoryViewModal() {
                 ) : (
                   <>
                     <h3 className="font-bold text-stone-900 flex items-center gap-2 mb-3 text-sm uppercase tracking-wider">
-                      <FileText size={16} className="text-[#4A3AFF]" /> {isVoice ? "Transcript & Story" : "Memory Reflection"}
+                      {isMilestone ? <Award size={16} className="text-purple-600" /> : <FileText size={16} className="text-[#4A3AFF]" />} 
+                      {isVoice ? "Transcript & Story" : isMilestone ? "Milestone Story" : "Memory Reflection"}
                     </h3>
                     <p className="text-stone-600 leading-relaxed text-[15px] whitespace-pre-wrap mb-6">
-                      {memory.description || (isVoice ? "Voice recording reflection captured on Spoken Odyssey." : "No written description provided for this memory.")}
+                      {displayDescription || (isVoice ? "Voice recording reflection captured on Spoken Odyssey." : "No written description provided for this memory.")}
                     </p>
                   </>
                 )}
@@ -1681,11 +1763,14 @@ export default function MemoryViewModal() {
                 <div>
                   <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Bookmark size={12}/> TAGS</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {(memory.tags || ["reflection", "archive"]).map((tag) => (
-                      <span key={tag} className="px-3 py-1 bg-[#EEF2FF] text-[#4A3AFF] rounded-full text-[11px] font-bold">
-                        #{tag.toLowerCase().replace('#', '')}
-                      </span>
-                    ))}
+                    {displayTags.map((tag, idx) => {
+                      const tagStr = String(tag || "").toLowerCase().replace('#', '');
+                      return (
+                        <span key={idx} className="px-3 py-1 bg-[#EEF2FF] text-[#4A3AFF] rounded-full text-[11px] font-bold">
+                          #{tagStr}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1764,19 +1849,23 @@ export default function MemoryViewModal() {
                 <Download size={14} /> Download
               </button>
 
-              <button 
-                onClick={handleStartEdit}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-[12px] border border-stone-200 text-stone-700 hover:bg-stone-50 transition-colors text-xs font-bold shadow-xs cursor-pointer"
-              >
-                <Edit2 size={14} /> Edit
-              </button>
+              {isOwner && (
+                <>
+                  <button 
+                    onClick={handleStartEdit}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-[12px] border border-stone-200 text-stone-700 hover:bg-stone-50 transition-colors text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    <Edit2 size={14} /> Edit
+                  </button>
 
-              <button 
-                onClick={() => setIsDeleteConfirmOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-[12px] border border-red-200 text-red-600 hover:bg-red-50 transition-colors text-xs font-bold shadow-xs cursor-pointer"
-              >
-                <Trash2 size={14} /> Delete
-              </button>
+                  <button 
+                    onClick={() => setIsDeleteConfirmOpen(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-[12px] border border-red-200 text-red-600 hover:bg-red-50 transition-colors text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </>
+              )}
 
               <button 
                 onClick={handleClose}
@@ -2047,5 +2136,13 @@ export default function MemoryViewModal() {
         </div>
       )}
     </>
+  );
+}
+
+export default function MemoryViewModal() {
+  return (
+    <ModalErrorBoundary>
+      <MemoryViewModalContent />
+    </ModalErrorBoundary>
   );
 }

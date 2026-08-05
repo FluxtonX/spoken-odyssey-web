@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -73,7 +73,7 @@ const formatDateSafely = (dateVal) => {
   return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 };
 
-export default function MemoryDetailPage() {
+function MemoryDetailContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -99,12 +99,18 @@ export default function MemoryDetailPage() {
 
   const loadMemoryDetails = async () => {
     setIsLoading(true);
-    if (isAuthenticated && firebaseUser && id) {
+    if (id) {
       try {
-        const token = await getToken();
+        let token = null;
+        if (isAuthenticated && firebaseUser) {
+          try {
+            token = await getToken();
+          } catch (_) {}
+        }
         const backendMemory = await getMemoryDetailsFromBackend(token, id);
         
         if (backendMemory) {
+          const isOwner = firebaseUser && backendMemory.ownerFirebaseUid === firebaseUser.uid;
           const mappedMemory = {
             id: backendMemory.id || id,
             title: backendMemory.title || "Memory",
@@ -122,8 +128,8 @@ export default function MemoryDetailPage() {
             tags: backendMemory.tags || [],
             likes: backendMemory.likes || 0,
             comments: typeof backendMemory.comments === "number" ? backendMemory.comments : (Array.isArray(backendMemory.comments) ? backendMemory.comments.length : 0),
-            ownerId: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
-            ownerDisplayName: backendMemory.ownerDisplayName || "Alexander Mitchell",
+            ownerId: isOwner ? "alexander" : (backendMemory.ownerFirebaseUid || backendMemory.ownerId),
+            ownerDisplayName: backendMemory.ownerDisplayName || "Family Contributor",
             ownerEmail: backendMemory.ownerEmail || "",
             ownerProfession: backendMemory.ownerProfession || "",
             ownerAvatarUrl: backendMemory.ownerAvatarUrl || "",
@@ -147,9 +153,9 @@ export default function MemoryDetailPage() {
           }
 
           const foundOwner = {
-            id: backendMemory.ownerFirebaseUid === firebaseUser.uid ? "alexander" : backendMemory.ownerFirebaseUid,
-            name: backendMemory.ownerDisplayName || "Alexander Mitchell",
-            role: backendMemory.ownerProfession || (backendMemory.ownerFirebaseUid === firebaseUser.uid ? "Family Archivist" : "Family Contributor"),
+            id: isOwner ? "alexander" : (backendMemory.ownerFirebaseUid || backendMemory.ownerId),
+            name: backendMemory.ownerDisplayName || "Family Contributor",
+            role: backendMemory.ownerProfession || (isOwner ? "Family Archivist" : "Family Contributor"),
             avatar: backendMemory.ownerAvatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(backendMemory.ownerDisplayName || "U")}`
           };
           setOwner(foundOwner);
@@ -202,12 +208,18 @@ export default function MemoryDetailPage() {
     }
     
     if (!foundMemory) {
-      foundMemory = memories.find((m) => m.id === id) || memories[0];
+      foundMemory = Array.isArray(memories) && memories.length > 0 ? (memories.find((m) => m.id === id) || memories[0]) : null;
     }
     
+    if (!foundMemory) {
+      setMemory(null);
+      setIsLoading(false);
+      return;
+    }
+
     setMemory(foundMemory);
 
-    const storedAlbums = getStoredAlbums();
+    const storedAlbums = getStoredAlbums() || [];
     const albumId = (foundMemory.albums && foundMemory.albums[0]) || foundMemory.albumId || searchParams.get("albumId");
     const foundAlbum = storedAlbums.find((a) => a.id === albumId);
     if (foundAlbum) {
@@ -243,7 +255,7 @@ export default function MemoryDetailPage() {
     let currentReaction = foundMemory.userReaction || null;
     let currentLikes = foundMemory.likes || 0;
     let currentShares = foundMemory.shares || 0;
-    if (isMockLocal) {
+    if (isMockLocal && foundMemory.id) {
       const savedReaction = localStorage.getItem(`reactions_${foundMemory.id}`);
       if (savedReaction) {
         try {
@@ -421,11 +433,26 @@ export default function MemoryDetailPage() {
     window.setTimeout(() => setShareNotice(""), 1800);
   };
 
-  if (isLoading || !memory || !album) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
         <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin mb-2" />
         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading memory...</span>
+      </div>
+    );
+  }
+
+  if (!memory || !album) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)] px-4 text-center">
+        <h2 className="text-2xl font-extrabold text-stone-800 mb-2">Memory Not Found</h2>
+        <p className="text-stone-500 text-sm max-w-md mb-6">The requested memory could not be loaded or may no longer be available.</p>
+        <button
+          onClick={() => router.push("/memories")}
+          className="px-6 py-2.5 rounded-xl bg-[#4A3AFF] text-white font-bold text-sm shadow-md hover:bg-[#3b2dd1] transition-all cursor-pointer"
+        >
+          Back to Memories
+        </button>
       </div>
     );
   }
@@ -947,5 +974,18 @@ function EditSheet({ memory, onClose, onUpdate }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MemoryDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
+        <div className="w-8 h-8 rounded-full border-4 border-[var(--brand)] border-t-transparent animate-spin mb-2" />
+        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading memory...</span>
+      </div>
+    }>
+      <MemoryDetailContent />
+    </Suspense>
   );
 }

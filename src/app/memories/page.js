@@ -57,10 +57,17 @@ export default function MyArchive() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const formatDateSafely = (dateVal) => {
+  const formatDateSafely = (dateVal, memoryItem) => {
+    if (!dateVal && memoryItem?.year) {
+      return `${memoryItem.month || "August"} ${memoryItem.year}`;
+    }
     if (!dateVal) return "Recent";
+    const strVal = String(dateVal).trim();
+    if (/^\d{4}$/.test(strVal)) {
+      return `${memoryItem?.month || "August"} ${strVal}`;
+    }
     const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return "Recent";
+    if (isNaN(d.getTime())) return strVal;
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
@@ -124,17 +131,13 @@ export default function MyArchive() {
 
   const mergeUniqueMemories = (primary, secondary = []) => {
     const byId = new Map();
-    const duplicateKeys = new Set();
 
     [...primary, ...secondary].forEach((memory) => {
       if (!memory) return;
       const id = getMemoryId(memory);
-      const duplicateKey = getMemoryDuplicateKey(memory);
       if (id && byId.has(id)) return;
-      if (duplicateKey && duplicateKeys.has(duplicateKey)) return;
-      const key = id || duplicateKey || `memory-${byId.size}`;
+      const key = id || `memory-${byId.size}-${Math.random()}`;
       byId.set(key, memory);
-      if (duplicateKey) duplicateKeys.add(duplicateKey);
     });
 
     return Array.from(byId.values());
@@ -258,6 +261,7 @@ export default function MyArchive() {
     // Filter by type
     if (activeType !== "All") {
       result = result.filter((m) => {
+        if (!m) return false;
         const t = (m.type || "").toLowerCase();
         if (activeType === "Voice") {
           const sources = getMemoryMediaSources(m);

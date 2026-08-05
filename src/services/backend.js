@@ -335,10 +335,13 @@ export async function getMemoryDetailsFromBackend(token, memoryId) {
 }
 
 /** Get discovery filter memories */
-export async function getDiscoveryMemories(token, filter, theme, searchQuery = "") {
-  const query = `filter=${encodeURIComponent(filter || "")}&theme=${encodeURIComponent(theme || "")}&q=${encodeURIComponent(searchQuery || "")}`;
+export async function getDiscoveryMemories(token, filter, theme, searchQuery = "", page = 1, limit = 20) {
+  const query = `filter=${encodeURIComponent(filter || "")}&theme=${encodeURIComponent(theme || "")}&q=${encodeURIComponent(searchQuery || "")}&page=${page}&limit=${limit}`;
   const response = await backendFetch(`/api/memories/discovery?${query}`, { token });
-  return response.data;
+  return {
+    data: response.data || [],
+    pagination: response.pagination || null
+  };
 }
 
 /** Search archive (memories, albums, users) on backend */
@@ -668,6 +671,29 @@ export async function getUserProfileFromBackend(token, userId) {
   if (!userId) return null;
   const response = await backendFetch(`/api/users/${userId}`, { token });
   return response.data;
+}
+
+/** Get live family badge count for logged-in user */
+export async function getFamilyBadgeCount(token) {
+  try {
+    const response = await backendFetch("/api/users/family/badge-count", { token });
+    return response?.data !== undefined ? response.data : { count: 0 };
+  } catch (_) {
+    return { count: 0 };
+  }
+}
+
+/** Mark all family activity/notifications as seen for logged-in user */
+export async function markFamilySeen(token) {
+  try {
+    const response = await backendFetch("/api/users/family/mark-seen", {
+      method: "POST",
+      token,
+    });
+    return response?.data !== undefined ? response.data : { success: true };
+  } catch (_) {
+    return { success: true };
+  }
 }
 
 export function getBackendErrorMessage(error, fallback = "Something went wrong. Please try again.") {
