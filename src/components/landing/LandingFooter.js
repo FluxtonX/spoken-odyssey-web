@@ -29,6 +29,9 @@ export default function LandingFooter() {
             {["Features", "Albums", "Feed", "Family Circle", "Privacy Controls", "Mobile App"].map((l) => (
               <a key={l} href="#" className="block text-sm hover:text-amber-500 transition-colors py-0.5">{l}</a>
             ))}
+            <a href="https://odyssey-store-ten.vercel.app" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-stone-800 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-stone-700">
+              Shop Smart Glasses <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+            </a>
           </div>
 
           {/* Company */}

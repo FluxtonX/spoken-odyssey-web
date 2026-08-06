@@ -28,6 +28,15 @@ export default function LandingNav() {
           {NAV_LINKS.map((l) => (
             <a key={l.label} href={l.href} className="text-sm font-semibold text-stone-500 hover:text-amber-700 transition-colors">{l.label}</a>
           ))}
+          <a 
+            href="https://odyssey-store-ten.vercel.app" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-[11px] font-black uppercase tracking-[0.1em] text-white bg-[#4f37ff] hover:bg-[#3f2be8] transition-colors px-4 py-2 rounded-full flex items-center gap-1.5 shadow-md shadow-indigo-500/20"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Store
+          </a>
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
@@ -44,6 +53,16 @@ export default function LandingNav() {
 
       {open && (
         <div className="md:hidden bg-[#fdfcfa] border-t border-amber-100 shadow-lg px-5 py-4 space-y-1">
+          <a 
+            href="https://odyssey-store-ten.vercel.app" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)} 
+            className="flex items-center gap-2 text-sm font-bold text-[#6c5ad9] hover:text-[#4f37ff] py-3 border-b border-stone-50 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Store
+          </a>
           {NAV_LINKS.map((l) => (
             <a key={l.label} href={l.href} onClick={() => setOpen(false)} className="block text-sm font-semibold text-stone-600 hover:text-amber-700 py-3 border-b border-stone-50 transition-colors">{l.label}</a>
           ))}
