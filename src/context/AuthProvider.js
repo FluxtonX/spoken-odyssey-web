@@ -28,6 +28,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [jwtToken, setJwtToken] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [mfaPendingState, setMfaPendingState] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Initialize token from localStorage on mount
@@ -68,12 +69,32 @@ export function AuthProvider({ children }) {
     return () => clearInterval(intervalId);
   }, [jwtToken]);
 
+  const completeMfa = useCallback((token, userData) => {
+    localStorage.setItem("spokenOdysseyToken", token);
+    setJwtToken(token);
+    setProfile(userData);
+    setMfaPendingState(null);
+  }, []);
+
+  const clearMfaPending = useCallback(() => {
+    setMfaPendingState(null);
+  }, []);
+
   const login = useCallback(async (email, password) => {
     const response = await loginWithBackend(email.trim(), password);
+    if (response.mfaRequired) {
+      setMfaPendingState({
+        mfaToken: response.mfaToken,
+        availableMethods: response.availableMethods,
+      });
+      return { mfaRequired: true, mfaToken: response.mfaToken, availableMethods: response.availableMethods };
+    }
+
     const token = response.token;
     localStorage.setItem("spokenOdysseyToken", token);
     setJwtToken(token);
     setProfile(response.data);
+    setMfaPendingState(null);
     return response.data;
   }, []);
 
@@ -83,6 +104,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem("spokenOdysseyToken", token);
     setJwtToken(token);
     setProfile(response.data);
+    setMfaPendingState(null);
     return response.data;
   }, []);
 
@@ -90,10 +112,19 @@ export function AuthProvider({ children }) {
     const firebaseUser = await signInWithGoogle();
     const googleToken = await firebaseUser.getIdToken();
     const response = await googleLoginWithBackend(googleToken);
+    if (response.mfaRequired) {
+      setMfaPendingState({
+        mfaToken: response.mfaToken,
+        availableMethods: response.availableMethods,
+      });
+      return { mfaRequired: true, mfaToken: response.mfaToken, availableMethods: response.availableMethods };
+    }
+
     const token = response.token;
     localStorage.setItem("spokenOdysseyToken", token);
     setJwtToken(token);
     setProfile(response.data);
+    setMfaPendingState(null);
     return response.data;
   }, []);
 
@@ -109,6 +140,7 @@ export function AuthProvider({ children }) {
     } catch {}
     setJwtToken(null);
     setProfile(null);
+    setMfaPendingState(null);
     await signOutUser();
   }, []);
 
@@ -162,6 +194,7 @@ export function AuthProvider({ children }) {
     () => ({
       jwtToken,
       profile,
+      mfaPendingState,
       loading,
       isAuthenticated: !!jwtToken,
       login,
@@ -172,6 +205,8 @@ export function AuthProvider({ children }) {
       resendVerification,
       refreshProfile,
       getToken,
+      completeMfa,
+      clearMfaPending,
       // Temporarily polyfill firebaseUser to prevent immediate crashes during refactor
       firebaseUser: jwtToken ? { 
         getIdToken: async () => jwtToken,
@@ -183,6 +218,7 @@ export function AuthProvider({ children }) {
     [
       jwtToken,
       profile,
+      mfaPendingState,
       loading,
       login,
       signup,
@@ -192,6 +228,8 @@ export function AuthProvider({ children }) {
       resendVerification,
       refreshProfile,
       getToken,
+      completeMfa,
+      clearMfaPending,
     ]
   );
 

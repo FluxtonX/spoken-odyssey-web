@@ -696,8 +696,129 @@ export async function markFamilySeen(token) {
   }
 }
 
+/** MFA API Methods */
+export async function getMfaStatus(token) {
+  const response = await backendFetch("/api/auth/mfa/status", { token });
+  return response.data;
+}
+
+export async function setupTotpOnBackend(token) {
+  const response = await backendFetch("/api/auth/mfa/totp/setup", {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+export async function verifyTotpSetupOnBackend(token, code) {
+  const response = await backendFetch("/api/auth/mfa/totp/verify-setup", {
+    method: "POST",
+    body: { code },
+    token,
+  });
+  return response;
+}
+
+export async function verifyTotpLoginOnBackend(mfaToken, code) {
+  const response = await backendFetch("/api/auth/mfa/totp/verify", {
+    method: "POST",
+    body: { mfaToken, code },
+  });
+  return response;
+}
+
+export async function verifyRecoveryLoginOnBackend(mfaToken, code) {
+  const response = await backendFetch("/api/auth/mfa/recovery/verify", {
+    method: "POST",
+    body: { mfaToken, code },
+  });
+  return response;
+}
+
+export async function getPasskeyRegisterOptions(token) {
+  const response = await backendFetch("/api/auth/passkeys/register/options", {
+    method: "POST",
+    token,
+  });
+  return response.data;
+}
+
+export async function verifyPasskeyRegister(token, responseData, deviceName) {
+  const response = await backendFetch("/api/auth/passkeys/register/verify", {
+    method: "POST",
+    body: { response: responseData, deviceName },
+    token,
+  });
+  return response;
+}
+
+export async function getPasskeyLoginOptions(mfaToken = null) {
+  const response = await backendFetch("/api/auth/passkeys/login/options", {
+    method: "POST",
+    body: { mfaToken },
+  });
+  return response.data;
+}
+
+export async function verifyPasskeyLogin(mfaToken = null, responseData) {
+  const response = await backendFetch("/api/auth/passkeys/login/verify", {
+    method: "POST",
+    body: { mfaToken, response: responseData },
+  });
+  return response;
+}
+
+export async function deletePasskeyOnBackend(token, id) {
+  const response = await backendFetch(`/api/auth/passkeys/${id}`, {
+    method: "DELETE",
+    token,
+  });
+  return response;
+}
+
+export async function regenerateRecoveryCodesOnBackend(token, password = null, code = null) {
+  const response = await backendFetch("/api/auth/mfa/recovery/regenerate", {
+    method: "POST",
+    body: { password, code },
+    token,
+  });
+  return response;
+}
+
+export async function disableMfaOnBackend(token, password = null, code = null) {
+  const response = await backendFetch("/api/auth/mfa/disable", {
+    method: "POST",
+    body: { password, code },
+    token,
+  });
+  return response;
+}
+
+export async function getActiveSessions(token) {
+  const response = await backendFetch("/api/auth/sessions", { token });
+  return response.sessions || [];
+}
+
+export async function revokeSessionOnBackend(token, sessionId) {
+  const response = await backendFetch(`/api/auth/sessions/${sessionId}`, {
+    method: "DELETE",
+    token,
+  });
+  return response;
+}
+
+export async function toggleLoginNotificationsOnBackend(token, enabled) {
+  const response = await backendFetch("/api/auth/notifications/toggle", {
+    method: "PUT",
+    body: { enabled },
+    token,
+  });
+  return response;
+}
+
 export function getBackendErrorMessage(error, fallback = "Something went wrong. Please try again.") {
   if (error instanceof BackendError) return error.message || fallback;
   if (error?.message) return error.message;
   return fallback;
 }
+

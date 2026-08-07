@@ -13,7 +13,11 @@ import {
   getLegacySettings,
   updateLegacySettings,
   getFamilyFromBackend,
-  getBackendBaseUrl
+  getBackendBaseUrl,
+  getMfaStatus,
+  getActiveSessions,
+  revokeSessionOnBackend,
+  toggleLoginNotificationsOnBackend
 } from "@/services/backend";
 import { 
   User, 
@@ -83,12 +87,57 @@ export default function SettingsPage() {
     twoFactorAuth: false,
     loginNotifications: true,
   });
+  const [mfaStatus, setMfaStatus] = useState(null);
+
+  useEffect(() => {
+    if (activeTab === "security") {
+      getToken().then((token) => {
+        if (token) {
+          Promise.all([getMfaStatus(token), getActiveSessions(token)])
+            .then(([mfaData, sessionsData]) => {
+              if (mfaData) {
+                setMfaStatus(mfaData);
+                setSecuritySettings((prev) => ({
+                  twoFactorAuth: mfaData.mfaEnabled,
+                  loginNotifications: mfaData.loginNotifications !== false,
+                }));
+              }
+              if (sessionsData && sessionsData.length > 0) {
+                setSessions(sessionsData);
+              }
+            })
+            .catch(() => {});
+        }
+      });
+    }
+  }, [activeTab, getToken]);
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      const token = await getToken();
+      await revokeSessionOnBackend(token, sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setToastMessage({ type: "success", text: "Session revoked successfully." });
+    } catch (_) {
+      setToastMessage({ type: "error", text: "Failed to revoke session." });
+    } finally {
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const handleToggleLoginNotifications = async (enabled) => {
+    try {
+      const token = await getToken();
+      const res = await toggleLoginNotificationsOnBackend(token, enabled);
+      if (res.success) {
+        setSecuritySettings((prev) => ({ ...prev, loginNotifications: res.loginNotifications }));
+        setMfaStatus((prev) => ({ ...prev, loginNotifications: res.loginNotifications }));
+      }
+    } catch (_) {}
+  };
 
   // Real Active Sessions State
-  const [sessions, setSessions] = useState([
-    { id: "s1", device: "Current Session (Windows PC / Browser)", lastActive: "Active Now", isCurrent: true },
-    { id: "s2", device: "iPhone 15 Pro — Mobile App", lastActive: "2 hours ago", isCurrent: false },
-  ]);
+  const [sessions, setSessions] = useState([]);
 
   // Notifications Preferences State
   const [notificationSettings, setNotificationSettings] = useState({
@@ -535,12 +584,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Revoke Active Session
-  const handleRevokeSession = (sessionId) => {
-    setSessions(prev => prev.filter(s => s.id !== sessionId));
-    setToastMessage({ type: "success", text: "Session revoked successfully." });
-    setTimeout(() => setToastMessage(null), 3000);
-  };
 
   // Toggle Connected Service State
   const toggleConnectedService = (serviceKey) => {
@@ -883,7 +926,9 @@ export default function SettingsPage() {
                       <div className="py-4 flex items-center justify-between">
                         <div>
                           <h4 className="font-bold text-[15px] text-stone-900">Password</h4>
-                          <p className="text-[13px] font-medium text-stone-500">Last changed 3 months ago</p>
+                          <p className="text-[13px] font-medium text-stone-500">
+                            Last changed: {mfaStatus?.passwordChangedAt ? new Date(mfaStatus.passwordChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Initial account password"}
+                          </p>
                         </div>
                         <button 
                           onClick={() => setShowPasswordModal(true)}
@@ -895,23 +940,38 @@ export default function SettingsPage() {
 
                       <div className="py-4 flex items-center justify-between">
                         <div>
-                          <h4 className="font-bold text-[15px] text-stone-900">Two-factor authentication</h4>
-                          <p className="text-[13px] font-medium text-stone-500">Protect your archive with 2FA</p>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-[15px] text-stone-900">Two-factor authentication (2FA)</h4>
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                              mfaStatus?.mfaEnabled ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {mfaStatus?.mfaEnabled ? "ACTIVE" : "DISABLED"}
+                            </span>
+                          </div>
+                          <p className="text-[13px] font-medium text-stone-500 mt-0.5">
+                            {mfaStatus?.mfaEnabled 
+                              ? `Secured with ${mfaStatus.availableMethods.join(", ").toUpperCase()}`
+                              : "Protect your archive with Authenticator Apps, Passkeys & Emergency Recovery"}
+                          </p>
                         </div>
-                        <ToggleSwitch 
-                          checked={securitySettings.twoFactorAuth} 
-                          onChange={(v) => setSecuritySettings(prev => ({ ...prev, twoFactorAuth: v }))} 
-                        />
+                        <button
+                          type="button"
+                          onClick={() => router.push("/settings/security")}
+                          className="bg-[#4A3AFF] hover:bg-[#3b2ee0] text-white font-bold px-5 py-2 rounded-xl text-[13px] transition-all cursor-pointer shadow-md flex items-center gap-1.5 shrink-0"
+                        >
+                          <span>{mfaStatus?.mfaEnabled ? "Manage 2FA" : "Configure 2FA"}</span>
+                          <ChevronRight size={14} />
+                        </button>
                       </div>
 
                       <div className="py-4 flex items-center justify-between">
                         <div>
                           <h4 className="font-bold text-[15px] text-stone-900">Login notifications</h4>
-                          <p className="text-[13px] font-medium text-stone-500">Email on new device sign-in</p>
+                          <p className="text-[13px] font-medium text-stone-500">Email on new device sign-in via Brevo</p>
                         </div>
                         <ToggleSwitch 
                           checked={securitySettings.loginNotifications} 
-                          onChange={(v) => setSecuritySettings(prev => ({ ...prev, loginNotifications: v }))} 
+                          onChange={(v) => handleToggleLoginNotifications(v)} 
                         />
                       </div>
                     </div>
@@ -927,8 +987,10 @@ export default function SettingsPage() {
                       {sessions.map((sess) => (
                         <div key={sess.id} className="py-4 flex items-center justify-between">
                           <div>
-                            <h4 className="font-bold text-[15px] text-stone-900">{sess.device}</h4>
-                            <p className="text-[13px] font-medium text-stone-500">{sess.lastActive}</p>
+                            <h4 className="font-bold text-[15px] text-stone-900">{sess.deviceName || sess.device}</h4>
+                            <p className="text-[13px] font-medium text-stone-500">
+                              IP: {sess.ipAddress || "127.0.0.1 (Localhost)"} • Last active: {sess.lastActive ? (typeof sess.lastActive === "string" && (sess.lastActive.includes("Active") || sess.lastActive.includes("ago")) ? sess.lastActive : new Date(sess.lastActive).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : "Active now"}
+                            </p>
                           </div>
 
                           {sess.isCurrent ? (

@@ -41,6 +41,10 @@ const NOTIFICATION_ICONS = {
   BILLING: { bg: "bg-purple-600 text-white", initials: "💳" },
   AI_SUMMARY: { bg: "bg-gradient-to-r from-[#4A3AFF] to-[#6366F1] text-white", initials: "✨" },
   SECURITY: { bg: "bg-amber-600 text-white", initials: "🔒" },
+  SECURITY_NEW_DEVICE: { bg: "bg-indigo-600 text-white", initials: "💻" },
+  SECURITY_TOTP_ENABLED: { bg: "bg-[#4A3AFF] text-white", initials: "📱" },
+  SECURITY_PASSKEY_ADDED: { bg: "bg-emerald-600 text-white", initials: "🔑" },
+  SECURITY_2FA_DISABLED: { bg: "bg-red-600 text-white", initials: "🛡️" },
   DEFAULT: { bg: "bg-[#4A3AFF] text-white", initials: "🔔" }
 };
 
@@ -193,6 +197,9 @@ export default function NotificationsPage() {
     if (activeFilter === "All") return true;
     if (activeFilter === "Unread") return !n.isRead;
     const nType = String(n.type || "").toUpperCase();
+    if (activeFilter === "Security") {
+      return nType.startsWith("SECURITY");
+    }
     if (activeFilter === "Family") {
       return nType.startsWith("FAMILY");
     }
@@ -200,7 +207,7 @@ export default function NotificationsPage() {
       return nType.startsWith("MEMORY") || nType === "FOLLOW" || nType === "NEW_USER_NEARBY";
     }
     if (activeFilter === "System") {
-      return nType.startsWith("SYSTEM") || nType.startsWith("BILLING") || nType === "AI_SUMMARY" || nType === "SECURITY";
+      return nType.startsWith("SYSTEM") || nType.startsWith("BILLING") || nType === "AI_SUMMARY" || nType.startsWith("SECURITY");
     }
     return true;
   });
@@ -271,6 +278,7 @@ export default function NotificationsPage() {
             {[
               { id: "All", label: "All" },
               { id: "Unread", label: "Unread", count: unreadCount },
+              { id: "Security", label: "Security" },
               { id: "Family", label: "Family" },
               { id: "Social", label: "Social" },
               { id: "System", label: "System" }
