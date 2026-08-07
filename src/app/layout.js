@@ -2,6 +2,7 @@ import "./globals.css";
 import NavBar from "@/components/navigation/NavBar";
 import LayoutShell from "@/components/layout/LayoutShell";
 import { AuthProvider } from "@/context/AuthProvider";
+import MfaVerificationModal from "@/components/modals/MfaVerificationModal";
 import { GOOGLE_FONTS_LINK } from "@/data/postFonts";
 
 export const metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="antialiased bg-[var(--background)] font-sans">
         <AuthProvider>
+          <MfaVerificationModal />
           <LayoutShell>
             <NavBar />
             {children}
