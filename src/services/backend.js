@@ -816,6 +816,20 @@ export async function toggleLoginNotificationsOnBackend(token, enabled) {
   return response;
 }
 
+export async function getNotificationPreferencesOnBackend(token) {
+  const response = await backendFetch("/api/auth/notifications/preferences", { token });
+  return response.preferences || {};
+}
+
+export async function updateNotificationPreferencesOnBackend(token, preferences) {
+  const response = await backendFetch("/api/auth/notifications/preferences", {
+    method: "PUT",
+    body: preferences,
+    token,
+  });
+  return response;
+}
+
 export function getBackendErrorMessage(error, fallback = "Something went wrong. Please try again.") {
   if (error instanceof BackendError) return error.message || fallback;
   if (error?.message) return error.message;

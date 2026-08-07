@@ -17,7 +17,9 @@ import {
   getMfaStatus,
   getActiveSessions,
   revokeSessionOnBackend,
-  toggleLoginNotificationsOnBackend
+  toggleLoginNotificationsOnBackend,
+  getNotificationPreferencesOnBackend,
+  updateNotificationPreferencesOnBackend
 } from "@/services/backend";
 import { 
   User, 
@@ -134,6 +136,35 @@ export default function SettingsPage() {
         setMfaStatus((prev) => ({ ...prev, loginNotifications: res.loginNotifications }));
       }
     } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      getToken().then((token) => {
+        if (token) {
+          getNotificationPreferencesOnBackend(token)
+            .then((prefs) => {
+              if (prefs) setNotificationSettings((prev) => ({ ...prev, ...prefs }));
+            })
+            .catch(() => {});
+        }
+      });
+    }
+  }, [activeTab, getToken]);
+
+  const handlePreferenceToggle = async (key, value) => {
+    setNotificationSettings((prev) => ({ ...prev, [key]: value }));
+    try {
+      const token = await getToken();
+      if (token) {
+        await updateNotificationPreferencesOnBackend(token, { [key]: value });
+        setToastMessage({ type: "success", text: "Notification preference updated." });
+        setTimeout(() => setToastMessage(null), 2500);
+      }
+    } catch (_) {
+      setToastMessage({ type: "error", text: "Failed to save preference." });
+      setTimeout(() => setToastMessage(null), 2500);
+    }
   };
 
   // Real Active Sessions State
@@ -1029,7 +1060,7 @@ export default function SettingsPage() {
                       </div>
                       <ToggleSwitch 
                         checked={notificationSettings.dailyPrompt} 
-                        onChange={(v) => setNotificationSettings(prev => ({ ...prev, dailyPrompt: v }))} 
+                        onChange={(v) => handlePreferenceToggle("dailyPrompt", v)} 
                       />
                     </div>
 
@@ -1040,7 +1071,7 @@ export default function SettingsPage() {
                       </div>
                       <ToggleSwitch 
                         checked={notificationSettings.legacyAlerts} 
-                        onChange={(v) => setNotificationSettings(prev => ({ ...prev, legacyAlerts: v }))} 
+                        onChange={(v) => handlePreferenceToggle("legacyAlerts", v)} 
                       />
                     </div>
 
@@ -1051,7 +1082,7 @@ export default function SettingsPage() {
                       </div>
                       <ToggleSwitch 
                         checked={notificationSettings.familyActivity} 
-                        onChange={(v) => setNotificationSettings(prev => ({ ...prev, familyActivity: v }))} 
+                        onChange={(v) => handlePreferenceToggle("familyActivity", v)} 
                       />
                     </div>
 
@@ -1062,7 +1093,7 @@ export default function SettingsPage() {
                       </div>
                       <ToggleSwitch 
                         checked={notificationSettings.aiInsights} 
-                        onChange={(v) => setNotificationSettings(prev => ({ ...prev, aiInsights: v }))} 
+                        onChange={(v) => handlePreferenceToggle("aiInsights", v)} 
                       />
                     </div>
 
@@ -1073,7 +1104,7 @@ export default function SettingsPage() {
                       </div>
                       <ToggleSwitch 
                         checked={notificationSettings.forgottenMemories} 
-                        onChange={(v) => setNotificationSettings(prev => ({ ...prev, forgottenMemories: v }))} 
+                        onChange={(v) => handlePreferenceToggle("forgottenMemories", v)} 
                       />
                     </div>
 
@@ -1084,7 +1115,7 @@ export default function SettingsPage() {
                       </div>
                       <ToggleSwitch 
                         checked={notificationSettings.followerActivity} 
-                        onChange={(v) => setNotificationSettings(prev => ({ ...prev, followerActivity: v }))} 
+                        onChange={(v) => handlePreferenceToggle("followerActivity", v)} 
                       />
                     </div>
                   </div>

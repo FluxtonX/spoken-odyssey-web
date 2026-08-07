@@ -20,7 +20,9 @@ import {
   getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  deleteNotification
+  deleteNotification,
+  getNotificationPreferencesOnBackend,
+  updateNotificationPreferencesOnBackend
 } from "@/services/backend";
 
 const NOTIFICATION_ICONS = {
@@ -87,10 +89,49 @@ export default function NotificationsPage() {
   const [preferences, setPreferences] = useState(INITIAL_PREFERENCES);
   const [toastMessage, setToastMessage] = useState("");
 
+  const loadPreferences = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const prefs = await getNotificationPreferencesOnBackend(token);
+      if (prefs) {
+        setPreferences([
+          {
+            group: "SOCIAL",
+            items: [
+              { id: "p1", title: "New followers", description: "When someone follows your public profile", enabled: prefs.followerActivity !== false },
+              { id: "p2", title: "Comments", description: "When someone comments on your memory", enabled: prefs.memoryInteractions !== false },
+              { id: "p3", title: "Reactions", description: "When someone reacts to your story", enabled: prefs.memoryInteractions !== false },
+              { id: "p4", title: "Shares", description: "When someone shares your memory", enabled: prefs.memoryInteractions !== false }
+            ]
+          },
+          {
+            group: "FAMILY",
+            items: [
+              { id: "p5", title: "Invitations", description: "Family circle invitations accepted or declined", enabled: prefs.familyActivity !== false },
+              { id: "p6", title: "Family shares", description: "When a family member shares memories", enabled: prefs.familyActivity !== false },
+              { id: "p7", title: "Legacy updates", description: "Changes to legacy access and settings", enabled: prefs.legacyAlerts !== false }
+            ]
+          },
+          {
+            group: "SYSTEM",
+            items: [
+              { id: "p8", title: "AI Insights", description: "New AI summaries and life reflections", enabled: prefs.aiInsights !== false },
+              { id: "p9", title: "Storage alerts", description: "When storage is nearly full", enabled: true },
+              { id: "p10", title: "Billing", description: "Subscription and payment updates", enabled: true },
+              { id: "p11", title: "Security alerts", description: "New logins and password changes", enabled: prefs.securityAlerts !== false }
+            ]
+          }
+        ]);
+      }
+    } catch (_) {}
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       loadNotifications();
       loadUnreadCount();
+      loadPreferences();
     } else {
       setLoading(false);
     }
@@ -167,7 +208,29 @@ export default function NotificationsPage() {
     }));
   };
 
-  const handleSavePreferences = () => {
+  const handleSavePreferences = async () => {
+    try {
+      const token = await getToken();
+      if (token) {
+        const flatItems = preferences.flatMap(cat => cat.items);
+        const followerItem = flatItems.find(i => i.id === "p1");
+        const familyItem = flatItems.find(i => i.id === "p5") || flatItems.find(i => i.id === "p6");
+        const commentsItem = flatItems.find(i => i.id === "p2") || flatItems.find(i => i.id === "p3");
+        const securityItem = flatItems.find(i => i.id === "p11");
+
+        const updates = {};
+        if (followerItem) updates.followerActivity = followerItem.enabled;
+        if (familyItem) updates.familyActivity = familyItem.enabled;
+        if (commentsItem) updates.memoryInteractions = commentsItem.enabled;
+        if (securityItem) updates.securityAlerts = securityItem.enabled;
+
+        await updateNotificationPreferencesOnBackend(token, updates);
+        await loadPreferences();
+        loadNotifications();
+      }
+    } catch (err) {
+      console.warn("Failed to update preferences:", err);
+    }
     setIsPreferencesOpen(false);
     setToastMessage("Notification preferences saved successfully!");
     setTimeout(() => setToastMessage(""), 3000);
