@@ -477,7 +477,7 @@ export default function Home() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles size={16} className="text-[#4A3AFF]" />
-                <span className="text-[11px] font-bold tracking-widest text-[#4A3AFF] uppercase">AI Insight</span>
+                <span className="text-[11px] font-bold tracking-widest text-[#4A3AFF] uppercase">Archive Insight</span>
               </div>
               <p className="text-stone-600 italic text-[14px] leading-relaxed mb-6">
                 &quot;Your most active memory-recording period is Sunday evenings. You are more reflective then — and more honest.&quot;

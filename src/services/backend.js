@@ -247,7 +247,7 @@ export async function createMemoryOnBackend(token, formData) {
     token,
     isFormData: true,
   });
-  invalidateCachePattern("memories_|family_shared_|album_");
+  invalidateCachePattern("memories_|family_shared_|album_|user_albums_|discovery_|profile_");
   return response.data;
 }
 
@@ -257,7 +257,7 @@ export async function deleteMemoryOnBackend(token, memoryId) {
     method: "DELETE",
     token,
   });
-  invalidateCachePattern("memories_|family_shared_|album_");
+  invalidateCachePattern("memories_|family_shared_|album_|user_albums_|discovery_|profile_");
   return response.data;
 }
 
@@ -269,7 +269,7 @@ export async function updateMemoryOnBackend(token, memoryId, formData) {
     token,
     isFormData: true,
   });
-  invalidateCachePattern("memories_|family_shared_|album_");
+  invalidateCachePattern("memories_|family_shared_|album_|user_albums_|discovery_|profile_");
   return response.data;
 }
 
@@ -334,6 +334,12 @@ export async function getMemoryDetailsFromBackend(token, memoryId) {
   return response.data;
 }
 
+/** Get real-time aggregated insights and analytics from backend */
+export async function getUserInsightsFromBackend(token) {
+  const response = await backendFetch("/api/insights/summary", { token });
+  return response.data;
+}
+
 /** Get discovery filter memories */
 export async function getDiscoveryMemories(token, filter, theme, searchQuery = "", page = 1, limit = 20) {
   const query = `filter=${encodeURIComponent(filter || "")}&theme=${encodeURIComponent(theme || "")}&q=${encodeURIComponent(searchQuery || "")}&page=${page}&limit=${limit}`;
@@ -354,6 +360,13 @@ export async function searchOnBackend(token, query, type = "all") {
 /** Get suggested profiles to connect with */
 export async function getSuggestedPeople(token) {
   const response = await backendFetch("/api/users/discovery", { token });
+  return response.data;
+}
+
+/** Get taggable user profiles (family, followers, following) */
+export async function getTaggableUsersFromBackend(token, query = "") {
+  const qStr = query ? `?q=${encodeURIComponent(query)}` : "";
+  const response = await backendFetch(`/api/users/taggable${qStr}`, { token });
   return response.data;
 }
 

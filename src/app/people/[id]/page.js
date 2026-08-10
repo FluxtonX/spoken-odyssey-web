@@ -617,6 +617,14 @@ export default function PersonDetailPage() {
                           </button>
                         </div>
 
+                        {/* Tagged by badge if story was created by another user */}
+                        {story.ownerId && person?.id && story.ownerId !== person.id && (
+                          <div className="mb-2.5 self-start inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#4A3AFF] text-[11px] font-bold border border-[#C7D2FE]/60">
+                            <UserCheck size={11} strokeWidth={2.5} />
+                            <span>Tagged by @{story.ownerDisplayName || "Family Member"}</span>
+                          </div>
+                        )}
+
                         {/* Title */}
                         <h3 className="text-[17px] font-bold text-stone-900 mb-2 leading-snug group-hover:text-[#4A3AFF] transition-colors">
                           {story.title}

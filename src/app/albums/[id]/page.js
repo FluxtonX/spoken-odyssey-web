@@ -232,18 +232,18 @@ function AlbumDetailContent() {
       // Check stored albums
       const stored = getStoredAlbums();
       const found = stored.find(a => a.id === id) || {
-        id: id || "career-craft",
-        title: "Career & Craft",
-        subtitle: "The work that mattered. The work that didn't.",
+        id: id || "album",
+        title: "Memory Album",
+        subtitle: "A collection of personal stories and voice memories.",
         privacy: "Private",
         cover: "https://images.unsplash.com/photo-1517971071642-34a2d3ecc9cd?auto=format&fit=crop&w=1200&q=80",
-        created: "March 2026",
-        tags: ["career", "work", "craft"]
+        created: "Recent",
+        tags: ["memories"]
       };
 
       setAlbum(found);
 
-      // Load initial local memories instantly
+      // Load initial local memories
       let allUserMemories = [];
       try {
         const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
@@ -251,7 +251,7 @@ function AlbumDetailContent() {
         if (saved) allUserMemories = JSON.parse(saved);
       } catch (_) {}
 
-      const mockEntries = ALBUM_MEMORIES_MAP[id] || ALBUM_MEMORIES_MAP["career-craft"] || [];
+      const mockEntries = ALBUM_MEMORIES_MAP[id] || [];
       const userMatching = allUserMemories.filter(m => 
         m.albumId === id || 
         (m.albums && m.albums.includes(id)) || 
@@ -283,51 +283,9 @@ function AlbumDetailContent() {
         }
       }
 
-      // Only set album to static fallback if backend album was not loaded
-      if (!backendAlbumLoaded) {
-        setAlbum(found);
-
-        // Only load static memories if backend album was not loaded
-        const baseMemories = ALBUM_MEMORIES_MAP[found.id] || ALBUM_MEMORIES_MAP["career-craft"] || [];
-
-        // Load local memories for album
-        try {
-          const saved = localStorage.getItem("spokenOdysseyLocalMemories");
-          if (saved) {
-            const allMem = JSON.parse(saved);
-            const filtered = allMem.filter(m => m.albumId === found.id || (m.albums && m.albums.includes(found.id)));
-            if (filtered.length > 0) {
-              const merged = [...filtered, ...baseMemories.filter(s => !filtered.some(f => f.id === s.id))];
-              setMemoriesList(merged);
-              setIsLoading(false);
-              return;
-            }
-          }
-        } catch {}
-
-        setMemoriesList(baseMemories);
-      } else {
-        // Backend album was loaded but no memories found - check local storage
-        try {
-          const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
-          const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
-          if (saved) {
-            const allMem = JSON.parse(saved);
-            const filtered = allMem.filter(m => m.albumId === id || (m.albums && m.albums.includes(id)));
-            if (filtered.length > 0) {
-              setMemoriesList(filtered);
-              setIsLoading(false);
-              return;
-            }
-          }
-        } catch {}
-        
-        // No memories anywhere - show empty state
-        setMemoriesList([]);
-      }
-
       setIsLoading(false);
     }
+
 
     loadAlbumDetails();
 

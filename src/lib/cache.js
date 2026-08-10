@@ -26,7 +26,11 @@ export function getCachedData(key, ttlMs = 5 * 60 * 1000) {
     }
   } catch (_) {}
 
-  return memEntry ? memEntry.data : null;
+  if (memEntry) {
+    memoryCache.delete(key);
+  }
+
+  return null;
 }
 
 export function setCachedData(key, data) {
