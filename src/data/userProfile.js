@@ -97,140 +97,78 @@ export function saveStoredUserProfile(profile) {
 }
 
 // Preseed some nice user memories so the profile page isn't blank at first load
+// Remove any previously seeded static memories from localStorage if present
 export function seedInitialMemoriesIfNeeded() {
   if (typeof window === "undefined") return;
   const existing = localStorage.getItem(LOCAL_MEMORIES_KEY);
   if (existing) {
     try {
       const parsed = JSON.parse(existing);
-      if (parsed && parsed.length > 0) return; // Already seeded or user created
-    } catch {
-      // ignore and overwrite
-    }
+      if (Array.isArray(parsed)) {
+        const staticTitles = [
+          "My Childhood Kitchen",
+          "Archiving Grandpa's Journal",
+          "The day I knew I'd found home",
+          "Grandma's 80th birthday",
+          "Why I quit my job",
+          "Sunday mornings in Cork"
+        ];
+        const cleaned = parsed.filter(m => 
+          m.id !== "seeded-m1" && 
+          m.id !== "seeded-m2" && 
+          !staticTitles.includes(m.title)
+        );
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem(LOCAL_MEMORIES_KEY, JSON.stringify(cleaned));
+        }
+      }
+    } catch {}
   }
-
-  const initialMemories = [
-    {
-      id: "seeded-m1",
-      title: "My Childhood Kitchen",
-      type: "Text",
-      description: "I still remember the smell of fresh warm bread on Sunday mornings and the soft humming of the old vintage radio on the counter. Simple times.",
-      createdAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString(), // 3 days ago
-      displayDate: "3 days ago",
-      albums: [],
-      audiences: ["public"],
-      audio: null,
-      media: null,
-      backgroundId: "aesthetic-sunset",
-      fontId: "satisfy",
-      ownerId: "alexander", // Alexander owns this
-    },
-    {
-      id: "seeded-m2",
-      title: "Archiving Grandpa's Journal",
-      type: "Photo",
-      description: "Finally went through the box in the attic. Found grandpa's leather pocketbook diary from 1952. His handwriting is elegant but so hard to scan!",
-      createdAt: new Date(Date.now() - 3600000 * 24).toISOString(), // 1 day ago
-      displayDate: "1 day ago",
-      albums: [],
-      audiences: ["family"],
-      audio: null,
-      media: {
-        url: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1000&q=80",
-        type: "image/jpeg",
-        name: "grandpas_diary.jpg"
-      },
-      backgroundId: "none",
-      fontId: "default",
-      ownerId: "alexander",
-    }
-  ];
-
-  localStorage.setItem(LOCAL_MEMORIES_KEY, JSON.stringify(initialMemories));
 }
 
 // ── ALBUMS LOCAL STORAGE STATE ──
 const LOCAL_ALBUMS_KEY = "spokenOdysseyLocalAlbums";
 
-const DEFAULT_ALBUMS = [
-  {
-    id: "childhood-summers",
-    title: "Childhood Summers",
-    subtitle: "The long July evenings in Cork. The smell of cut grass and sea air.",
-    privacy: "Private",
-    cover: "https://images.unsplash.com/photo-1517971071642-34a2d3ecc9cd?auto=format&fit=crop&w=1200&q=80",
-    created: "June 2023",
-    tags: ["childhood", "ireland"],
-    memoryCount: 47
-  },
-  {
-    id: "years-in-london",
-    title: "The Years in London",
-    subtitle: "Arrived with two bags. Left with a life.",
-    privacy: "Private",
-    cover: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1200&q=80",
-    created: "March 2026",
-    tags: ["london", "career"],
-    memoryCount: 124
-  },
-  {
-    id: "family-of-my-own",
-    title: "A Family of My Own",
-    subtitle: "From two to four. The years that changed everything.",
-    privacy: "Family",
-    cover: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=1200&q=80",
-    created: "December 2025",
-    tags: ["family", "parenthood"],
-    memoryCount: 89
-  },
-  {
-    id: "places-that-shaped-me",
-    title: "Places That Shaped Me",
-    subtitle: "From the cliffs of Moher to the markets of Bangkok. The world as teacher.",
-    privacy: "Public",
-    cover: "https://images.unsplash.com/photo-1473496169904-658ba37448eb?auto=format&fit=crop&w=1200&q=80",
-    created: "January 2026",
-    tags: ["travel", "adventure"],
-    memoryCount: 34
-  },
-  {
-    id: "mum",
-    title: "Mum",
-    subtitle: "For the woman who made me who I am.",
-    privacy: "Private",
-    cover: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1200&q=80",
-    created: "October 2025",
-    tags: ["mum", "family"],
-    memoryCount: 38
-  },
-  {
-    id: "career-and-craft",
-    title: "Career & Craft",
-    subtitle: "The work that mattered. The work that didn't.",
-    privacy: "Private",
-    cover: "https://images.unsplash.com/photo-1466637574441-749b8f19452f?auto=format&fit=crop&w=1200&q=80",
-    created: "February 2026",
-    tags: ["career", "work"],
-    memoryCount: 22
-  },
+const DEFAULT_ALBUMS = [];
+
+const STATIC_ALBUM_IDS = [
+  "childhood-summers",
+  "years-in-london",
+  "family-of-my-own",
+  "places-that-shaped-me",
+  "mum",
+  "career-and-craft",
+  "career-craft",
+  "summer-2023",
+  "grandpas-tales",
+  "sarah-first-year",
+  "family-recipes",
+  "europe-trip",
+  "letters-keepsakes"
 ];
 
 export function getStoredAlbums() {
-  if (typeof window === "undefined") return DEFAULT_ALBUMS;
+  if (typeof window === "undefined") return [];
   const saved = localStorage.getItem(LOCAL_ALBUMS_KEY);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        const userAlbums = parsed.filter(a => a && !STATIC_ALBUM_IDS.includes(a.id));
+        return userAlbums;
+      }
+      return [];
     } catch {
-      return DEFAULT_ALBUMS;
+      return [];
     }
   }
-  localStorage.setItem(LOCAL_ALBUMS_KEY, JSON.stringify(DEFAULT_ALBUMS));
-  return DEFAULT_ALBUMS;
+  return [];
 }
 
 export function saveStoredAlbums(albumsList) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(LOCAL_ALBUMS_KEY, JSON.stringify(albumsList));
+  const userAlbums = Array.isArray(albumsList) ? albumsList.filter(a => a && !STATIC_ALBUM_IDS.includes(a.id)) : [];
+  localStorage.setItem(LOCAL_ALBUMS_KEY, JSON.stringify(userAlbums));
   window.dispatchEvent(new Event("albumsUpdated"));
 }
+

@@ -5,6 +5,7 @@ import { X, Mic, PenTool, Image as ImageIcon, Award, Check, Lock, Users, Globe, 
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
 import { createMemoryOnBackend } from "@/services/backend";
+import UserTagPicker from "@/components/ui/UserTagPicker";
 
 const MOODS = [
   { label: "Happy", icon: Smile },
@@ -26,6 +27,7 @@ export default function PublishWizard() {
   const [mood, setMood] = useState("");
   const [visibility, setVisibility] = useState("Private");
   const [tags, setTags] = useState(""); // Simple string for now
+  const [taggedUsers, setTaggedUsers] = useState([]);
   const [shares, setShares] = useState({ family: true, friends: true, self: false });
   
   // Voice Recording & Playback States
@@ -728,7 +730,7 @@ export default function PublishWizard() {
                   type="text" 
                   value={title}
                   onChange={(e) => { setTitle(e.target.value); setValidationError(""); }}
-                  placeholder="Give your memory a title (e.g., Childhood Kitchen, Family Reunion)..."
+                  placeholder="Give your memory a title (e.g., Summer Vacation, Family Reunion)..."
                   className={clsx(
                     "w-full border rounded-2xl px-4 py-3.5 focus:outline-none transition-all font-medium text-stone-800 shadow-sm",
                     validationError && !title.trim() 
@@ -803,6 +805,9 @@ export default function PublishWizard() {
                   ))}
                 </div>
               </div>
+
+              {/* User Tag Picker */}
+              <UserTagPicker taggedUsers={taggedUsers} onChange={setTaggedUsers} />
 
               <div>
                 <label className="block text-[13px] font-medium text-stone-500 mb-2">Tags (comma separated)</label>
@@ -976,7 +981,7 @@ export default function PublishWizard() {
                     try {
                       const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
                       const pathAlbumId = currentPath.startsWith("/albums/") ? currentPath.split("/")[2] : "";
-                      const targetAlbum = pathAlbumId || "career-craft";
+                      const targetAlbum = pathAlbumId || "";
                       const formattedDuration = recordingTime > 0 
                         ? `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` 
                         : "01:30";
@@ -1030,6 +1035,8 @@ export default function PublishWizard() {
                         privacy: chosenVisibility,
                         visibility: chosenVisibility,
                         tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["memory"],
+                        taggedUserIds: taggedUsers.map(u => u.id),
+                        taggedUsers: taggedUsers,
                         duration: formattedDuration,
                         audioUrl: persistentAudioUrl,
                         audio: persistentAudioUrl,
@@ -1044,51 +1051,81 @@ export default function PublishWizard() {
                       };
                       publishedMem = newMem;
 
-                      try {
-                        const sanitizeUrl = (url) => (url && typeof url === "string" && url.startsWith("data:") ? undefined : url);
-                        const sanitizedMem = {
-                          ...newMem,
-                          image: sanitizeUrl(newMem.image),
-                          cover: sanitizeUrl(newMem.cover),
-                          videoUrl: sanitizeUrl(newMem.videoUrl),
-                          mediaUrl: sanitizeUrl(newMem.mediaUrl),
-                          audioUrl: sanitizeUrl(newMem.audioUrl),
-                          media: Array.isArray(newMem.media) ? newMem.media.map(m => ({ ...m, url: sanitizeUrl(m.url) })) : undefined,
-                        };
+                      // Local memory reference initialized; authoritative database save happens below
 
-                        const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
-                        const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
-                        const existing = saved ? JSON.parse(saved) : [];
-                        localStorage.setItem(userKey, JSON.stringify([sanitizedMem, ...existing].slice(0, 30)));
-                      } catch (err) {
-                        console.warn("Could not write to localStorage:", err.message);
+                      const token = (await getToken()) || (typeof window !== "undefined" ? localStorage.getItem("spokenOdysseyToken") : null);
+                      console.log("[PUBLISH DEBUG] Step 1 - Token obtained:", token ? `${token.substring(0, 30)}...` : "NULL/EMPTY");
+                      console.log("[PUBLISH DEBUG] Step 1 - firebaseUser:", firebaseUser ? { uid: firebaseUser.uid, email: firebaseUser.email } : "NULL");
+                      console.log("[PUBLISH DEBUG] Step 1 - memoryType:", memoryType);
+                      console.log("[PUBLISH DEBUG] Step 1 - title:", title);
+                      console.log("[PUBLISH DEBUG] Step 1 - taggedUsers:", taggedUsers);
+                      console.log("[PUBLISH DEBUG] Step 1 - visualFiles count:", visualFiles.length);
+                      console.log("[PUBLISH DEBUG] Step 1 - chosenVisibility:", chosenVisibility);
+                      
+                      if (!token) {
+                        console.error("[PUBLISH DEBUG] ❌ NO TOKEN! Memory will NOT be saved to backend.");
+                        setValidationError("Authentication error: No token available. Please log in again.");
                       }
-
-                      if (firebaseUser) {
-                        const token = await getToken();
+                      
+                      if (token) {
                         const formData = new FormData();
-                        formData.append("type", memoryType);
-                        if (title) formData.append("title", title);
+                        const backendType = memoryType === "visual" ? "Photo" : memoryType === "written" ? "Written" : memoryType === "milestone" ? "Milestone" : "Voice";
+                        const cleanTitle = title.trim() || (memoryType === "voice" ? "Voice Recording" : memoryType === "visual" ? "Visual Memory" : memoryType === "milestone" ? "Life Milestone" : "Memory");
+                        
+                        formData.append("type", backendType);
+                        formData.append("title", cleanTitle);
                         if (writtenContent) formData.append("description", writtenContent);
                         if (mood) formData.append("mood", mood);
                         formData.append("visibility", chosenVisibility);
                         formData.append("privacy", chosenVisibility);
+                        formData.append("status", "published");
                         if (tags) formData.append("tags", tags);
+                        if (taggedUsers.length > 0) {
+                          formData.append("taggedUserIds", JSON.stringify(taggedUsers.map(u => u.id)));
+                        }
                         
                         if (memoryType === "voice" && audioBlob) {
                           formData.append("media", audioBlob, `voice_recording_${Date.now()}.webm`);
                         }
                         if (memoryType === "visual" && visualFiles.length > 0) {
-                          visualFiles.forEach((file) => formData.append("media", file));
+                          visualFiles.forEach((file, idx) => {
+                            console.log(`[PUBLISH DEBUG] Step 2 - Appending visual file ${idx}:`, file?.name, file?.type, file?.size, "isFile:", file instanceof File);
+                            formData.append("media", file);
+                          });
                         }
-                        const createdBackendMem = await createMemoryOnBackend(token, formData).catch(() => null);
-                        if (createdBackendMem?._id || createdBackendMem?.id) {
+                        
+                        console.log("[PUBLISH DEBUG] Step 3 - FormData built. Fields:");
+                        for (const [key, value] of formData.entries()) {
+                          if (value instanceof File || value instanceof Blob) {
+                            console.log(`  ${key}: [File] name=${value.name}, type=${value.type}, size=${value.size}`);
+                          } else {
+                            console.log(`  ${key}: ${value}`);
+                          }
+                        }
+
+                        let rawRes = null;
+                        try {
+                          console.log("[PUBLISH DEBUG] Step 4 - Calling createMemoryOnBackend...");
+                          rawRes = await createMemoryOnBackend(token, formData);
+                          console.log("[PUBLISH DEBUG] Step 5 - Backend response:", JSON.stringify(rawRes).substring(0, 500));
+                        } catch (backendErr) {
+                          console.error("[PUBLISH DEBUG] ❌ Step 5 - Backend creation FAILED:", backendErr);
+                          console.error("[PUBLISH DEBUG] ❌ Error details:", backendErr.message, backendErr.status, backendErr.data);
+                          setValidationError(`Cloud save error: ${backendErr.message || "Failed to save memory to backend"}`);
+                        }
+
+                        const createdBackendMem = rawRes?.data || rawRes;
+                        const realDbId = createdBackendMem?.id || createdBackendMem?._id;
+                        console.log("[PUBLISH DEBUG] Step 6 - realDbId:", realDbId);
+                        console.log("[PUBLISH DEBUG] Step 6 - createdBackendMem:", createdBackendMem ? JSON.stringify(createdBackendMem).substring(0, 300) : "NULL");
+
+                        if (realDbId) {
                           const backendMediaList = Array.isArray(createdBackendMem.mediaList) ? createdBackendMem.mediaList : [];
                           const backendVideo = backendMediaList.find((item) => item?.mediaMimeType?.startsWith("video/"));
                           const backendImage = backendMediaList.find((item) => item?.mediaMimeType?.startsWith("image/"));
 
-                          publishedMem._id = createdBackendMem._id || createdBackendMem.id;
-                          publishedMem.id = createdBackendMem.id || createdBackendMem._id || publishedMem.id;
+                          publishedMem._id = realDbId;
+                          publishedMem.id = realDbId;
                           publishedMem.mediaList = backendMediaList;
 
                           if (memoryType === "voice" && createdBackendMem.mediaUrl) {
@@ -1104,23 +1141,31 @@ export default function PublishWizard() {
                             publishedMem.cover = publishedMem.image;
                           }
                           
-                          // Overwrite local duplicate with authoritative backend copy
+                          console.log("[PUBLISH DEBUG] ✅ Step 7 - Memory saved to DB with ID:", realDbId);
+                          
+                          // Overwrite local duplicate with authoritative backend copy and real database ID
                           try {
                             const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
-                            const saved = localStorage.getItem(userKey);
+                            const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
                             if (saved) {
                               const existing = JSON.parse(saved);
-                              const idx = existing.findIndex(m => m.id === newMem.id);
-                              if (idx !== -1) {
-                                existing[idx] = publishedMem;
-                                localStorage.setItem(userKey, JSON.stringify(existing));
-                              }
+                              const filtered = existing.filter(m => m.id !== newMem.id && m.id !== realDbId);
+                              localStorage.setItem(userKey, JSON.stringify([publishedMem, ...filtered].slice(0, 30)));
                             }
                           } catch (e) { console.error("Error updating local store:", e); }
+
+                          try {
+                            const { invalidateCachePattern } = await import("@/lib/cache");
+                            invalidateCachePattern("memories_|family_shared_|album_|user_albums_|discovery_|profile_");
+                          } catch (_) {}
+                        } else {
+                          console.error("[PUBLISH DEBUG] ❌ Step 7 - NO realDbId! Memory was NOT saved to database.");
+                          console.error("[PUBLISH DEBUG] rawRes was:", rawRes);
                         }
                       }
                     } catch (err) {
-                      console.error("Failed to publish memory", err);
+                      console.error("[PUBLISH DEBUG] ❌ OUTER CATCH - Failed to publish memory:", err);
+                      console.error("[PUBLISH DEBUG] Stack:", err.stack);
                     } finally {
                       setIsPublishing(false);
                       publishingRef.current = false;

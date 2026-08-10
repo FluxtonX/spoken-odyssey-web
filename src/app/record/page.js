@@ -38,6 +38,7 @@ import { useAuth } from "@/context/AuthProvider";
 import WavesBackground from "@/components/layout/WavesBackground";
 import { getAlbumsFromBackend, createMemoryOnBackend, getBackendErrorMessage } from "@/services/backend";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
+import UserTagPicker from "@/components/ui/UserTagPicker";
 import {
   postBackgrounds,
   getBackgroundStyles,
@@ -169,6 +170,7 @@ function RecordMemoryContent() {
   const [mood, setMood] = useState("Joyful");
   const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
   const [tags, setTags] = useState("");
+  const [taggedUsers, setTaggedUsers] = useState([]);
   
   const handleClose = (e) => {
     e.preventDefault();
@@ -426,6 +428,7 @@ function RecordMemoryContent() {
     setLifeChapter("");
     setMood("Joyful");
     setTags("");
+    setTaggedUsers([]);
     setIsSaving(false);
   }
 
@@ -496,6 +499,9 @@ function RecordMemoryContent() {
         }
         if (tags) {
           formData.append("tags", tags);
+        }
+        if (taggedUsers.length > 0) {
+          formData.append("taggedUserIds", JSON.stringify(taggedUsers.map(u => u.id)));
         }
         
         if (activeFormat === "Text") {
@@ -909,6 +915,15 @@ function RecordMemoryContent() {
                 className="w-full bg-transparent text-sm font-bold text-stone-850 dark:text-white outline-none placeholder:text-stone-400"
               />
             </div>
+          </div>
+
+          {/* Tag People Field */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-xs font-black uppercase tracking-wide text-stone-500">Tag Family & Friends</label>
+            <UserTagPicker
+              taggedUsers={taggedUsers}
+              onChange={(updated) => setTaggedUsers(updated)}
+            />
           </div>
 
           {/* Preserve & Archive Bottom Action Buttons */}

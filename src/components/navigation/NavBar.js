@@ -84,7 +84,7 @@ export default function NavBar() {
     { name: "Albums", href: "/albums", icon: ImageIcon },
     { name: "Family", href: "/family", icon: Users, badge: pendingFamilyCount > 0 ? pendingFamilyCount : undefined },
     { name: "Discover", href: "/discover", icon: Globe },
-    { name: "AI Insights", href: "/insights", icon: Sparkles },
+    { name: "Insights", href: "/insights", icon: Sparkles },
   ];
 
   const accountItems = [

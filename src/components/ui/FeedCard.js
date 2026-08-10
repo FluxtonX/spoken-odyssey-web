@@ -494,6 +494,22 @@ export default function FeedCard({ memory, onEdit, onDelete, isProfileView = fal
         {!isTextPreset && (
           <p className="text-sm font-semibold leading-relaxed text-stone-500">{memory.description}</p>
         )}
+
+        {/* Tagged Connections */}
+        {Array.isArray(memory.taggedUsers) && memory.taggedUsers.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+            <span className="text-[11px] font-bold text-stone-400">Tagged:</span>
+            {memory.taggedUsers.map((tu) => (
+              <Link
+                key={tu.id}
+                href={`/people/${tu.id}`}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EEF2FF] border border-[#C7D2FE] text-[#4A3AFF] text-[11px] font-bold hover:bg-[#4A3AFF] hover:text-white transition-colors"
+              >
+                <span>@{tu.displayName || tu.name}</span>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Card Media Content */}

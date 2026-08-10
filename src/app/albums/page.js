@@ -114,8 +114,8 @@ export default function AlbumsGallery() {
             (m.albums && m.albums.includes(album.id)) ||
             (m.albumTitle && m.albumTitle.toLowerCase() === album.title.toLowerCase())
           );
-          const mapCount = ALBUM_MEMORIES_MAP[album.id]?.length;
-          const baseCount = album.entries !== undefined ? album.entries : (mapCount !== undefined ? mapCount : 4);
+          const mapCount = ALBUM_MEMORIES_MAP[album.id]?.length || 0;
+          const baseCount = album.entries !== undefined ? album.entries : mapCount;
           return {
             id: album.id,
             title: album.title,
@@ -141,17 +141,16 @@ export default function AlbumsGallery() {
     const stored = getStoredAlbums().map(album => {
       const matchingUserMemories = allMemories.filter(m => 
         m.albumId === album.id || 
-        (m.albumId === "career-craft" && (album.id === "career-and-craft" || album.id === "career-craft")) ||
         (m.albums && m.albums.includes(album.id)) ||
         (m.albumTitle && m.albumTitle.toLowerCase() === album.title.toLowerCase())
       );
-      const mapCount = ALBUM_MEMORIES_MAP[album.id]?.length;
-      const baseCount = mapCount !== undefined ? mapCount : 4;
+      const mapCount = ALBUM_MEMORIES_MAP[album.id]?.length || 0;
       return {
         ...album,
-        memoryCount: baseCount + matchingUserMemories.length
+        memoryCount: mapCount + matchingUserMemories.length
       };
     });
+
     setAlbumsList(stored);
     setIsLoading(false);
   };

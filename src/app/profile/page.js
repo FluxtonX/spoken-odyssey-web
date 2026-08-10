@@ -22,7 +22,8 @@ import {
   Loader2, 
   BookOpen, 
   Album, 
-  Award, 
+  Award,
+  UserCheck, 
   Clock, 
   ChevronRight,
   Headphones,
@@ -598,6 +599,17 @@ export default function ProfilePage() {
               </button>
 
               <button
+                onClick={() => setActiveTab("tagged")}
+                className={`flex-1 py-3 px-6 rounded-full transition-all text-center cursor-pointer ${
+                  activeTab === "tagged"
+                    ? "bg-white text-stone-900 shadow-md font-bold"
+                    : "text-white/90 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                Tagged
+              </button>
+
+              <button
                 onClick={() => setActiveTab("timeline")}
                 className={`flex-1 py-3 px-6 rounded-full transition-all text-center cursor-pointer ${
                   activeTab === "timeline"
@@ -675,6 +687,14 @@ export default function ProfilePage() {
                                 {formatDateSafely(story.createdAt || story.date)}
                               </span>
                             </div>
+
+                            {/* Tagged By Badge if story created by someone else */}
+                            {story.ownerId && (userProfile?.id || profile?.id || firebaseUser?.uid) && story.ownerId !== (userProfile?.id || profile?.id || firebaseUser?.uid) && (
+                              <div className="mb-2 self-start inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#4A3AFF] text-[12px] font-bold border border-[#C7D2FE]/60">
+                                <UserCheck size={12} strokeWidth={2.5} />
+                                <span>Tagged by @{story.ownerDisplayName || "Family Member"}</span>
+                              </div>
+                            )}
 
                             {/* Title */}
                             <h3 className="text-[18px] font-bold text-stone-900 tracking-tight leading-snug mb-2 group-hover:text-[#4A3AFF] transition-colors line-clamp-2">
@@ -779,11 +799,8 @@ export default function ProfilePage() {
                           return albId && strVal === albId;
                         });
 
-                        const isCareerCraftMatch = (mAlbId === "career-craft" || mAlbId === "career-and-craft") && (albId === "career-and-craft" || albId === "career-craft");
-
                         const isMatch = 
                           (albId && mAlbId === albId) ||
-                          isCareerCraftMatch ||
                           inAlbumsList ||
                           inAlbumIdsList ||
                           (albTitle && mAlbTitle && (mAlbTitle === albTitle || mAlbTitle.includes(albTitle) || albTitle.includes(mAlbTitle)));
@@ -835,6 +852,59 @@ export default function ProfilePage() {
                   })}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* TAB: TAGGED MEMORIES */}
+          {activeTab === "tagged" && (
+            <motion.div variants={fadeInUp} className="w-full">
+              {(() => {
+                const currentUid = userProfile?.id || profile?.id || firebaseUser?.uid;
+                const taggedMems = safeMemories.filter(m => {
+                  if (!m) return false;
+                  const taggedIds = Array.isArray(m.taggedUserIds) ? m.taggedUserIds : [];
+                  const taggedUsers = Array.isArray(m.taggedUsers) ? m.taggedUsers : [];
+                  const isTaggedById = currentUid && taggedIds.some(id => String(id) === String(currentUid));
+                  const isTaggedByObj = currentUid && taggedUsers.some(u => String(u.id || u._id) === String(currentUid));
+                  const isNotOwner = currentUid && m.ownerId && m.ownerId !== currentUid;
+                  return isTaggedById || isTaggedByObj || (isNotOwner && (taggedIds.length > 0 || taggedUsers.length > 0));
+                });
+
+                if (taggedMems.length === 0) {
+                  return (
+                    <div className="w-full py-16 text-center bg-white/60 backdrop-blur-md rounded-[24px] border border-stone-200/70 p-8">
+                      <UserCheck size={36} className="mx-auto text-stone-300 mb-3" />
+                      <h3 className="text-[18px] font-bold text-stone-800 mb-1">No tagged memories yet</h3>
+                      <p className="text-[14px] text-stone-500 mb-4">Memories that family members tag you in will appear here.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {taggedMems.map((story) => (
+                      <div
+                        key={story.id}
+                        onClick={() => window.dispatchEvent(new CustomEvent("openMemoryView", { detail: { ...story, date: formatDateSafely(story.createdAt || story.date) } }))}
+                        className="figma-card flex flex-col overflow-hidden rounded-[24px] bg-white/70 backdrop-blur-md border border-[#C7D2FE]/70 hover:shadow-lg transition-all cursor-pointer p-6"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-xs font-bold text-[#4A3AFF] uppercase tracking-wider">{story.type || "Memory"}</span>
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#4A3AFF] border border-[#C7D2FE]/60">
+                            🏷️ Tagged by @{story.ownerDisplayName || "Family Member"}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-lg text-stone-900 mb-2">{story.title}</h3>
+                        <p className="text-sm text-stone-600 line-clamp-3 mb-4">{story.description}</p>
+                        <div className="mt-auto flex items-center justify-between text-xs text-stone-400 font-medium pt-3 border-t border-stone-100">
+                          <span>By @{story.ownerDisplayName || "Family Connection"}</span>
+                          <span>{formatDateSafely(story.createdAt || story.date)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
 
