@@ -709,6 +709,37 @@ export async function markFamilySeen(token) {
   }
 }
 
+/** Register device Web Push FCM token on backend */
+export async function registerDevicePushToken(token, pushToken, deviceType = "web") {
+  if (!token || !pushToken) return null;
+  try {
+    const response = await backendFetch("/api/notifications/device-token", {
+      method: "POST",
+      body: { token: pushToken, deviceType },
+      token,
+    });
+    return response?.data !== undefined ? response.data : response;
+  } catch (err) {
+    console.warn("Could not register push token on backend:", err.message);
+    return null;
+  }
+}
+
+/** Unregister device Web Push FCM token on backend */
+export async function unregisterDevicePushToken(token, pushToken) {
+  if (!token || !pushToken) return null;
+  try {
+    const response = await backendFetch("/api/notifications/device-token", {
+      method: "DELETE",
+      body: { token: pushToken },
+      token,
+    });
+    return response?.data !== undefined ? response.data : response;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** MFA API Methods */
 export async function getMfaStatus(token) {
   const response = await backendFetch("/api/auth/mfa/status", { token });

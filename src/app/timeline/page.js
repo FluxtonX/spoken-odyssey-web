@@ -191,6 +191,18 @@ export default function TimelinePage() {
     return <FileText size={14} className="text-[#10b981]" />;
   };
 
+  // Date Formatter Helper for Timeline Cards
+  const formatTimelineDate = (rawDate) => {
+    if (!rawDate) return "Recent";
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return String(rawDate);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
   return (
     <WavesBackground>
       <motion.div 
@@ -201,31 +213,31 @@ export default function TimelinePage() {
       >
         <DashboardHeader />
 
-        <div className="w-full mt-2 md:mt-6 px-4 md:px-8">
+        <div className="w-full mt-2 md:mt-6 px-3 sm:px-6 md:px-8">
           
           {/* Header */}
-          <motion.div variants={fadeInUp} className="mb-8">
-            <h1 className="text-[32px] md:text-[40px] font-black text-stone-900 tracking-tight leading-tight mb-2">My Timeline</h1>
-            <p className="text-stone-500 font-medium text-[15px]">
+          <motion.div variants={fadeInUp} className="mb-6 md:mb-8">
+            <h1 className="text-[28px] sm:text-[36px] md:text-[40px] font-black text-stone-900 tracking-tight leading-tight mb-1 md:mb-2">My Timeline</h1>
+            <p className="text-stone-500 font-medium text-[14px] sm:text-[15px]">
               {totalEntries} entries across {yearsActive} {yearsActive === 1 ? 'year' : 'years'}
             </p>
           </motion.div>
 
           {/* Filters Bar */}
-          <motion.div variants={fadeInUp} className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">
+          <motion.div variants={fadeInUp} className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6 mb-8 md:mb-12">
             
             {/* Left: Type Filters */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-[#4A3AFF] mr-2">
-                <Filter size={18} strokeWidth={2.5} />
-                <span className="text-[14px] font-bold">Filter:</span>
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar w-full lg:w-auto">
+              <div className="flex items-center gap-1.5 text-[#4A3AFF] mr-1 shrink-0">
+                <Filter size={16} strokeWidth={2.5} />
+                <span className="text-[13px] font-bold">Filter:</span>
               </div>
               
               {["All", "Voice", "Photo", "Written", "Milestone"].map(type => (
                 <button
                   key={type}
                   onClick={() => setActiveType(type)}
-                  className={`px-5 py-2 rounded-full text-[13px] font-bold transition-all shadow-sm border ${
+                  className={`px-4 py-1.5 sm:px-5 sm:py-2 rounded-full text-[12px] sm:text-[13px] font-bold transition-all shadow-xs border shrink-0 ${
                     activeType === type 
                       ? "bg-white border-[#C7D2FE] text-[#4A3AFF]" 
                       : "bg-transparent border-transparent text-stone-500 hover:bg-[#EEF2FF] hover:text-stone-700"
@@ -237,14 +249,14 @@ export default function TimelinePage() {
             </div>
 
             {/* Right: Group By Filters */}
-            <div className="flex items-center gap-2 bg-[#EAEBFF]/50 backdrop-blur-sm p-1.5 rounded-full border border-[#C7D2FE]/50 shadow-sm">
+            <div className="flex items-center gap-1 sm:gap-2 bg-[#EAEBFF]/50 backdrop-blur-sm p-1 rounded-full border border-[#C7D2FE]/50 shadow-xs self-start lg:self-auto shrink-0">
               {["Year", "Month", "Week", "Today"].map(group => (
                 <button
                   key={group}
                   onClick={() => setGroupBy(group)}
-                  className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-all ${
+                  className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-[11px] sm:text-[12px] font-bold transition-all ${
                     groupBy === group
-                      ? "bg-white text-[#4A3AFF] shadow-sm border border-[#C7D2FE]"
+                      ? "bg-white text-[#4A3AFF] shadow-xs border border-[#C7D2FE]"
                       : "text-stone-500 hover:text-stone-800 border border-transparent"
                   }`}
                 >
@@ -260,26 +272,26 @@ export default function TimelinePage() {
               <p className="text-stone-500 font-bold tracking-wide uppercase text-[12px]">Loading Timeline...</p>
             </div>
           ) : groupedMemories.length === 0 ? (
-            <motion.div variants={fadeInUp} className="flex flex-col items-center justify-center py-20 border border-dashed border-[#C7D2FE] bg-white/40 rounded-[24px]">
-              <Filter size={48} className="text-[#C7D2FE] mb-4" />
-              <h3 className="text-lg font-bold text-stone-800 mb-2">No entries found</h3>
-              <p className="text-sm text-stone-500 text-center">Try adjusting your filters to see more memories.</p>
+            <motion.div variants={fadeInUp} className="flex flex-col items-center justify-center py-20 border border-dashed border-[#C7D2FE] bg-white/40 rounded-[24px] p-6 text-center">
+              <Filter size={44} className="text-[#C7D2FE] mb-4" />
+              <h3 className="text-lg font-bold text-stone-800 mb-1">No entries found</h3>
+              <p className="text-sm text-stone-500 max-w-sm">Try adjusting your type or group filters to see more memories.</p>
             </motion.div>
           ) : (
-            <div className="relative pl-6 md:pl-24 max-w-6xl mx-auto">
-              <div className="absolute left-[29px] md:left-[101px] top-4 bottom-0 w-[2px] bg-[#C7D2FE]" />
+            <div className="relative pl-3 sm:pl-8 md:pl-24 max-w-6xl mx-auto">
+              <div className="absolute left-[16px] sm:left-[29px] md:left-[101px] top-4 bottom-0 w-[2px] bg-[#C7D2FE]" />
 
               {groupedMemories.map(({ key, items }) => {
                 const nodeColor = items[0]?.type === "voice" || items[0]?.type === "milestone" ? "#f59e0b" : items[0]?.type === "star" ? "#4A3AFF" : "#4A3AFF";
                 return (
-                  <div key={key} className="relative mb-20">
-                    <div className="absolute w-5 h-5 bg-[#EEF2FF] rounded-full border-[4px] -left-[11px] top-[14px]" style={{ borderColor: nodeColor }} />
-                    <motion.h2 variants={fadeInUp} className="text-[28px] font-black text-stone-900 tracking-tight ml-8 mb-6 pt-2">
+                  <div key={key} className="relative mb-12 sm:mb-16 md:mb-20">
+                    <div className="absolute w-4 h-4 sm:w-5 sm:h-5 bg-[#EEF2FF] rounded-full border-[3px] sm:border-[4px] -left-[8px] sm:-left-[11px] top-[10px] sm:top-[14px]" style={{ borderColor: nodeColor }} />
+                    <motion.h2 variants={fadeInUp} className="text-[22px] sm:text-[26px] md:text-[28px] font-black text-stone-900 tracking-tight ml-5 sm:ml-8 mb-4 sm:mb-6 pt-1 sm:pt-2">
                       {key}
                     </motion.h2>
-                    <motion.div variants={staggerContainer} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 ml-4 md:ml-10">
+                    <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 ml-2 sm:ml-6 md:ml-10">
                       {items.map((memory) => {
-                        const dateStr = memory.date || (memory.createdAt ? new Date(memory.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "Recent");
+                        const dateStr = formatTimelineDate(memory.date || memory.createdAt || memory.occurredAt);
                         const normType = (memory.type || "").toLowerCase();
                         const mediaSources = getMemoryMediaSources(memory);
                         const coverImg = normalizeMediaUrl(mediaSources.image);
@@ -297,21 +309,21 @@ export default function TimelinePage() {
                               variants={fadeInUp} 
                               key={memory.id || memory._id} 
                               onClick={openView}
-                              className="figma-card flex flex-col justify-between group cursor-pointer h-full overflow-hidden bg-white border border-[#C7D2FE] p-6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                              className="figma-card flex flex-col justify-between group cursor-pointer h-full overflow-hidden bg-white border border-[#C7D2FE] p-5 sm:p-6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 rounded-[20px] sm:rounded-[24px]"
                             >
                               <div>
-                                <div className="flex items-center justify-between mb-4">
-                                  <div className="flex items-center gap-2 text-[#f59e0b]">
-                                    <Mic size={16} strokeWidth={2.5} />
+                                <div className="flex items-center justify-between gap-2 mb-3">
+                                  <div className="flex items-center gap-1.5 text-[#f59e0b]">
+                                    <Mic size={15} strokeWidth={2.5} />
                                     <span className="text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]">VOICE</span>
                                   </div>
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1.5 shrink-0">
                                     {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
                                     <span className="text-[12px] font-bold text-stone-500">{dateStr}</span>
                                   </div>
                                 </div>
-                                <h3 className="text-[18px] font-black text-stone-900 leading-tight mb-2 line-clamp-2 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
-                                <p className="text-[14px] text-stone-500 font-medium leading-relaxed line-clamp-2 mb-4">
+                                <h3 className="text-[16px] sm:text-[18px] font-black text-stone-900 leading-snug mb-2 line-clamp-2 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+                                <p className="text-[13px] sm:text-[14px] text-stone-500 font-medium leading-relaxed line-clamp-2 mb-4">
                                   {memory.description || "No transcript available for this voice memory."}
                                 </p>
                               </div>
@@ -328,16 +340,16 @@ export default function TimelinePage() {
                             variants={fadeInUp} 
                             key={memory.id || memory._id} 
                             onClick={openView}
-                            className="figma-card flex flex-col group cursor-pointer h-full overflow-hidden bg-white border border-[#C7D2FE] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                            className="figma-card flex flex-col group cursor-pointer h-full overflow-hidden bg-white border border-[#C7D2FE] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 rounded-[20px] sm:rounded-[24px]"
                           >
                             {hasVisualMedia && (
-                              <div className="bg-stone-900 relative overflow-hidden h-44 w-full shrink-0">
+                              <div className="bg-stone-900 relative overflow-hidden h-40 sm:h-44 w-full shrink-0">
                                 {coverVid ? (
                                   <div className="relative w-full h-full">
                                     <video src={coverVid} className="w-full h-full object-cover opacity-80" />
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                      <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
-                                        <Play size={22} fill="currentColor" className="ml-0.5" />
+                                      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
+                                        <Play size={20} fill="currentColor" className="ml-0.5" />
                                       </div>
                                     </div>
                                   </div>
@@ -353,22 +365,22 @@ export default function TimelinePage() {
                                 ) : null}
                               </div>
                             )}
-                            <div className="p-6 flex flex-col grow justify-between">
+                            <div className="p-5 sm:p-6 flex flex-col grow justify-between">
                               <div>
-                                <div className="flex items-center justify-between mb-4">
-                                  <div className="flex items-center gap-2">
-                                    {coverVid ? <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" /> : getTypeIcon(memory.type)}
+                                <div className="flex items-center justify-between gap-2 mb-3">
+                                  <div className="flex items-center gap-1.5">
+                                    {coverVid ? <Film size={15} strokeWidth={2.5} className="text-[#ec4899]" /> : getTypeIcon(memory.type)}
                                     <span className="text-[11px] font-bold uppercase tracking-widest text-stone-600">
                                       {coverVid ? "VIDEO" : coverImg ? "PHOTO" : (memory.type || "MEMORY").toUpperCase()}
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1.5 shrink-0">
                                     {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
                                     <span className="text-[12px] font-bold text-stone-500">{dateStr}</span>
                                   </div>
                                 </div>
-                                <h3 className="text-[18px] font-black text-stone-900 leading-tight mb-3 line-clamp-2 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
-                                <p className="text-[14px] text-stone-500 font-medium leading-relaxed line-clamp-3">
+                                <h3 className="text-[16px] sm:text-[18px] font-black text-stone-900 leading-snug mb-2 line-clamp-2 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+                                <p className="text-[13px] sm:text-[14px] text-stone-500 font-medium leading-relaxed line-clamp-3">
                                   {memory.description || "Captured moment in time. Continuing the journey."}
                                 </p>
                               </div>

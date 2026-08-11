@@ -63,7 +63,15 @@ export function AuthProvider({ children }) {
       }
     };
 
+    const setupPush = async () => {
+      try {
+        const { initializePushNotifications } = await import("@/services/fcm");
+        await initializePushNotifications(jwtToken);
+      } catch (_) {}
+    };
+
     pingHeartbeat();
+    setupPush();
     const intervalId = setInterval(pingHeartbeat, 60000);
 
     return () => clearInterval(intervalId);
