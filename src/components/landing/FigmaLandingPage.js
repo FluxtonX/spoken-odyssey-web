@@ -23,7 +23,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -201,7 +201,7 @@ function HeroMockup() {
       <motion.div
         animate={{ y: [0, -7, 0] }}
         transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
-        className="absolute right-[-10px] top-0 z-30 w-[205px] rounded-[18px] border border-[#5544ff] bg-white px-5 py-4 shadow-[0_18px_45px_rgba(72,61,210,0.14)] sm:right-[-50px]"
+        className="absolute right-[-10px] top-[24px] z-30 w-[205px] rounded-[18px] border border-[#5544ff]/40 bg-white/80 backdrop-blur-md px-5 py-4 shadow-[0_18px_45px_rgba(72,61,210,0.18)] sm:right-[-50px]"
       >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f0efff] text-[#4f37ff]">
@@ -214,40 +214,40 @@ function HeroMockup() {
         </div>
       </motion.div>
 
-      <div className="relative pt-[56px]">
+      <div className="relative pt-[56px] backdrop-blur-xl">
         <svg
           viewBox="0 0 520 526"
           preserveAspectRatio="none"
-          className="pointer-events-none absolute inset-x-0 top-[56px] h-[526px] w-full overflow-visible drop-shadow-[0_30px_52px_rgba(75,61,225,0.12)]"
+          className="pointer-events-none absolute inset-x-0 top-[56px] h-[526px] w-full overflow-visible drop-shadow-[0_30px_52px_rgba(75,61,225,0.16)]"
           aria-hidden="true"
         >
           <path
             d="M20 1 H337 C353 1 349 31 370 31 H500 C511 31 519 39 519 51 V502 C519 515 509 525 496 525 H178 C154 525 162 494 139 494 H20 C9 494 1 485 1 474 V21 C1 10 10 1 20 1 Z"
-            fill="white"
+            fill="rgba(255, 255, 255, 0.35)"
             stroke="#5544ff"
-            strokeWidth="1"
+            strokeWidth="1.5"
             vectorEffect="non-scaling-stroke"
           />
         </svg>
 
         <div className="relative z-10 overflow-hidden">
-        <div className="flex h-[72px] items-center justify-between border-b border-[#6d5cff] px-6">
+        <div className="flex h-[72px] items-center justify-between border-b border-[#6d5cff]/30 bg-white/20 px-6">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-full bg-[linear-gradient(135deg,#2f2b42,#827791)] text-[13px] font-black text-white shadow-inner">
               SO
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#b2aeb7]">Your Archive</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#716880]">Your Archive</p>
               <p className="font-serif text-sm font-bold leading-tight text-[#161019]">Life Stories</p>
             </div>
           </div>
-          <span className="flex items-center gap-2 text-sm font-medium text-[#ff2424]">
+          <span className="flex items-center gap-2 text-sm font-medium text-[#ff2424] pt-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#ff4242]" />
             Recording
           </span>
         </div>
 
-        <div className="px-6 pb-4 pt-7">
+        <div className="px-6 pb-4 pt-7 bg-white/15">
           <div className="flex items-end justify-between gap-5">
             <div className="flex h-[58px] flex-1 items-end gap-[5px]">
               {waveform.map((height, index) => (
@@ -268,10 +268,10 @@ function HeroMockup() {
               <Play size={13} fill="currentColor" className="ml-0.5" />
             </button>
           </div>
-          <p className="mt-4 text-xs font-medium text-[#aaa5ad]">Voice Memory - June 12, 2024</p>
+          <p className="mt-4 text-xs font-medium text-[#645e6e]">Voice Memory - June 12, 2024</p>
         </div>
 
-        <div className="border-t border-[#efedf2] px-6 pb-8 pt-5">
+        <div className="border-t border-[#efedf2]/40 px-6 pb-8 pt-5 bg-white/20">
           <p className="mb-6 text-[11px] font-medium uppercase tracking-[0.24em] text-[#5d5661]">Recent Memories</p>
           <div className="space-y-7">
             {memories.map(([key, title, meta, Icon, color]) => (
@@ -289,7 +289,7 @@ function HeroMockup() {
           </div>
         </div>
 
-        <div className="grid h-[66px] grid-cols-[1fr_84px_84px_84px] items-center border-t border-[#6d5cff] px-6">
+        <div className="grid h-[66px] grid-cols-[1fr_84px_84px_84px] items-center border-t border-[#6d5cff]/30 px-6 bg-white/25">
           <p className="text-right text-[12px] font-medium uppercase tracking-[0.22em] text-[#201923]">Timeline</p>
           {[
             ["2021", "bg-[#786dff]"],
@@ -308,7 +308,7 @@ function HeroMockup() {
       <motion.div
         animate={{ y: [0, 9, 0] }}
         transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 0.4 }}
-        className="absolute bottom-0 left-[-6px] z-30 w-[242px] rounded-[18px] border border-[#5544ff] bg-white px-5 py-4 shadow-[0_18px_45px_rgba(33,25,52,0.13)] sm:left-[-92px]"
+        className="absolute bottom-0 left-[-6px] z-30 w-[242px] rounded-[18px] border border-[#5544ff]/40 bg-white/80 backdrop-blur-md px-5 py-4 shadow-[0_18px_45px_rgba(33,25,52,0.18)] sm:left-[-92px]"
       >
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-[#5144ff] text-white">
@@ -324,51 +324,170 @@ function HeroMockup() {
   );
 }
 
-function HeroSection() {
+function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 0, hasStar = false }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let frameId;
+    let startTime;
+    const duration = 1800; // 1.8s count up duration
+    const pauseTime = 1200; // 1.2s pause at target (total 3000ms cycle = 3s)
+
+    const animateCount = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const cycleTime = elapsed % (duration + pauseTime);
+
+      if (cycleTime < duration) {
+        const progress = cycleTime / duration;
+        const current = progress * targetValue;
+        setDisplayValue(current);
+      } else {
+        setDisplayValue(targetValue);
+      }
+
+      frameId = requestAnimationFrame(animateCount);
+    };
+
+    frameId = requestAnimationFrame(animateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [targetValue]);
+
+  const formatted = decimalPlaces > 0 ? displayValue.toFixed(decimalPlaces) : Math.floor(displayValue);
+
   return (
-    <section id="about" className="relative overflow-hidden bg-[#e9e4ff] pt-28">
-      <div className="absolute -bottom-36 -left-16 h-[360px] w-[360px] rounded-full bg-[#cbc3ff]" />
-      <div className="absolute -bottom-40 right-[-140px] h-[520px] w-[520px] rounded-full bg-white" />
-      <div className="absolute bottom-[-260px] left-[18%] h-[560px] w-[880px] rotate-[-9deg] rounded-[48%] bg-white" />
+    <div className="relative flex h-[115px] w-full flex-col items-center justify-center overflow-hidden [border-radius:62px_14px_62px_14px] border border-[#5544ff] bg-[radial-gradient(ellipse_96px_96px_at_-12px_50%,rgba(183,176,255,0.92)_0%,rgba(218,214,255,0.75)_33%,rgba(255,255,255,0)_64%),radial-gradient(ellipse_96px_78px_at_72%_0%,#ffffff_0%,#ffffff_43%,rgba(255,255,255,0)_74%),linear-gradient(112deg,#eeeaff_0%,#ffffff_42%,#ffffff_100%)] px-4 text-center shadow-[inset_18px_0_26px_rgba(145,137,255,0.5),0_10px_25px_rgba(79,55,255,0.12)] hover:-translate-y-1 transition-all duration-300 group">
+      <p className="text-3xl sm:text-4xl font-black text-[#4b3cff] leading-none group-hover:scale-105 transition-transform flex items-center justify-center gap-1 font-serif">
+        <span>{formatted}{suffix}</span>
+        {hasStar && <Star className="inline fill-[#4b3cff] text-[#4b3cff] mb-1" size={20} />}
+      </p>
+      <p className="mt-2 text-[11px] sm:text-[12px] font-bold text-[#5c5668] uppercase tracking-wider">
+        {label}
+      </p>
+    </div>
+  );
+}
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 lg:grid-cols-[0.92fr_1.08fr] lg:px-8">
-        <motion.div initial="hidden" animate="visible" variants={stagger} className="max-w-xl">
-          <motion.div variants={fadeUp} transition={{ duration: 0.58, ease }}>
-            <SectionLabel>Life Storytelling, Simplified</SectionLabel>
-          </motion.div>
-          <motion.h1
-            variants={fadeUp}
-            transition={{ duration: 0.68, ease, delay: 0.06 }}
-            className="mt-4 text-[44px] font-black leading-[0.98] tracking-[-0.02em] text-[#211934] sm:text-6xl lg:text-[70px]"
+function HeroSection() {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  const heroSlides = [
+    { url: "/herotwo.jpg", alt: "Spoken Odyssey story 1" },
+    { url: "/herofourth.jpg", alt: "Spoken Odyssey story 2" },
+    { url: "/family5th.jpg", alt: "Spoken Odyssey story 3" },
+    { url: "/family%20steps.jpg", alt: "Family archive 4" },
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [heroSlides.length]);
+
+  return (
+    <section id="about" className="relative overflow-hidden bg-[linear-gradient(135deg,#f4f0ff_0%,#eef2ff_50%,#e9e4ff_100%)] pt-16 md:pt-20 pb-10 sm:pb-12 min-h-[640px] md:min-h-[700px] flex flex-col justify-between">
+      
+      {/* Animated Sliding Background Images (Sharp & Rich Contrast) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-60">
+        {heroSlides.map((slide, index) => (
+          <motion.div
+            key={slide.url}
+            initial={{ opacity: 0, scale: 1 }}
+            animate={{
+              opacity: activeSlide === index ? 1 : 0,
+              scale: activeSlide === index ? 1.06 : 1,
+            }}
+            transition={{
+              opacity: { duration: 1.2, ease: "easeInOut" },
+              scale: { duration: 6, ease: "linear" },
+            }}
+            className="absolute inset-0 w-full h-full"
           >
-            Your life is a story. Preserve every chapter.
-          </motion.h1>
-          <motion.p variants={fadeUp} transition={{ duration: 0.62, ease, delay: 0.12 }} className="mt-7 max-w-lg text-base font-semibold leading-7 text-[#645b78]">
-            Spoken Odyssey helps you capture your memories, reflections, and experiences through voice, images, and stories, creating a timeless archive for the people who matter most.
-          </motion.p>
-          <motion.div variants={fadeUp} transition={{ duration: 0.62, ease, delay: 0.18 }} className="mt-8 flex flex-wrap gap-4">
-            <CTAButton>Begin Your Journey</CTAButton>
-            <a href="#steps" className="inline-flex items-center gap-2 rounded-full border border-[#ddd5ff] bg-white px-5 py-3 text-xs font-extrabold text-[#4d426b] transition hover:-translate-y-0.5">
-              <Play size={14} /> Explore How It Works
-            </a>
+            <img src={slide.url} alt={slide.alt} className="w-full h-full object-cover object-center" />
           </motion.div>
-        </motion.div>
-
-        <HeroMockup />
-      </div>
-
-      <div className="relative mx-auto grid max-w-2xl grid-cols-1 gap-4 px-5 pb-12 sm:grid-cols-3 lg:px-8">
-        {[
-          ["2.3M+", "Memories preserved"],
-          ["87", "Countries"],
-          ["4.9", "Rated"],
-        ].map(([value, label]) => (
-          <Reveal key={label} className={`${softCurveCard} px-5 py-4 text-center`}>
-            <p className="text-3xl font-black leading-none text-[#5a42ff]">{value}{value === "4.9" ? <Star className="mb-1 ml-1 inline fill-[#5a42ff]" size={16} /> : null}</p>
-            <p className="mt-2 text-[11px] font-bold leading-tight text-[#5c5668]">{label}</p>
-          </Reveal>
         ))}
+
+        {/* Faded Light Purple-Bluish Tint Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#f4f0ff]/70 via-[#eef2ff]/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#e9e4ff]/60 via-transparent to-[#f4f0ff]/30" />
       </div>
+
+      {/* Hero Main Content (2 Columns: Left Text, Right Mockup) */}
+      <div className="relative z-10 mx-auto max-w-6xl px-5 lg:px-8 w-full pt-1 md:pt-3 grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-8 md:gap-10 items-center">
+        
+        {/* Left Column Text */}
+        <div className="max-w-xl text-left">
+          <motion.div initial="hidden" animate="visible" variants={stagger}>
+            
+            <motion.div variants={fadeUp} transition={{ duration: 0.58, ease }}>
+              <SectionLabel>Life Storytelling, Simplified</SectionLabel>
+            </motion.div>
+
+            <motion.h1
+              variants={fadeUp}
+              transition={{ duration: 0.68, ease, delay: 0.06 }}
+              className="mt-4 text-[42px] sm:text-[56px] lg:text-[66px] font-black leading-[0.98] tracking-[-0.02em] text-[#211934]"
+            >
+              Your life is a story.<br />
+              <span className="text-[#4f37ff]">Preserve every chapter.</span>
+            </motion.h1>
+
+            <motion.p
+              variants={fadeUp}
+              transition={{ duration: 0.62, ease, delay: 0.12 }}
+              className="mt-6 max-w-xl text-base sm:text-lg font-semibold leading-relaxed text-[#645b78]"
+            >
+              Spoken Odyssey helps you capture your memories, reflections, and experiences through voice, images, and stories, creating a timeless archive for the people who matter most.
+            </motion.p>
+
+            <motion.div
+              variants={fadeUp}
+              transition={{ duration: 0.62, ease, delay: 0.18 }}
+              className="mt-8 flex flex-wrap items-center gap-4"
+            >
+              <CTAButton>Begin Your Journey</CTAButton>
+              <a
+                href="#steps"
+                className="inline-flex items-center gap-2.5 rounded-full border border-[#ddd5ff] bg-white px-6 py-3.5 text-xs sm:text-sm font-extrabold text-[#4d426b] transition hover:-translate-y-0.5 hover:bg-[#EEF2FF]"
+              >
+                <Play size={14} fill="currentColor" /> Explore How It Works
+              </a>
+            </motion.div>
+
+            {/* Slide Navigation Dots */}
+            <div className="flex items-center gap-2 mt-8">
+              {heroSlides.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveSlide(i)}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    activeSlide === i ? "w-8 bg-[#4f37ff]" : "w-2 bg-[#b5a9ff] hover:bg-[#4f37ff]"
+                  }`}
+                  aria-label={`Jump to slide ${i + 1}`}
+                />
+              ))}
+            </div>
+
+          </motion.div>
+        </div>
+
+        {/* Right Column: Hero Mockup */}
+        <div className="relative w-full flex justify-center lg:justify-end">
+          <HeroMockup />
+        </div>
+
+      </div>
+
+      {/* Bottom 3 Stat Cards with Custom Leaf-Curve Shape & Continuous 3-Second Count Up Animation */}
+      <div className="relative z-10 mx-auto max-w-4xl w-full px-5 mt-12 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <AnimatedCountUpStat targetValue={2.3} label="Memories preserved" suffix="M+" decimalPlaces={1} />
+          <AnimatedCountUpStat targetValue={87} label="Countries" suffix="" decimalPlaces={0} />
+          <AnimatedCountUpStat targetValue={4.9} label="Rated" suffix="" decimalPlaces={1} hasStar={true} />
+        </div>
+      </div>
+
     </section>
   );
 }
@@ -425,58 +544,113 @@ function BeliefSection() {
 
 function StepsSection() {
   const steps = [
-    ["Capture", "Record stories, images, voice reflections, and experiences as they happen, in your own words, with your own voice."],
-    ["Preserve", "Spoken Odyssey organizes, enhances, and securely collects the full arc of a life story."],
-    ["Reflect", "Private prompts, timelines, and meaningful moments bring a personal memory map to life."],
-    ["Share", "Give your story to future family members, future generations, or the world when the time is right."],
+    {
+      number: "1",
+      title: "Record & Journal",
+      description: "Capture audio reflections, written journals, and photo memories directly from any device.",
+      Icon: Mic2,
+    },
+    {
+      number: "2",
+      title: "Tag Family Connections",
+      description: "Tag family members, friends, and loved ones to map generational connections automatically.",
+      Icon: Users,
+    },
+    {
+      number: "3",
+      title: "Organize in Vaults",
+      description: "Group your life milestones, voice notes, and photo albums into encrypted digital archives.",
+      Icon: Database,
+    },
+    {
+      number: "4",
+      title: "AI Insights & Legacy",
+      description: "Generate personal theme clouds, emotional landscape charts, and generational legacy scores.",
+      Icon: Sparkles,
+    },
   ];
 
   return (
-    <section id="steps" className="relative overflow-hidden bg-white py-20">
-      <div className="pointer-events-none absolute -left-48 bottom-[-180px] h-[460px] w-[460px] rounded-full bg-[#d8d0ff]" />
-      <div className="mx-auto max-w-6xl px-5 lg:px-8">
-        <div className="grid items-end gap-8 md:grid-cols-[1fr_0.7fr]">
-          <Reveal>
-            <SectionLabel>How It Works</SectionLabel>
-            <h2 className="mt-4 text-4xl font-black leading-tight tracking-tight text-[#211934] md:text-5xl">
-              A journey in four simple steps.
-            </h2>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <p className="text-right text-xs font-bold leading-5 text-[#7d748e] md:text-sm">
-              From your first memory to a living legacy passed to the people you love.
-            </p>
-          </Reveal>
-        </div>
+    <section id="steps" className="relative overflow-hidden w-full py-12 md:py-16 min-h-[580px] md:min-h-[640px] flex flex-col justify-between">
+      {/* Background Image Spanning 100% Full-Bleed Width & Height */}
+      <img
+        src="/family%20steps.jpg"
+        alt="Family journey steps"
+        className="absolute inset-0 w-full h-full object-cover object-center"
+      />
 
-        <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} className="relative mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map(([title, text], index) => (
-            <motion.article
-              key={title}
-              variants={fadeUp}
-              whileHover={{ y: -8, rotate: index % 2 ? 1 : -1 }}
-              transition={{ duration: 0.35 }}
-              className={`overflow-hidden ${softCurveCard}`}
+      {/* Purple Overlay Vignette */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#140C38]/95 via-[#2A1B60]/60 to-black/50 backdrop-blur-[1px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(123,97,255,0.35),transparent_70%)]" />
+
+      {/* Top Header & CTA */}
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full pt-4 text-left">
+        <Reveal>
+          <SectionLabel light>How It Works</SectionLabel>
+          <h2 className="text-[32px] sm:text-[44px] md:text-[50px] font-bold text-white tracking-tight leading-[1.08] mt-2 mb-3 font-serif">
+            Simple steps to<br />start preserving memories.
+          </h2>
+          <p className="text-white/85 text-[14px] sm:text-[16px] font-medium leading-relaxed mb-5 max-w-xl">
+            Preserving family history should not feel complicated. Spoken Odyssey makes it easy to record, organize, tag connections, and build your digital heritage with confidence.
+          </p>
+          <div className="pt-1">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/95 text-[#140C38] font-bold text-[14px] shadow-lg hover:bg-white hover:scale-[1.03] hover:shadow-[#7B61FF]/40 transition-all duration-300 group"
             >
-              <div className="relative h-48 overflow-hidden [border-radius:7px_7px_64px_0]">
-                <img src={processImages[index]} alt={title} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-                <p className="absolute left-4 top-4 text-3xl font-black text-[#5a42ff]">0{index + 1}</p>
-                <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/92 text-[#5a42ff] shadow-lg">
-                  {index === 0 ? <Mic2 size={16} /> : index === 1 ? <Database size={16} /> : index === 2 ? <Sparkles size={16} /> : <Users size={16} />}
+              <span>Begin Your Journey</span>
+              <span className="w-7 h-7 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </span>
+            </Link>
+          </div>
+        </Reveal>
+      </div>
+
+      {/* Bottom 4 Glass Cards Grid (Exact Screenshot Layout) */}
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full pb-6">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mt-8 md:mt-10"
+        >
+          {steps.map((step) => (
+            <motion.div
+              key={step.number}
+              variants={fadeUp}
+              whileHover={{ y: -10, scale: 1.02 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="group relative flex flex-col justify-between p-6 sm:p-7 rounded-[24px] bg-white/12 backdrop-blur-xl border border-white/25 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:bg-[#4A3AFF]/35 hover:border-[#7B61FF]/80 hover:shadow-[0_25px_60px_rgba(74,58,255,0.45)] transition-all duration-300 overflow-hidden"
+            >
+              {/* Shimmer Light Purple Ambient Glow */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#7B61FF]/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              {/* Number Top Left */}
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-[36px] sm:text-[42px] font-light text-white/90 leading-none group-hover:text-white group-hover:scale-105 transition-all">
+                  {step.number}
                 </span>
-              </div>
-              <div className="p-5">
-                <h3 className="text-lg font-black text-[#211934]">{title}</h3>
-                <p className="mt-3 min-h-20 text-xs font-semibold leading-5 text-[#756b88]">{text}</p>
-                <div className="mt-5 border-t border-[#6d5cff] pt-3 text-[9px] font-black text-[#211934]">
-                  {index === 0 ? "Voice recordings - Written notes - Photos & video" : index === 1 ? "Chapters - Milestones - Collections" : index === 2 ? "Year in Review - Themes - Patterns" : "Private - Family only - Public"}
+                <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center group-hover:bg-[#4A3AFF] group-hover:border-transparent transition-all">
+                  <step.Icon size={16} strokeWidth={2} />
                 </div>
               </div>
-            </motion.article>
+
+              {/* Title & Description */}
+              <div>
+                <h3 className="text-[19px] sm:text-[20px] font-bold text-white leading-snug mb-2.5 group-hover:text-white transition-colors">
+                  {step.title}
+                </h3>
+                <p className="text-[13px] sm:text-[14px] text-white/75 font-medium leading-relaxed group-hover:text-white/90 transition-colors">
+                  {step.description}
+                </p>
+              </div>
+            </motion.div>
           ))}
         </motion.div>
       </div>
+
     </section>
   );
 }
@@ -509,26 +683,34 @@ function FeatureCards() {
 
         <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {features.map(([kicker, title, text, Icon, color], index) => (
-            <motion.article key={title} variants={fadeUp} whileHover={{ y: -7 }} className={`${softCurveCard} p-5`}>
-              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: color }}>
+            <motion.article
+              key={title}
+              variants={fadeUp}
+              whileHover={{ y: -7 }}
+              className="group relative overflow-hidden [border-radius:8px_8px_64px_8px] border border-[#8f83ff]/40 bg-white/60 backdrop-blur-md p-5 shadow-[0_12px_30px_rgba(94,78,255,0.12)] hover:bg-[#4A3AFF]/12 hover:border-[#7B61FF]/70 hover:shadow-[0_18px_40px_rgba(79,55,255,0.24)] transition-all duration-300"
+            >
+              {/* Subtle Light Purple-Blue Shimmer Glow */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#7B61FF]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl relative z-10" style={{ backgroundColor: color }}>
                 <Icon className="text-[#4f37ff]" size={18} />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7af8]">{kicker}</p>
-              <h3 className="mt-3 text-lg font-black leading-tight text-[#211934]">{title}</h3>
-              <p className="mt-4 text-xs font-semibold leading-5 text-[#756b88]">{text}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7af8] relative z-10">{kicker}</p>
+              <h3 className="mt-3 text-lg font-black leading-tight text-[#211934] relative z-10">{title}</h3>
+              <p className="mt-4 text-xs font-semibold leading-5 text-[#756b88] relative z-10">{text}</p>
               {index === 0 && <Waveform />}
               {index === 1 && (
-                <div className="mt-5 grid grid-cols-3 gap-2">
+                <div className="mt-5 grid grid-cols-3 gap-2 relative z-10">
                   {processImages.slice(0, 3).map((src) => (
                     <img key={src} src={src} alt="" className="h-16 rounded-xl object-cover" />
                   ))}
                 </div>
               )}
-              {index === 2 && <div className="mt-5 rounded-xl border border-[#8de7b3] bg-[#dffdec] p-3 text-[10px] font-bold text-[#27734d]">What did this moment teach you?</div>}
+              {index === 2 && <div className="mt-5 rounded-xl border border-[#8de7b3] bg-[#dffdec]/80 backdrop-blur-xs p-3 text-[10px] font-bold text-[#27734d] relative z-10">What did this moment teach you?</div>}
               {index === 3 && (
-                <div className="mt-5 space-y-2">
+                <div className="mt-5 space-y-2 relative z-10">
                   {["First big move", "A lesson learned", "Changed forever"].map((item) => (
-                    <div key={item} className="rounded-full bg-[#f2efff] px-3 py-2 text-[10px] font-black text-[#6c5ad9]">{item}</div>
+                    <div key={item} className="rounded-full bg-[#f2efff]/90 backdrop-blur-xs px-3 py-2 text-[10px] font-black text-[#6c5ad9]">{item}</div>
                   ))}
                 </div>
               )}
