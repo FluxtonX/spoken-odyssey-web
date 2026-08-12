@@ -41,6 +41,7 @@ import {
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
 import VideoPlayer from "@/components/ui/VideoPlayer";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 import { 
   normalizeMediaUrl, 
   getBackendBaseUrl,
@@ -1229,7 +1230,10 @@ function MemoryViewModalContent() {
                 <span className="text-xs font-extrabold tracking-widest uppercase opacity-90">VOICE MEMORY</span>
               </div>
 
-              <h2 className="text-2xl sm:text-4xl font-bold mb-2 leading-tight">{displayTitle}</h2>
+              <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                <h2 className="text-2xl sm:text-4xl font-bold leading-tight">{displayTitle}</h2>
+                <TaggedMembersBadge memory={memory} />
+              </div>
               <p className="text-white/80 text-xs sm:text-sm font-medium mb-6">{memoryDate}</p>
 
               {/* Functional Custom Audio Player Bar */}
@@ -1422,7 +1426,10 @@ function MemoryViewModalContent() {
                       </span>
                     )}
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-black text-white leading-tight drop-shadow-md">{displayTitle}</h2>
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-black text-white leading-tight drop-shadow-md">{displayTitle}</h2>
+                    <TaggedMembersBadge memory={memory} />
+                  </div>
                   <p className="text-white/80 text-[11px] sm:text-xs font-semibold drop-shadow-sm">{memoryDate}</p>
                 </div>
 
@@ -1473,7 +1480,10 @@ function MemoryViewModalContent() {
                 </span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl font-bold mb-2 text-stone-900 leading-tight">{displayTitle}</h2>
+              <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                <h2 className="text-3xl sm:text-4xl font-bold text-stone-900 leading-tight">{displayTitle}</h2>
+                <TaggedMembersBadge memory={memory} />
+              </div>
               <p className="text-stone-400 text-sm font-medium">{memoryDate}</p>
             </div>
           )}

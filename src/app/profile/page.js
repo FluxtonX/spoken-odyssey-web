@@ -43,6 +43,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 import MemoryDetailModal from "@/components/ui/MemoryDetailModal";
 import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
 import { getStoredAlbums } from "@/data/userProfile";
@@ -696,10 +697,13 @@ export default function ProfilePage() {
                               </div>
                             )}
 
-                            {/* Title */}
-                            <h3 className="text-[18px] font-bold text-stone-900 tracking-tight leading-snug mb-2 group-hover:text-[#4A3AFF] transition-colors line-clamp-2">
-                              {story.title || "Untitled Memory"}
-                            </h3>
+                            {/* Title & Tagged Badge Row */}
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <h3 className="text-[18px] font-bold text-stone-900 tracking-tight leading-snug group-hover:text-[#4A3AFF] transition-colors line-clamp-2">
+                                {story.title || "Untitled Memory"}
+                              </h3>
+                              <TaggedMembersBadge memory={story} />
+                            </div>
 
                             {/* Description */}
                             <p className="text-[14px] font-medium text-stone-600 leading-relaxed mb-4 line-clamp-3">
@@ -894,7 +898,10 @@ export default function ProfilePage() {
                             🏷️ Tagged by @{story.ownerDisplayName || "Family Member"}
                           </span>
                         </div>
-                        <h3 className="font-bold text-lg text-stone-900 mb-2">{story.title}</h3>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="font-bold text-lg text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{story.title}</h3>
+                          <TaggedMembersBadge memory={story} />
+                        </div>
                         <p className="text-sm text-stone-600 line-clamp-3 mb-4">{story.description}</p>
                         <div className="mt-auto flex items-center justify-between text-xs text-stone-400 font-medium pt-3 border-t border-stone-100">
                           <span>By @{story.ownerDisplayName || "Family Connection"}</span>
