@@ -14,6 +14,7 @@ import { staggerContainer, fadeInUp } from "@/lib/animations";
 import { useAuth } from "@/context/AuthProvider";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 import { 
   getUserProfileFromBackend, 
   getMemoriesFromBackend, 
@@ -626,9 +627,12 @@ export default function PersonDetailPage() {
                         )}
 
                         {/* Title */}
-                        <h3 className="text-[17px] font-bold text-stone-900 mb-2 leading-snug group-hover:text-[#4A3AFF] transition-colors">
-                          {story.title}
-                        </h3>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-[17px] font-bold text-stone-900 leading-snug group-hover:text-[#4A3AFF] transition-colors">
+                            {story.title}
+                          </h3>
+                          <TaggedMembersBadge memory={story} />
+                        </div>
 
                         {/* Voice Player Embed for Voice Memories */}
                         {isVoice && (

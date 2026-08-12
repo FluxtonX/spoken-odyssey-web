@@ -27,6 +27,7 @@ import { getFontFamily } from "@/data/postFonts";
 import VoicePlayer from "./VoicePlayer";
 import CommentsSection from "./CommentsSection";
 import MediaGrid from "./MediaGrid";
+import TaggedMembersBadge from "./TaggedMembersBadge";
 import { useAuth } from "@/context/AuthProvider";
 import { interactWithMemoryOnBackend, reactToMemory, shareMemoryOnBackend } from "@/services/backend";
 
@@ -333,9 +334,12 @@ export default function FeedCard({ memory, onEdit, onDelete, isProfileView = fal
 
         {/* Content */}
         <div className="px-5 pb-3 text-left">
-          <h4 className="mb-2 text-lg font-black text-stone-850 dark:text-white leading-tight">
-            {memory.title}
-          </h4>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h4 className="text-lg font-black text-stone-850 dark:text-white leading-tight">
+              {memory.title}
+            </h4>
+            <TaggedMembersBadge memory={memory} />
+          </div>
           {!isTextPreset && memory.description && (
             <p className="text-sm font-semibold text-stone-600 dark:text-stone-300 leading-relaxed">
               {memory.description}
@@ -490,25 +494,12 @@ export default function FeedCard({ memory, onEdit, onDelete, isProfileView = fal
           </span>
         </div>
         
-        <h4 className="mb-1 text-base font-extrabold text-[var(--ink)] dark:text-white">{memory.title}</h4>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h4 className="text-base font-extrabold text-[var(--ink)] dark:text-white leading-snug">{memory.title}</h4>
+          <TaggedMembersBadge memory={memory} />
+        </div>
         {!isTextPreset && (
           <p className="text-sm font-semibold leading-relaxed text-stone-500">{memory.description}</p>
-        )}
-
-        {/* Tagged Connections */}
-        {Array.isArray(memory.taggedUsers) && memory.taggedUsers.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-            <span className="text-[11px] font-bold text-stone-400">Tagged:</span>
-            {memory.taggedUsers.map((tu) => (
-              <Link
-                key={tu.id}
-                href={`/people/${tu.id}`}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EEF2FF] border border-[#C7D2FE] text-[#4A3AFF] text-[11px] font-bold hover:bg-[#4A3AFF] hover:text-white transition-colors"
-              >
-                <span>@{tu.displayName || tu.name}</span>
-              </Link>
-            ))}
-          </div>
         )}
       </div>
 

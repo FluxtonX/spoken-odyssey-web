@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
 import HighlightText from "@/components/ui/HighlightText";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 
 const STORY_FILTERS = [
   "All Stories", "Visual Stories", "Voice Recordings", "Written Stories", "Family", "Heritage", "Love", "Career", "Adventure"
@@ -671,9 +672,12 @@ export default function DiscoverPage() {
                         </div>
                       </div>
 
-                      <h2 className="text-[28px] md:text-[36px] font-semibold leading-tight mb-4 text-white tracking-tight group-hover:text-white/95 transition-colors">
-                        {heroStory.title}
-                      </h2>
+                      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+                        <h2 className="text-[28px] md:text-[36px] font-semibold leading-tight text-white tracking-tight group-hover:text-white/95 transition-colors">
+                          {heroStory.title}
+                        </h2>
+                        <TaggedMembersBadge memory={heroStory} />
+                      </div>
                       <p className="text-[15px] text-white/90 font-medium mb-8 max-w-md leading-relaxed line-clamp-3">
                         {heroStory.description || "Public memory published on Spoken Odyssey."}
                       </p>
@@ -775,9 +779,12 @@ export default function DiscoverPage() {
                           >
                             <AuthorHeader />
 
-                            <h3 className="text-[18px] font-semibold text-stone-900 leading-tight mb-2 tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                              {story.title}
-                            </h3>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
+                                {story.title}
+                              </h3>
+                              <TaggedMembersBadge memory={story} />
+                            </div>
                             <p className="text-[14px] text-stone-600 font-medium leading-relaxed mb-4 line-clamp-2">
                               {story.description || "Voice recording memory."}
                             </p>
@@ -844,9 +851,12 @@ export default function DiscoverPage() {
                             <div className="p-6 flex flex-col grow">
                               <AuthorHeader />
 
-                              <h3 className="text-[18px] font-semibold text-stone-900 leading-tight mb-2 tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                                {story.title}
-                              </h3>
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
+                                  {story.title}
+                                </h3>
+                                <TaggedMembersBadge memory={story} />
+                              </div>
                               <p className="text-[14px] text-stone-600 font-medium leading-relaxed mb-6 line-clamp-2">
                                 {story.description}
                               </p>
@@ -891,9 +901,12 @@ export default function DiscoverPage() {
                             <div>
                               <AuthorHeader />
 
-                              <h3 className="text-[18px] font-semibold text-stone-900 leading-tight mb-3 tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                                {story.title}
-                              </h3>
+                              <div className="flex items-start justify-between gap-2 mb-3">
+                                <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
+                                  {story.title}
+                                </h3>
+                                <TaggedMembersBadge memory={story} />
+                              </div>
                               <p className="text-[14px] text-stone-700 font-medium leading-relaxed mb-6 italic border-l-2 border-[#10b981] pl-3 py-0.5 line-clamp-4">
                                 "{story.description || "Written story entry."}"
                               </p>
@@ -945,9 +958,12 @@ export default function DiscoverPage() {
                           <div className="p-6 flex flex-col grow">
                             <AuthorHeader />
 
-                            <h3 className="text-[18px] font-semibold text-stone-900 leading-tight mb-2 tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                              {story.title}
-                            </h3>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
+                                {story.title}
+                              </h3>
+                              <TaggedMembersBadge memory={story} />
+                            </div>
                             <p className="text-[14px] text-stone-600 font-medium leading-relaxed mb-6 line-clamp-3">
                               {story.description}
                             </p>

@@ -7,6 +7,7 @@ import WavesBackground from "@/components/layout/WavesBackground";
 import MediaGrid from "./MediaGrid";
 import VoicePlayer from "./VoicePlayer";
 import CommentsSection from "./CommentsSection";
+import TaggedMembersBadge from "./TaggedMembersBadge";
 import { useAuth } from "@/context/AuthProvider";
 import { reactToMemory, interactWithMemoryOnBackend, shareMemoryOnBackend } from "@/services/backend";
 import { getFontFamily } from "@/data/postFonts";
@@ -242,9 +243,12 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
 
             {/* Title & Date */}
             <div className="mb-6">
-              <h1 className="text-3xl font-black text-stone-900 leading-tight mb-2">
-                {memory.title}
-              </h1>
+              <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                <h1 className="text-3xl font-black text-stone-900 leading-tight">
+                  {memory.title}
+                </h1>
+                <TaggedMembersBadge memory={memory} />
+              </div>
               <p className="text-sm font-semibold text-stone-500">
                 {dateStr}
               </p>

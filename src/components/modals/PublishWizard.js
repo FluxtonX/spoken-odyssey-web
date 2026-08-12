@@ -1124,9 +1124,19 @@ export default function PublishWizard() {
                           const backendVideo = backendMediaList.find((item) => item?.mediaMimeType?.startsWith("video/"));
                           const backendImage = backendMediaList.find((item) => item?.mediaMimeType?.startsWith("image/"));
 
-                          publishedMem._id = realDbId;
-                          publishedMem.id = realDbId;
-                          publishedMem.mediaList = backendMediaList;
+                          publishedMem = {
+                            ...newMem,
+                            ...createdBackendMem,
+                            _id: realDbId,
+                            id: realDbId,
+                            mediaList: backendMediaList.length > 0 ? backendMediaList : newMem.mediaList,
+                            taggedUsers: (Array.isArray(createdBackendMem.taggedUsers) && createdBackendMem.taggedUsers.length > 0) 
+                              ? createdBackendMem.taggedUsers 
+                              : newMem.taggedUsers,
+                            taggedUserIds: (Array.isArray(createdBackendMem.taggedUserIds) && createdBackendMem.taggedUserIds.length > 0) 
+                              ? createdBackendMem.taggedUserIds 
+                              : newMem.taggedUserIds,
+                          };
 
                           if (memoryType === "voice" && createdBackendMem.mediaUrl) {
                             publishedMem.audioUrl = createdBackendMem.mediaUrl;
