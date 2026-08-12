@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp, fadeInScale } from "@/lib/animations";
 
 import VoicePlayer from "@/components/ui/VoicePlayer";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 
 const formatDateSafely = (dateVal, memoryItem) => {
   if (!dateVal && memoryItem?.year) {
@@ -151,7 +152,10 @@ function MemoryCard({ memory, index }) {
             </div>
             <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
           </div>
-          <h3 className="text-[22px] font-bold mb-2 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
+            <TaggedMembersBadge memory={memory} />
+          </div>
           <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>
           <div className="flex flex-wrap gap-2">
             {(memory.tags || []).map(tag => (
@@ -173,7 +177,10 @@ function MemoryCard({ memory, index }) {
           </div>
           <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
         </div>
-        <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
+          <TaggedMembersBadge memory={memory} />
+        </div>
         <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">
           {memory.description || "No transcript available for this voice memory."}
         </p>
@@ -200,7 +207,10 @@ function MemoryCard({ memory, index }) {
             </div>
             <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
           </div>
-          <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
+            <TaggedMembersBadge memory={memory} />
+          </div>
           <p className="text-stone-500 mb-6 line-clamp-3 text-[15px] leading-relaxed">
             {memory.description}
           </p>
@@ -228,7 +238,10 @@ function MemoryCard({ memory, index }) {
           </div>
           <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
         </div>
-        <h3 className="text-[22px] font-bold mb-2 text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
+          <TaggedMembersBadge memory={memory} />
+        </div>
         <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>
         <div className="flex flex-wrap gap-2">
           {(memory.tags || []).map(tag => (

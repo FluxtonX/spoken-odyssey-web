@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CalendarDays, FileText, Image as ImageIcon, Mic2, Play, Video } from "lucide-react";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 
 export const familyMemoryTypeConfig = {
   Photo: { icon: ImageIcon, label: "Photo", className: "bg-sky-50 text-sky-700 border-sky-100" },
@@ -34,7 +35,10 @@ export default function FamilyMemoryCard({ memory }) {
         )}
 
         <div className="absolute bottom-3 left-3 right-3 text-white">
-          <h2 className="line-clamp-2 text-lg font-black leading-tight">{memory.title}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="line-clamp-2 text-lg font-black leading-tight">{memory.title}</h2>
+            <TaggedMembersBadge memory={memory} />
+          </div>
           <p className="mt-1 flex items-center gap-1.5 text-[11px] font-bold text-white/80">
             <CalendarDays size={12} />
             {memory.dateLabel}

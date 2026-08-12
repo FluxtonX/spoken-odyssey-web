@@ -32,6 +32,7 @@ import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 import EditAlbumModal from "@/components/ui/EditAlbumModal";
 import ShareModal from "@/components/ui/ShareModal";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 
 import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
 
@@ -98,9 +99,12 @@ function MemoryCardItem({ memory, onCardClick }) {
               </span>
               <span className="text-xs font-semibold text-stone-400">{memory.date || memory.createdAt}</span>
             </div>
-            <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 leading-tight group-hover:text-[#4A3AFF] transition-colors">
-              {memory.title}
-            </h3>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <h3 className="font-bold text-lg text-stone-900 dark:text-white leading-tight group-hover:text-[#4A3AFF] transition-colors">
+                {memory.title}
+              </h3>
+              <TaggedMembersBadge memory={memory} />
+            </div>
             <p className="text-xs font-medium text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed mb-4">
               {memory.description || memory.content}
             </p>
@@ -130,9 +134,12 @@ function MemoryCardItem({ memory, onCardClick }) {
             </span>
             <span className="text-xs font-semibold text-stone-400">{memory.date || memory.createdAt}</span>
           </div>
-          <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 leading-tight group-hover:text-[#4A3AFF] transition-colors">
-            {memory.title}
-          </h3>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h3 className="font-bold text-lg text-stone-900 dark:text-white leading-tight group-hover:text-[#4A3AFF] transition-colors">
+              {memory.title}
+            </h3>
+            <TaggedMembersBadge memory={memory} />
+          </div>
           <p className="text-xs font-medium text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed mb-4">
             {memory.description || memory.content}
           </p>
@@ -187,9 +194,12 @@ function MemoryCardItem({ memory, onCardClick }) {
             })()}
           </span>
         </div>
-        <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 leading-tight group-hover:text-[#4A3AFF] transition-colors">
-          {memory.title}
-        </h3>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-bold text-lg text-stone-900 dark:text-white leading-tight group-hover:text-[#4A3AFF] transition-colors">
+            {memory.title}
+          </h3>
+          <TaggedMembersBadge memory={memory} />
+        </div>
         <p className="text-xs font-medium text-stone-600 dark:text-stone-300 line-clamp-3 leading-relaxed mb-6">
           {(isMilestone && (memory.description === "Voice recording memory" || !memory.description)) 
             ? "Life milestone memory" 
@@ -613,11 +623,14 @@ function AlbumDetailContent() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-bold text-base text-stone-900 dark:text-white truncate group-hover:text-[#4A3AFF] transition-colors">
-                            {memory.title}
-                          </h3>
-                          <span className="text-xs text-stone-400 font-semibold shrink-0">• {memory.date}</span>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <h3 className="font-bold text-base text-stone-900 dark:text-white truncate group-hover:text-[#4A3AFF] transition-colors">
+                              {memory.title}
+                            </h3>
+                            <span className="text-xs text-stone-400 font-semibold shrink-0">• {memory.date}</span>
+                          </div>
+                          <TaggedMembersBadge memory={memory} />
                         </div>
                         <p className="text-xs font-medium text-stone-500 dark:text-stone-400 truncate mt-0.5">
                           {memory.description}
@@ -671,9 +684,12 @@ function AlbumDetailContent() {
                         </p>
 
                         {/* Title */}
-                        <h3 className="text-lg sm:text-xl font-bold text-stone-900 dark:text-white mb-2 leading-tight group-hover:text-[#4A3AFF] transition-colors">
-                          {memory.title}
-                        </h3>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-lg sm:text-xl font-bold text-stone-900 dark:text-white leading-tight group-hover:text-[#4A3AFF] transition-colors">
+                            {memory.title}
+                          </h3>
+                          <TaggedMembersBadge memory={memory} />
+                        </div>
 
                         {/* Story Text Snippet */}
                         <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-medium leading-relaxed max-w-3xl mb-3">

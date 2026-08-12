@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
+import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 
 export default function MyArchive() {
   const router = useRouter();
@@ -521,10 +522,13 @@ export default function MyArchive() {
                          isVideo ? <Film size={22} strokeWidth={2.5} className="text-[#ec4899]" /> :
                          <ImageIcon size={22} strokeWidth={2.5} className="text-[#3b82f6]" />}
                       </div>
-                      <div className="flex flex-col justify-center">
-                        <div className="flex items-center gap-2 mb-1">
-                          {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={14} className="text-stone-400" />}
-                          <h3 className="text-[16px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors">{memory.title}</h3>
+                      <div className="flex flex-col justify-center flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={14} className="text-stone-400 shrink-0" />}
+                            <h3 className="text-[16px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors truncate">{memory.title}</h3>
+                          </div>
+                          <TaggedMembersBadge memory={memory} />
                         </div>
                         <span className="text-[13px] font-medium text-stone-500">{dateStr}</span>
                       </div>
@@ -575,7 +579,10 @@ export default function MyArchive() {
                             )}
                           </div>
                         </div>
-                        <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight">{memory.title}</h3>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight leading-snug">{memory.title}</h3>
+                          <TaggedMembersBadge memory={memory} />
+                        </div>
                         {memory.description && <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">{memory.description}</p>}
                       </div>
                       <div className="flex flex-wrap gap-2 mt-auto">
@@ -609,7 +616,10 @@ export default function MyArchive() {
                           <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
                         </div>
                       </div>
-                      <h3 className="text-[22px] font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight">{memory.title}</h3>
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight leading-snug">{memory.title}</h3>
+                        <TaggedMembersBadge memory={memory} />
+                      </div>
                       <p className="text-stone-500 mb-6 line-clamp-2 text-[15px] leading-relaxed">
                         {memory.description || "No transcript available for this voice memory."}
                       </p>
@@ -675,7 +685,10 @@ export default function MyArchive() {
                           <span className="text-[13px] font-bold text-stone-700">{dateStr}</span>
                         </div>
                       </div>
-                      <h3 className="text-xl font-bold mb-3 text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight">{memory.title}</h3>
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <h3 className="text-xl font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors tracking-tight leading-snug">{memory.title}</h3>
+                        <TaggedMembersBadge memory={memory} />
+                      </div>
                       <p className="text-stone-500 mb-6 text-[15px] leading-relaxed line-clamp-3">
                         {memory.description}
                       </p>

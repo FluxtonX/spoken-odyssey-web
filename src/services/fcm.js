@@ -53,13 +53,27 @@ export async function initializePushNotifications(authToken) {
       // Listen for foreground push messages when app tab is active
       onMessage(messaging, (payload) => {
         console.log("[FCM] Foreground Push Message received:", payload);
-        const title = payload?.notification?.title || "Spoken Odyssey";
+        const rawTitle = payload?.notification?.title || payload?.data?.title || "Spoken Odyssey";
+        const title = rawTitle.startsWith("Spoken Odyssey") ? rawTitle : `Spoken Odyssey • ${rawTitle}`;
+        const body = payload?.notification?.body || payload?.data?.body || "New story notification";
+        const targetUrl = payload?.data?.url || payload?.data?.actionUrl || "/memories";
+
         const options = {
-          body: payload?.notification?.body || "New story notification",
-          icon: "/icon-192.png",
+          body,
+          icon: "/odyssey.png",
+          badge: "/odyssey.png",
+          data: payload?.data || {},
         };
+
         if (Notification.permission === "granted") {
-          new Notification(title, options);
+          const notif = new Notification(title, options);
+          notif.onclick = (e) => {
+            e.preventDefault();
+            window.focus();
+            if (targetUrl) {
+              window.location.href = targetUrl;
+            }
+          };
         }
       });
 

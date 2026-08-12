@@ -31,6 +31,7 @@ const NOTIFICATION_ICONS = {
   MEMORY_COMMENT: { bg: "bg-teal-500 text-white", initials: "💬" },
   COMMENT_REPLY: { bg: "bg-indigo-600 text-white", initials: "↩️" },
   COMMENT_REACTION: { bg: "bg-pink-500 text-white", initials: "❤️" },
+  MEMORY_TAGGED: { bg: "bg-indigo-600 text-white", initials: "🏷️" },
   MEMORY_SHARED: { bg: "bg-[#4A3AFF] text-white", initials: "📤" },
   NEW_USER_NEARBY: { bg: "bg-cyan-500 text-white", initials: "🌍" },
   FAMILY_INVITE_SENT: { bg: "bg-amber-500 text-white", initials: "💌" },
