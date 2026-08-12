@@ -64,6 +64,28 @@ export default function AuthPage() {
     return () => clearInterval(interval);
   }, [view, timer]);
 
+  const cleanRedirectTarget = (raw) => {
+    if (!raw || typeof raw !== "string") return null;
+    let trimmed = raw.trim();
+
+    // Clean up any accidental chained URLs (e.g. http://localhost:3000http://...)
+    const urlMatches = trimmed.match(/https?:\/\/[^\s"'<>]+/g);
+    if (urlMatches && urlMatches.length > 0) {
+      trimmed = urlMatches[urlMatches.length - 1]; // Use the last valid URL
+    }
+
+    if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+      return trimmed;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.toString();
+    } catch (_) {
+      return null;
+    }
+  };
+
   // Resolve redirect destination after auth: pending invite > ?redirect= > default route
   const getRedirectDestination = (authProfile) => {
     const pendingToken = localStorage.getItem('pendingInvitationToken');
@@ -73,9 +95,44 @@ export default function AuthPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const redirect = params.get("redirect");
-      if (redirect) return redirect;
+      const cleaned = cleanRedirectTarget(redirect);
+      if (cleaned) return cleaned;
     }
     return getPostAuthRoute(authProfile);
+  };
+
+  const navigatePostAuth = (authProfile) => {
+    const destination = getRedirectDestination(authProfile);
+    
+    // Support cross-origin redirects (e.g. Odyssey Store on Vercel or localhost)
+    if (typeof destination === "string" && (destination.startsWith("http://") || destination.startsWith("https://"))) {
+      try {
+        const url = new URL(destination);
+        const token = localStorage.getItem("spokenOdysseyToken") || authProfile?.token || "";
+        if (token) {
+          url.searchParams.set("token", token);
+        }
+        if (authProfile) {
+          const userSummary = {
+            id: authProfile.id || authProfile._id,
+            email: authProfile.email,
+            displayName: authProfile.displayName || authProfile.name || authProfile.fullName,
+            photoURL: authProfile.photoURL || authProfile.photoUrl || authProfile.avatar,
+          };
+          url.searchParams.set("user", JSON.stringify(userSummary));
+        }
+        window.location.href = url.toString();
+        return;
+      } catch (err) {
+        console.warn("Invalid external redirect URL, falling back to default route:", err);
+      }
+    }
+
+    const safeInternalRoute = typeof destination === "string" && destination.startsWith("/") && !destination.startsWith("//")
+      ? destination
+      : getPostAuthRoute(authProfile);
+
+    router.replace(safeInternalRoute);
   };
 
   const handleLoginSubmit = async (event) => {
@@ -90,7 +147,7 @@ export default function AuthPage() {
       const loginProfile = await login(email, password);
       setSuccessMsg("Logged in successfully! Redirecting...");
       setTimeout(() => {
-        router.replace(getRedirectDestination(loginProfile));
+        navigatePostAuth(loginProfile);
       }, 800);
     } catch (error) {
       if (error?.code === "auth/email-not-verified") {
@@ -114,7 +171,7 @@ export default function AuthPage() {
       const signupProfile = await signup({ name, email, password });
       setSuccessMsg("Registration successful! Redirecting...");
       setTimeout(() => {
-        router.replace(getRedirectDestination(signupProfile));
+        navigatePostAuth(signupProfile);
       }, 800);
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
@@ -201,7 +258,7 @@ export default function AuthPage() {
       const googleProfile = await loginWithGoogle();
       setSuccessMsg("Signed in successfully! Redirecting...");
       setTimeout(() => {
-        router.replace(getRedirectDestination(googleProfile));
+        navigatePostAuth(googleProfile);
       }, 800);
     } catch (error) {
       setErrorMsg(getAuthErrorMessage(error));
@@ -256,7 +313,7 @@ export default function AuthPage() {
       const updatedProfile = await refreshProfile();
       
       setTimeout(() => {
-        router.replace(getPostAuthRoute(updatedProfile));
+        navigatePostAuth(updatedProfile);
       }, 1000);
     } catch (error) {
       console.error("Verification code error:", error);
