@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronRight, Search, Loader2, BookOpen, Image as ImageIcon, User, X, Sparkles } from "lucide-react";
+import { Bell, ChevronRight, Search, Loader2, BookOpen, Image as ImageIcon, User, X, Sparkles, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthProvider";
@@ -18,6 +18,33 @@ import {
 import { memories as mockMemories } from "@/data/mockApp";
 import HighlightText from "@/components/ui/HighlightText";
 import { io } from "socket.io-client";
+
+const formatSearchDate = (dateString) => {
+  if (!dateString) return "";
+  
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    console.warn("Invalid date format:", dateString);
+    return "";
+  }
+  
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  // Show relative time for recent dates
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  
+  // Show formatted date for older dates
+  return date.toLocaleDateString("en-US", { 
+    month: "short", 
+    day: "numeric", 
+    year: "numeric" 
+  });
+};
 
 export default function DashboardHeader({ onSearchChange }) {
   const router = useRouter();
@@ -375,7 +402,11 @@ export default function DashboardHeader({ onSearchChange }) {
                         key={mem.id || mem.title}
                         onClick={() => {
                           setShowSearchDropdown(false);
-                          router.push(`/memories?query=${encodeURIComponent(searchQuery)}`);
+                          if (mem.id) {
+                            router.push(`/discover?memoryId=${mem.id}`);
+                          } else {
+                            router.push(`/discover?query=${encodeURIComponent(searchQuery)}`);
+                          }
                         }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#EEF2FF]/60 dark:hover:bg-slate-800/60 transition cursor-pointer"
                       >
@@ -386,8 +417,18 @@ export default function DashboardHeader({ onSearchChange }) {
                           <p className="font-bold text-[13px] text-stone-800 dark:text-white truncate leading-tight">
                             <HighlightText text={mem.title} query={searchQuery} />
                           </p>
-                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate">
-                            <HighlightText text={mem.description || mem.date || "Memory"} query={searchQuery} />
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {mem.date && (
+                              <>
+                                <CalendarDays size={10} className="text-stone-400" />
+                                <span className="text-[10px] text-stone-400 dark:text-stone-500">
+                                  {formatSearchDate(mem.date)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-stone-400 dark:text-stone-500 truncate mt-0.5">
+                            <HighlightText text={mem.description || "Memory"} query={searchQuery} />
                           </p>
                         </div>
                         <ChevronRight size={14} className="text-stone-300" />
@@ -408,7 +449,11 @@ export default function DashboardHeader({ onSearchChange }) {
                         key={album.id || album.title}
                         onClick={() => {
                           setShowSearchDropdown(false);
-                          router.push(`/album/${album.id || "a1"}`);
+                          if (album.id) {
+                            router.push(`/albums/${album.id}`);
+                          } else {
+                            router.push(`/albums?query=${encodeURIComponent(searchQuery)}`);
+                          }
                         }}
                         className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#EEF2FF]/60 dark:hover:bg-slate-800/60 transition cursor-pointer"
                       >

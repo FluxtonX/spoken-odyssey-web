@@ -15,6 +15,33 @@ import HighlightText from "@/components/ui/HighlightText";
 
 const tabs = ["All", "Memories", "Albums", "People"];
 
+const formatSearchDate = (dateString) => {
+  if (!dateString) return "";
+  
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    console.warn("Invalid date format:", dateString);
+    return "";
+  }
+  
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  // Show relative time for recent dates
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  
+  // Show formatted date for older dates
+  return date.toLocaleDateString("en-US", { 
+    month: "short", 
+    day: "numeric", 
+    year: "numeric" 
+  });
+};
+
 function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -193,7 +220,7 @@ function SearchContent() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wide text-[var(--brand)]">
                           <CalendarDays size={12} />
-                          {memory.date ? new Date(memory.date).toLocaleDateString() : ""}
+                          {formatSearchDate(memory.date)}
                         </div>
                         <h3 className="mt-1 truncate text-sm font-black text-[var(--ink)] dark:text-white">
                           <HighlightText text={memory.title} query={query} />

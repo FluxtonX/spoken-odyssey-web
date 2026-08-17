@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
 import { Search, Loader2, Headphones, Heart, UserPlus, UserCheck, Inbox, Mic, FileText, Image as ImageIcon, Film, Play, Lock } from "lucide-react";
@@ -99,6 +100,8 @@ const getMemoryMediaSources = (memory) => {
 
 export default function DiscoverPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const highlightMemoryId = searchParams?.get('memoryId');
   const { firebaseUser, isAuthenticated, getToken, profile } = useAuth();
   
   // Tab state: "latest-stories" vs "featured-people"
@@ -141,7 +144,33 @@ export default function DiscoverPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Listen for memoryReactionUpdated event dispatched from MemoryViewModal or other components
+  // Handle memory highlighting from search
+  useEffect(() => {
+    if (highlightMemoryId && dbMemoriesList.length > 0) {
+      const targetMemory = dbMemoriesList.find(m => m.id === highlightMemoryId);
+      if (targetMemory) {
+        // Scroll to the memory
+        const element = document.getElementById(`memory-${highlightMemoryId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add highlight animation
+          element.classList.add('ring-4', 'ring-[#4A3AFF]', 'ring-opacity-50');
+          setTimeout(() => {
+            element.classList.remove('ring-4', 'ring-[#4A3AFF]', 'ring-opacity-50');
+          }, 3000);
+        }
+        // Auto-open the modal after a short delay
+        setTimeout(() => {
+          const dateStr = formatDateSafely(targetMemory.date || targetMemory.createdAt || targetMemory.occurredAt);
+          window.dispatchEvent(
+            new CustomEvent("openMemoryView", {
+              detail: { ...targetMemory, date: dateStr },
+            })
+          );
+        }, 500);
+      }
+    }
+  }, [highlightMemoryId, dbMemoriesList]);
   useEffect(() => {
     const handleReactionUpdate = (e) => {
       const { memoryId, userReaction, totalReactions } = e.detail || {};
@@ -774,6 +803,7 @@ export default function DiscoverPage() {
                           <motion.div
                             variants={fadeInUp}
                             key={story.id}
+                            id={`memory-${story.id}`}
                             onClick={(e) => handleOpenMemoryModal(e, story)}
                             className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full p-6"
                           >
@@ -826,6 +856,7 @@ export default function DiscoverPage() {
                           <motion.div
                             variants={fadeInUp}
                             key={story.id}
+                            id={`memory-${story.id}`}
                             onClick={(e) => handleOpenMemoryModal(e, story)}
                             className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full"
                           >
@@ -895,6 +926,7 @@ export default function DiscoverPage() {
                           <motion.div
                             variants={fadeInUp}
                             key={story.id}
+                            id={`memory-${story.id}`}
                             onClick={(e) => handleOpenMemoryModal(e, story)}
                             className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full p-6 justify-between"
                           >
@@ -944,6 +976,7 @@ export default function DiscoverPage() {
                         <motion.div
                           variants={fadeInUp}
                           key={story.id}
+                          id={`memory-${story.id}`}
                           onClick={(e) => handleOpenMemoryModal(e, story)}
                           className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full"
                         >
