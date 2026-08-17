@@ -38,6 +38,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     /* Global Reusable Colors */
     --background: #F4F7FB; /* Softer, slightly blue-tinted gray for SaaS feel */
     --foreground: #111827;
@@ -61,24 +62,6 @@
     --border-light: rgba(255, 255, 255, 0.8);
     --ink: #111827;
     --ink-light: #6b7280;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: #0B0E14; /* Deep dark UI */
-      --foreground: #f8fafc;
-      --surface: #131824;
-      --surface-hover: #1A2235;
-      
-      --brand: #6366f1;
-      --brand-hover: #818CF8;
-      --brand-soft: rgba(99, 102, 241, 0.15);
-      
-      --border: rgba(255, 255, 255, 0.05);
-      --border-light: rgba(255, 255, 255, 0.1);
-      --ink: #f8fafc;
-      --ink-light: #94a3b8;
-    }
   }
 }
 
