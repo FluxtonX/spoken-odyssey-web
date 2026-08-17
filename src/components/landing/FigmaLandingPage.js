@@ -6,10 +6,12 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
+  BookmarkCheck,
   Check,
   ChevronRight,
   Clock3,
   Database,
+  Globe,
   Heart,
   Image,
   Lock,
@@ -196,15 +198,16 @@ function HeroMockup() {
       initial={{ opacity: 0, x: 38, rotate: 1.5 }}
       animate={{ opacity: 1, x: 0, rotate: 0 }}
       transition={{ duration: 0.8, ease, delay: 0.2 }}
-      className="relative mx-auto w-full max-w-[560px] pb-12 pt-7 sm:pb-14"
+      className="relative mx-auto w-full max-w-[540px] pb-12 pt-6"
     >
+      {/* Floating Top-Right Stat Badge */}
       <motion.div
         animate={{ y: [0, -7, 0] }}
         transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
-        className="absolute right-[-10px] top-[24px] z-30 w-[205px] rounded-[18px] border border-[#5544ff]/40 bg-white/80 backdrop-blur-md px-5 py-4 shadow-[0_18px_45px_rgba(72,61,210,0.18)] sm:right-[-50px]"
+        className="absolute right-[-10px] top-[2px] z-30 w-[205px] rounded-[18px] border border-[#5544ff]/40 bg-white/90 backdrop-blur-xl px-5 py-4 shadow-[0_18px_45px_rgba(72,61,210,0.18)] sm:right-[-35px]"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f0efff] text-[#4f37ff]">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EEF2FF] text-[#2563EB]">
             <Sparkles size={17} />
           </div>
           <div>
@@ -214,104 +217,113 @@ function HeroMockup() {
         </div>
       </motion.div>
 
-      <div className="relative pt-[56px] backdrop-blur-xl">
+      {/* Signature Figma Notch Card Outline */}
+      <div className="relative pt-[32px]">
         <svg
-          viewBox="0 0 520 526"
+          viewBox="0 0 520 440"
           preserveAspectRatio="none"
-          className="pointer-events-none absolute inset-x-0 top-[56px] h-[526px] w-full overflow-visible drop-shadow-[0_30px_52px_rgba(75,61,225,0.16)]"
+          className="pointer-events-none absolute inset-x-0 top-[32px] h-[calc(100%-32px)] w-full overflow-visible drop-shadow-[0_24px_50px_rgba(75,61,225,0.16)]"
           aria-hidden="true"
         >
           <path
-            d="M20 1 H337 C353 1 349 31 370 31 H500 C511 31 519 39 519 51 V502 C519 515 509 525 496 525 H178 C154 525 162 494 139 494 H20 C9 494 1 485 1 474 V21 C1 10 10 1 20 1 Z"
-            fill="rgba(255, 255, 255, 0.35)"
+            d="M20 1 H337 C353 1 349 31 370 31 H500 C511 31 519 39 519 51 V418 C519 430 509 439 496 439 H20 C9 439 1 430 1 418 V21 C1 10 10 1 20 1 Z"
+            fill="rgba(255, 255, 255, 0.45)"
             stroke="#5544ff"
             strokeWidth="1.5"
             vectorEffect="non-scaling-stroke"
           />
         </svg>
 
-        <div className="relative z-10 overflow-hidden">
-        <div className="flex h-[72px] items-center justify-between border-b border-[#6d5cff]/30 bg-white/20 px-6">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-[linear-gradient(135deg,#2f2b42,#827791)] text-[13px] font-black text-white shadow-inner">
-              SO
+        {/* Mockup Inner Content */}
+        <div className="relative z-10 overflow-hidden backdrop-blur-xl rounded-t-[20px] rounded-b-[20px]">
+          
+          {/* Header */}
+          <div className="flex h-[72px] items-center justify-between border-b border-[#6d5cff]/20 bg-white/40 px-6">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-[linear-gradient(135deg,#2f2b42,#827791)] text-[13px] font-black text-white shadow-inner">
+                SO
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#716880]">Your Archive</p>
+                <p className="font-serif text-sm font-bold leading-tight text-[#161019]">Life Stories</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#716880]">Your Archive</p>
-              <p className="font-serif text-sm font-bold leading-tight text-[#161019]">Life Stories</p>
-            </div>
+            <span className="flex items-center gap-2 text-xs font-bold text-[#ff2424] bg-red-50 px-3 py-1 rounded-full border border-red-200">
+              <span className="h-2 w-2 rounded-full bg-[#ff4242] animate-ping" />
+              Live Recording
+            </span>
           </div>
-          <span className="flex items-center gap-2 text-sm font-medium text-[#ff2424] pt-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ff4242]" />
-            Recording
-          </span>
-        </div>
 
-        <div className="px-6 pb-4 pt-7 bg-white/15">
-          <div className="flex items-end justify-between gap-5">
-            <div className="flex h-[58px] flex-1 items-end gap-[5px]">
-              {waveform.map((height, index) => (
-                <motion.span
-                  key={index}
-                  animate={playing ? { height: [`${height}%`, `${Math.max(18, 92 - height)}%`, `${height}%`] } : { height: `${height}%` }}
-                  transition={{ repeat: playing ? Infinity : 0, duration: 1.35, delay: index * 0.025 }}
-                  className="w-[4px] rounded-full bg-[#5144ff]"
-                />
+          {/* Voice Player */}
+          <div className="px-6 pb-5 pt-6 bg-white/20">
+            <div className="flex items-end justify-between gap-5">
+              <div className="flex h-[58px] flex-1 items-end gap-[5px]">
+                {waveform.map((height, index) => (
+                  <motion.span
+                    key={index}
+                    animate={playing ? { height: [`${height}%`, `${Math.max(18, 92 - height)}%`, `${height}%`] } : { height: `${height}%` }}
+                    transition={{ repeat: playing ? Infinity : 0, duration: 1.35, delay: index * 0.025 }}
+                    className="w-[4px] rounded-full bg-[#4f37ff]"
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPlaying((value) => !value)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#4f37ff] text-white shadow-[0_10px_24px_rgba(79,55,255,0.3)] transition active:scale-95 hover:bg-[#3b25e6]"
+                aria-label={playing ? "Pause memory" : "Play memory"}
+              >
+                <Play size={14} fill="currentColor" className="ml-0.5" />
+              </button>
+            </div>
+            <p className="mt-3 text-xs font-semibold text-[#645e6e]">Voice Memory &bull; June 12, 2024</p>
+          </div>
+
+          {/* Recent Memories */}
+          <div className="border-t border-[#6d5cff]/15 px-6 pb-6 pt-5 bg-white/30">
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.24em] text-[#5d5661]">Recent Memories</p>
+            <div className="space-y-4">
+              {memories.map(([key, title, meta, Icon, color]) => (
+                <div key={key} className="grid grid-cols-[40px_1fr_8px] items-center gap-3 p-2 rounded-xl hover:bg-white/50 transition">
+                  <div className={`grid h-8 w-8 place-items-center rounded-full ${color}`}>
+                    <Icon size={15} />
+                  </div>
+                  <div>
+                    <p className="font-serif text-sm font-bold leading-tight text-[#19131f]">{title}</p>
+                    <p className="mt-0.5 text-xs font-medium text-[#66606a]">{meta}</p>
+                  </div>
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#4f37ff]/40" />
+                </div>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setPlaying((value) => !value)}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#5144ff] text-white shadow-[0_10px_24px_rgba(81,68,255,0.24)] transition active:scale-95"
-              aria-label={playing ? "Pause memory" : "Play memory"}
-            >
-              <Play size={13} fill="currentColor" className="ml-0.5" />
-            </button>
           </div>
-          <p className="mt-4 text-xs font-medium text-[#645e6e]">Voice Memory - June 12, 2024</p>
-        </div>
 
-        <div className="border-t border-[#efedf2]/40 px-6 pb-8 pt-5 bg-white/20">
-          <p className="mb-6 text-[11px] font-medium uppercase tracking-[0.24em] text-[#5d5661]">Recent Memories</p>
-          <div className="space-y-7">
-            {memories.map(([key, title, meta, Icon, color]) => (
-              <div key={key} className="grid grid-cols-[44px_1fr_8px] items-center gap-3">
-                <div className={`grid h-8 w-8 place-items-center rounded-full ${color}`}>
-                  <Icon size={15} />
-                </div>
-                <div>
-                  <p className="font-serif text-sm font-bold leading-tight text-[#19131f]">{title}</p>
-                  <p className="mt-1 text-xs font-medium text-[#66606a]">{meta}</p>
-                </div>
-                <span className="h-1.5 w-1.5 rounded-full bg-[#ebe8e5]" />
+          {/* Timeline Footer */}
+          <div className="grid h-[60px] grid-cols-[1fr_70px_70px_70px] items-center border-t border-[#6d5cff]/20 px-6 bg-white/40">
+            <p className="text-left text-[11px] font-bold uppercase tracking-[0.22em] text-[#201923]">Timeline</p>
+            {[
+              ["2021", "bg-[#786dff]"],
+              ["2023", "bg-[#786dff]"],
+              ["2024", "bg-[#24bd60]"],
+            ].map(([year, color]) => (
+              <div key={year} className="flex flex-col items-center gap-1">
+                <span className={`h-2 w-2 rounded-full ${color}`} />
+                <span className="text-[10px] font-bold text-[#5c5662]">{year}</span>
               </div>
             ))}
           </div>
-        </div>
 
-        <div className="grid h-[66px] grid-cols-[1fr_84px_84px_84px] items-center border-t border-[#6d5cff]/30 px-6 bg-white/25">
-          <p className="text-right text-[12px] font-medium uppercase tracking-[0.22em] text-[#201923]">Timeline</p>
-          {[
-            ["2021", "bg-[#786dff]"],
-            ["2023", "bg-[#786dff]"],
-            ["2024", "bg-[#24bd60]"],
-          ].map(([year, color]) => (
-            <div key={year} className="flex flex-col items-center gap-1.5">
-              <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-              <span className="text-[10px] font-medium text-[#5c5662]">{year}</span>
-            </div>
-          ))}
-        </div>
         </div>
       </div>
 
+      {/* Floating Bottom-Left AI Badge */}
       <motion.div
         animate={{ y: [0, 9, 0] }}
         transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 0.4 }}
-        className="absolute bottom-0 left-[-6px] z-30 w-[242px] rounded-[18px] border border-[#5544ff]/40 bg-white/80 backdrop-blur-md px-5 py-4 shadow-[0_18px_45px_rgba(33,25,52,0.18)] sm:left-[-92px]"
+        className="absolute bottom-2 left-[-10px] z-30 w-[242px] rounded-[18px] border border-[#5544ff]/40 bg-white/90 backdrop-blur-xl px-5 py-4 shadow-[0_18px_45px_rgba(33,25,52,0.18)] sm:left-[-45px]"
       >
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-[#5144ff] text-white">
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-[#4f37ff] text-white">
             <Mic2 size={16} />
           </div>
           <div>
@@ -324,7 +336,7 @@ function HeroMockup() {
   );
 }
 
-function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 0, hasStar = false }) {
+function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 0, hasStar = false, icon: Icon }) {
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
@@ -356,15 +368,32 @@ function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 
   const formatted = decimalPlaces > 0 ? displayValue.toFixed(decimalPlaces) : Math.floor(displayValue);
 
   return (
-    <div className="relative flex h-[115px] w-full flex-col items-center justify-center overflow-hidden [border-radius:62px_14px_62px_14px] border border-[#5544ff] bg-[radial-gradient(ellipse_96px_96px_at_-12px_50%,rgba(183,176,255,0.92)_0%,rgba(218,214,255,0.75)_33%,rgba(255,255,255,0)_64%),radial-gradient(ellipse_96px_78px_at_72%_0%,#ffffff_0%,#ffffff_43%,rgba(255,255,255,0)_74%),linear-gradient(112deg,#eeeaff_0%,#ffffff_42%,#ffffff_100%)] px-4 text-center shadow-[inset_18px_0_26px_rgba(145,137,255,0.5),0_10px_25px_rgba(79,55,255,0.12)] hover:-translate-y-1 transition-all duration-300 group">
-      <p className="text-3xl sm:text-4xl font-black text-[#4b3cff] leading-none group-hover:scale-105 transition-transform flex items-center justify-center gap-1 font-serif">
-        <span>{formatted}{suffix}</span>
-        {hasStar && <Star className="inline fill-[#4b3cff] text-[#4b3cff] mb-1" size={20} />}
-      </p>
-      <p className="mt-2 text-[11px] sm:text-[12px] font-bold text-[#5c5668] uppercase tracking-wider">
+    <motion.div
+      whileHover={{ y: -5, scale: 1.02 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-[20px] bg-white/55 backdrop-blur-xl border border-white/70 shadow-[0_10px_28px_rgba(79,55,255,0.07)] hover:bg-white/85 hover:border-[#7B61FF]/60 hover:shadow-[0_16px_36px_rgba(79,55,255,0.16)] transition-all duration-300 overflow-hidden"
+    >
+      {/* Shimmer Light Purple Ambient Glow */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#7B61FF]/15 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+      {/* Top Value & Icon Badge */}
+      <div className="flex items-center justify-between mb-2 relative z-10">
+        <p className="text-2xl sm:text-[28px] font-black text-[#4b3cff] leading-none group-hover:scale-105 transition-transform flex items-center gap-1 font-serif">
+          <span>{formatted}{suffix}</span>
+          {hasStar && <Star className="inline fill-[#4b3cff] text-[#4b3cff] mb-0.5" size={16} />}
+        </p>
+        {Icon && (
+          <div className="w-8 h-8 rounded-full bg-[#4f37ff]/10 border border-[#4f37ff]/20 text-[#4f37ff] flex items-center justify-center group-hover:bg-[#4f37ff] group-hover:text-white transition-all shadow-xs">
+            <Icon size={14} strokeWidth={2.2} />
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Label */}
+      <p className="text-[11px] sm:text-[12px] font-bold text-[#5c5668] uppercase tracking-wider relative z-10 group-hover:text-[#211934] transition-colors">
         {label}
       </p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -372,10 +401,12 @@ function HeroSection() {
   const [activeSlide, setActiveSlide] = useState(0);
 
   const heroSlides = [
-    { url: "/herotwo.jpg", alt: "Spoken Odyssey story 1" },
-    { url: "/herofourth.jpg", alt: "Spoken Odyssey story 2" },
-    { url: "/family5th.jpg", alt: "Spoken Odyssey story 3" },
-    { url: "/family%20steps.jpg", alt: "Family archive 4" },
+    { url: "/Hiking.jpg", alt: "Mountain adventure and hiking memories" },
+    { url: "/lion.jpg", alt: "Wildlife safari and wildlife moments" },
+    { url: "/newYork%20Street.jpg", alt: "City life and urban memories" },
+    { url: "/mountain.jpg", alt: "Scenic landscapes and travel reflections" },
+    { url: "/friends%20night%20sky.jpg", alt: "Stargazing and friendship moments" },
+    { url: "/herofourth.jpg", alt: "Personal journey and reflections" },
   ];
 
   useEffect(() => {
@@ -479,12 +510,12 @@ function HeroSection() {
 
       </div>
 
-      {/* Bottom 3 Stat Cards with Custom Leaf-Curve Shape & Continuous 3-Second Count Up Animation */}
-      <div className="relative z-10 mx-auto max-w-4xl w-full px-5 mt-12 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <AnimatedCountUpStat targetValue={2.3} label="Memories preserved" suffix="M+" decimalPlaces={1} />
-          <AnimatedCountUpStat targetValue={87} label="Countries" suffix="" decimalPlaces={0} />
-          <AnimatedCountUpStat targetValue={4.9} label="Rated" suffix="" decimalPlaces={1} hasStar={true} />
+      {/* Bottom 3 Stat Cards: Compact & Left-Aligned */}
+      <div className="relative z-10 mx-auto max-w-6xl w-full px-5 mt-8 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-xl text-left">
+          <AnimatedCountUpStat targetValue={2.3} label="Memories preserved" suffix="M+" decimalPlaces={1} icon={Sparkles} />
+          <AnimatedCountUpStat targetValue={76} label="Countries" suffix="" decimalPlaces={0} icon={Globe} />
+          <AnimatedCountUpStat targetValue={4.3} label="Rated" suffix="" decimalPlaces={1} hasStar={true} icon={Star} />
         </div>
       </div>
 
@@ -657,10 +688,34 @@ function StepsSection() {
 
 function FeatureCards() {
   const features = [
-    ["Voice capture", "Your voice captures your truth.", "Record your memories, stories, and voice exactly as they live in your mind.", Mic2, "#f0ecff"],
-    ["Moments", "Preserve moments through images and video.", "Attach photographs and clips to stories, giving future generations a vivid sense of the moments that mattered.", BookOpen, "#fff4e8"],
-    ["Reflections", "Write reflections that matter.", "Put into words the lessons, regrets, joys, and ideas that have shaped who you are.", Heart, "#e9fff5"],
-    ["Highlights", "Highlight the moments that changed your journey.", "Mark the stories that define chapters of your life and make them easy to rediscover.", Sparkles, "#f4edff"],
+    {
+      kicker: "Voice capture",
+      title: "Your voice captures your truth.",
+      text: "Record your memories, stories, and voice exactly as they live in your mind.",
+      Icon: Mic2,
+      image: "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&q=80&w=800",
+    },
+    {
+      kicker: "Moments",
+      title: "Preserve moments through images and video.",
+      text: "Attach photographs and clips to stories, giving future generations a vivid sense of the moments that mattered.",
+      Icon: BookOpen,
+      image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=800",
+    },
+    {
+      kicker: "Reflections",
+      title: "Write reflections that matter.",
+      text: "Put into words the lessons, regrets, joys, and ideas that have shaped who you are.",
+      Icon: Heart,
+      image: "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&q=80&w=800",
+    },
+    {
+      kicker: "Highlights",
+      title: "Highlight the moments that changed your journey.",
+      text: "Mark the stories that define chapters of your life and make them easy to rediscover.",
+      Icon: BookmarkCheck,
+      image: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&q=80&w=800",
+    },
   ];
 
   return (
@@ -682,38 +737,68 @@ function FeatureCards() {
         </div>
 
         <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {features.map(([kicker, title, text, Icon, color], index) => (
+          {features.map((feature, index) => (
             <motion.article
-              key={title}
+              key={feature.title}
               variants={fadeUp}
-              whileHover={{ y: -7 }}
-              className="group relative overflow-hidden [border-radius:8px_8px_64px_8px] border border-[#8f83ff]/40 bg-white/60 backdrop-blur-md p-5 shadow-[0_12px_30px_rgba(94,78,255,0.12)] hover:bg-[#4A3AFF]/12 hover:border-[#7B61FF]/70 hover:shadow-[0_18px_40px_rgba(79,55,255,0.24)] transition-all duration-300"
+              whileHover={{ y: -8, scale: 1.02 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-[#DBEAFE] bg-white p-6 shadow-[0_10px_30px_rgba(37,99,235,0.08)] hover:border-[#2563EB] hover:shadow-[0_20px_45px_rgba(37,99,235,0.18)] transition-all duration-300 min-h-[380px]"
             >
-              {/* Subtle Light Purple-Blue Shimmer Glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[#7B61FF]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+              {/* Crisp, Sharp Themed Background Image (Zero Blur) */}
+              <img
+                src={feature.image}
+                alt={feature.title}
+                className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-108 opacity-90"
+              />
 
-              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl relative z-10" style={{ backgroundColor: color }}>
-                <Icon className="text-[#4f37ff]" size={18} />
+              {/* Crisp Gradient Vignette (100% Sharp Image at Top, Readable Light Base at Bottom) */}
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/85 to-[#EFF6FF]/20" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              {/* Top Header with Light Blue Kicker Badge & Icon */}
+              <div className="relative z-10">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="rounded-full bg-[#EEF2FF] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#2563EB] border border-[#BFDBFE] shadow-xs">
+                    {feature.kicker}
+                  </span>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF2FF] text-[#2563EB] border border-[#BFDBFE] group-hover:bg-[#2563EB] group-hover:text-white transition-all shadow-xs">
+                    <feature.Icon size={16} strokeWidth={2.2} />
+                  </div>
+                </div>
+                <h3 className="text-lg font-black leading-snug text-[#1E293B] group-hover:text-[#2563EB] transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="mt-2.5 text-xs font-semibold leading-5 text-[#475569]">
+                  {feature.text}
+                </p>
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7af8] relative z-10">{kicker}</p>
-              <h3 className="mt-3 text-lg font-black leading-tight text-[#211934] relative z-10">{title}</h3>
-              <p className="mt-4 text-xs font-semibold leading-5 text-[#756b88] relative z-10">{text}</p>
-              {index === 0 && <Waveform />}
-              {index === 1 && (
-                <div className="mt-5 grid grid-cols-3 gap-2 relative z-10">
-                  {processImages.slice(0, 3).map((src) => (
-                    <img key={src} src={src} alt="" className="h-16 rounded-xl object-cover" />
-                  ))}
-                </div>
-              )}
-              {index === 2 && <div className="mt-5 rounded-xl border border-[#8de7b3] bg-[#dffdec]/80 backdrop-blur-xs p-3 text-[10px] font-bold text-[#27734d] relative z-10">What did this moment teach you?</div>}
-              {index === 3 && (
-                <div className="mt-5 space-y-2 relative z-10">
-                  {["First big move", "A lesson learned", "Changed forever"].map((item) => (
-                    <div key={item} className="rounded-full bg-[#f2efff]/90 backdrop-blur-xs px-3 py-2 text-[10px] font-black text-[#6c5ad9]">{item}</div>
-                  ))}
-                </div>
-              )}
+
+              {/* Interactive Widget Previews */}
+              <div className="relative z-10 mt-5 pt-3 border-t border-[#E2E8F0]">
+                {index === 0 && <Waveform active={true} />}
+                {index === 1 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {processImages.slice(0, 3).map((src) => (
+                      <img key={src} src={src} alt="" className="h-14 w-full rounded-xl object-cover border border-[#BFDBFE] shadow-xs" />
+                    ))}
+                  </div>
+                )}
+                {index === 2 && (
+                  <div className="rounded-xl border border-[#BFDBFE] bg-[#F0F9FF] p-3 text-[11px] font-bold text-[#0369A1] shadow-xs">
+                    &ldquo;What did this moment teach you?&rdquo;
+                  </div>
+                )}
+                {index === 3 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {["First big move", "Lesson learned", "Forever changed"].map((item) => (
+                      <span key={item} className="rounded-full bg-[#EEF2FF] border border-[#BFDBFE] px-2.5 py-1 text-[10px] font-black text-[#2563EB] shadow-xs">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </motion.article>
           ))}
         </motion.div>

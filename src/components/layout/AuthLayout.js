@@ -6,7 +6,7 @@ export default function AuthLayout({ children, view = "login" }) {
   const isSignIn = view === "login" || view === "reset";
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row w-full text-slate-800 dark:text-slate-100 antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row w-full text-slate-800 antialiased overflow-x-hidden">
       
       {/* Left Column - Onboarding & Artwork (Visible only on md+) */}
       <div className="hidden md:flex md:w-1/2 bg-[#3b2dd1] text-white relative flex-col p-12 overflow-hidden border-r border-slate-200/10 min-h-screen">
@@ -65,7 +65,7 @@ export default function AuthLayout({ children, view = "login" }) {
       </div>
 
       {/* Right Column - Children (Login / Sign Up Forms) */}
-      <div className="flex-1 flex flex-col justify-start pt-[12%] pb-12 px-6 md:px-12 lg:px-20 relative bg-white dark:bg-[#0f172a] min-h-screen">
+      <div className="flex-1 flex flex-col justify-start pt-[12%] pb-12 px-6 md:px-12 lg:px-20 relative bg-white min-h-screen">
         {children}
       </div>
 

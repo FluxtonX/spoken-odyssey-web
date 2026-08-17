@@ -12,10 +12,7 @@ export function isAuthEntryRoute(pathname) {
 }
 
 export function isSetupRoute(pathname) {
-  return (
-    pathname?.startsWith("/onboarding") ||
-    pathname?.startsWith("/profile-setup")
-  );
+  return pathname?.startsWith("/onboarding");
 }
 
 export function isInviteRoute(pathname) {
@@ -36,7 +33,7 @@ export function isPublicRoute(pathname) {
 
 export function getPostAuthRoute(profile) {
   if (!profile?.onboardingCompleted) {
-    return "/profile-setup";
+    return "/onboarding";
   }
   return "/home";
 }
