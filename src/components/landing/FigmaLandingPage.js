@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import MosaicHero from "@/components/landing/hero/MosaicHero";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -1212,7 +1213,7 @@ export default function FigmaLandingPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-white text-[#211934]">
       <LandingNav />
-      <HeroSection />
+      <MosaicHero />
       <BeliefSection />
       <StepsSection />
       <FeatureCards />
