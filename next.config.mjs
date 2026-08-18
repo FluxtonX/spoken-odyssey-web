@@ -8,6 +8,14 @@ const backendUrl = (
 const nextConfig = {
   reactStrictMode: true,
   generateEtags: false, // Prevents browser from caching 304 responses when files change
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
   async rewrites() {
     return [
       {
