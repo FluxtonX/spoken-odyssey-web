@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import HeroSection from "./HeroSection";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -397,131 +398,7 @@ function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 
   );
 }
 
-function HeroSection() {
-  const [activeSlide, setActiveSlide] = useState(0);
 
-  const heroSlides = [
-    { url: "/Hiking.jpg", alt: "Mountain adventure and hiking memories" },
-    { url: "/lion.jpg", alt: "Wildlife safari and wildlife moments" },
-    { url: "/newYork%20Street.jpg", alt: "City life and urban memories" },
-    { url: "/mountain.jpg", alt: "Scenic landscapes and travel reflections" },
-    { url: "/friends%20night%20sky.jpg", alt: "Stargazing and friendship moments" },
-    { url: "/herofourth.jpg", alt: "Personal journey and reflections" },
-  ];
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [heroSlides.length]);
-
-  return (
-    <section id="about" className="relative overflow-hidden bg-[linear-gradient(135deg,#f4f0ff_0%,#eef2ff_50%,#e9e4ff_100%)] pt-16 md:pt-20 pb-10 sm:pb-12 min-h-[640px] md:min-h-[700px] flex flex-col justify-between">
-      
-      {/* Animated Sliding Background Images (Sharp & Rich Contrast) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-60">
-        {heroSlides.map((slide, index) => (
-          <motion.div
-            key={slide.url}
-            initial={{ opacity: 0, scale: 1 }}
-            animate={{
-              opacity: activeSlide === index ? 1 : 0,
-              scale: activeSlide === index ? 1.06 : 1,
-            }}
-            transition={{
-              opacity: { duration: 1.2, ease: "easeInOut" },
-              scale: { duration: 6, ease: "linear" },
-            }}
-            className="absolute inset-0 w-full h-full"
-          >
-            <img src={slide.url} alt={slide.alt} className="w-full h-full object-cover object-center" />
-          </motion.div>
-        ))}
-
-        {/* Faded Light Purple-Bluish Tint Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#f4f0ff]/70 via-[#eef2ff]/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#e9e4ff]/60 via-transparent to-[#f4f0ff]/30" />
-      </div>
-
-      {/* Hero Main Content (2 Columns: Left Text, Right Mockup) */}
-      <div className="relative z-10 mx-auto max-w-6xl px-5 lg:px-8 w-full pt-1 md:pt-3 grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-8 md:gap-10 items-center">
-        
-        {/* Left Column Text */}
-        <div className="max-w-xl text-left">
-          <motion.div initial="hidden" animate="visible" variants={stagger}>
-            
-            <motion.div variants={fadeUp} transition={{ duration: 0.58, ease }}>
-              <SectionLabel>Life Storytelling, Simplified</SectionLabel>
-            </motion.div>
-
-            <motion.h1
-              variants={fadeUp}
-              transition={{ duration: 0.68, ease, delay: 0.06 }}
-              className="mt-4 text-[42px] sm:text-[56px] lg:text-[66px] font-black leading-[0.98] tracking-[-0.02em] text-[#211934]"
-            >
-              Your life is a story.<br />
-              <span className="text-[#4f37ff]">Preserve every chapter.</span>
-            </motion.h1>
-
-            <motion.p
-              variants={fadeUp}
-              transition={{ duration: 0.62, ease, delay: 0.12 }}
-              className="mt-6 max-w-xl text-base sm:text-lg font-semibold leading-relaxed text-[#645b78]"
-            >
-              Spoken Odyssey helps you capture your memories, reflections, and experiences through voice, images, and stories, creating a timeless archive for the people who matter most.
-            </motion.p>
-
-            <motion.div
-              variants={fadeUp}
-              transition={{ duration: 0.62, ease, delay: 0.18 }}
-              className="mt-8 flex flex-wrap items-center gap-4"
-            >
-              <CTAButton>Begin Your Journey</CTAButton>
-              <a
-                href="#steps"
-                className="inline-flex items-center gap-2.5 rounded-full border border-[#ddd5ff] bg-white px-6 py-3.5 text-xs sm:text-sm font-extrabold text-[#4d426b] transition hover:-translate-y-0.5 hover:bg-[#EEF2FF]"
-              >
-                <Play size={14} fill="currentColor" /> Explore How It Works
-              </a>
-            </motion.div>
-
-            {/* Slide Navigation Dots */}
-            <div className="flex items-center gap-2 mt-8">
-              {heroSlides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveSlide(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    activeSlide === i ? "w-8 bg-[#4f37ff]" : "w-2 bg-[#b5a9ff] hover:bg-[#4f37ff]"
-                  }`}
-                  aria-label={`Jump to slide ${i + 1}`}
-                />
-              ))}
-            </div>
-
-          </motion.div>
-        </div>
-
-        {/* Right Column: Hero Mockup */}
-        <div className="relative w-full flex justify-center lg:justify-end">
-          <HeroMockup />
-        </div>
-
-      </div>
-
-      {/* Bottom 3 Stat Cards: Compact & Left-Aligned */}
-      <div className="relative z-10 mx-auto max-w-6xl w-full px-5 mt-8 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-xl text-left">
-          <AnimatedCountUpStat targetValue={2.3} label="Memories preserved" suffix="M+" decimalPlaces={1} icon={Sparkles} />
-          <AnimatedCountUpStat targetValue={76} label="Countries" suffix="" decimalPlaces={0} icon={Globe} />
-          <AnimatedCountUpStat targetValue={4.3} label="Rated" suffix="" decimalPlaces={1} hasStar={true} icon={Star} />
-        </div>
-      </div>
-
-    </section>
-  );
-}
 
 function BeliefSection() {
   return (
