@@ -398,127 +398,181 @@ function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 
 }
 
 function HeroSection() {
-  const [activeSlide, setActiveSlide] = useState(0);
-
-  const heroSlides = [
-    { url: "/Hiking.jpg", alt: "Mountain adventure and hiking memories" },
-    { url: "/lion.jpg", alt: "Wildlife safari and wildlife moments" },
-    { url: "/newYork%20Street.jpg", alt: "City life and urban memories" },
-    { url: "/mountain.jpg", alt: "Scenic landscapes and travel reflections" },
-    { url: "/friends%20night%20sky.jpg", alt: "Stargazing and friendship moments" },
-    { url: "/herofourth.jpg", alt: "Personal journey and reflections" },
+  const FEATURE_CARDS = [
+    { icon: Mic2, title: "Record", description: "Voice, video or text." },
+    { icon: Image, title: "Capture", description: "Photos & videos from your journey." },
+    { icon: BookOpen, title: "Reflect", description: "Add thoughts, feelings & lessons." },
+    { icon: Heart, title: "Relive", description: "Rediscover moments anytime, anywhere." },
+    { icon: Lock, title: "Keep Safe", description: "Private, secure & always yours." },
   ];
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [heroSlides.length]);
+  const AVATARS = [
+    "https://i.pravatar.cc/100?img=1",
+    "https://i.pravatar.cc/100?img=2",
+    "https://i.pravatar.cc/100?img=3",
+    "https://i.pravatar.cc/100?img=4",
+    "https://i.pravatar.cc/100?img=5",
+  ];
 
   return (
-    <section id="about" className="relative overflow-hidden bg-[linear-gradient(135deg,#f4f0ff_0%,#eef2ff_50%,#e9e4ff_100%)] pt-16 md:pt-20 pb-10 sm:pb-12 min-h-[640px] md:min-h-[700px] flex flex-col justify-between">
-      
-      {/* Animated Sliding Background Images (Sharp & Rich Contrast) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-60">
-        {heroSlides.map((slide, index) => (
-          <motion.div
-            key={slide.url}
-            initial={{ opacity: 0, scale: 1 }}
-            animate={{
-              opacity: activeSlide === index ? 1 : 0,
-              scale: activeSlide === index ? 1.06 : 1,
-            }}
-            transition={{
-              opacity: { duration: 1.2, ease: "easeInOut" },
-              scale: { duration: 6, ease: "linear" },
-            }}
-            className="absolute inset-0 w-full h-full"
-          >
-            <img src={slide.url} alt={slide.alt} className="w-full h-full object-cover object-center" />
-          </motion.div>
-        ))}
-
-        {/* Faded Light Purple-Bluish Tint Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#f4f0ff]/70 via-[#eef2ff]/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#e9e4ff]/60 via-transparent to-[#f4f0ff]/30" />
+    <section className="relative min-h-screen overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="/heroo.png" 
+          alt="Background" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
       </div>
 
-      {/* Hero Main Content (2 Columns: Left Text, Right Mockup) */}
-      <div className="relative z-10 mx-auto max-w-6xl px-5 lg:px-8 w-full pt-1 md:pt-3 grid grid-cols-1 lg:grid-cols-[1fr_0.95fr] gap-8 md:gap-10 items-center">
-        
-        {/* Left Column Text */}
-        <div className="max-w-xl text-left">
-          <motion.div initial="hidden" animate="visible" variants={stagger}>
+      {/* Main Hero Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pt-8 md:pt-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          
+          {/* Left Content */}
+          <motion.div 
+            className="space-y-8"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <p className="text-lg md:text-xl text-blue-600 italic font-medium">
+              It's your journey
+            </p>
             
-            <motion.div variants={fadeUp} transition={{ duration: 0.58, ease }}>
-              <SectionLabel>Life Storytelling, Simplified</SectionLabel>
-            </motion.div>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+              Your life.<br />Your story.<br /><span className="bg-gradient-to-r from-purple-500 to-blue-400 bg-clip-text text-transparent">Your Odyssey.</span>
+            </h1>
+            
+            <p className="text-lg md:text-xl text-gray-700 font-medium">
+              Capture the moments. Tell the stories. Relive them forever.
+            </p>
 
-            <motion.h1
-              variants={fadeUp}
-              transition={{ duration: 0.68, ease, delay: 0.06 }}
-              className="mt-4 text-[42px] sm:text-[56px] lg:text-[66px] font-black leading-[0.98] tracking-[-0.02em] text-[#211934]"
-            >
-              Your life is a story.<br />
-              <span className="text-[#4f37ff]">Preserve every chapter.</span>
-            </motion.h1>
-
-            <motion.p
-              variants={fadeUp}
-              transition={{ duration: 0.62, ease, delay: 0.12 }}
-              className="mt-6 max-w-xl text-base sm:text-lg font-semibold leading-relaxed text-[#645b78]"
-            >
-              Spoken Odyssey helps you capture your memories, reflections, and experiences through voice, images, and stories, creating a timeless archive for the people who matter most.
-            </motion.p>
-
-            <motion.div
-              variants={fadeUp}
-              transition={{ duration: 0.62, ease, delay: 0.18 }}
-              className="mt-8 flex flex-wrap items-center gap-4"
-            >
-              <CTAButton>Begin Your Journey</CTAButton>
-              <a
-                href="#steps"
-                className="inline-flex items-center gap-2.5 rounded-full border border-[#ddd5ff] bg-white px-6 py-3.5 text-xs sm:text-sm font-extrabold text-[#4d426b] transition hover:-translate-y-0.5 hover:bg-[#EEF2FF]"
+            <div className="flex flex-wrap gap-4">
+              <Link 
+                href="/signup" 
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 inline-flex items-center gap-2"
               >
-                <Play size={14} fill="currentColor" /> Explore How It Works
-              </a>
-            </motion.div>
-
-            {/* Slide Navigation Dots */}
-            <div className="flex items-center gap-2 mt-8">
-              {heroSlides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveSlide(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    activeSlide === i ? "w-8 bg-[#4f37ff]" : "w-2 bg-[#b5a9ff] hover:bg-[#4f37ff]"
-                  }`}
-                  aria-label={`Jump to slide ${i + 1}`}
-                />
-              ))}
+                Start your Odyssey <ArrowRight size={20} />
+              </Link>
+              <Link 
+                href="#how-it-works" 
+                className="text-gray-700 hover:text-gray-900 px-8 py-4 rounded-full font-bold text-lg transition-all inline-flex items-center gap-2"
+              >
+                <Play size={16} className="mr-1" /> See how it works
+              </Link>
             </div>
 
+            {/* Social Proof */}
+            <div className="pt-4">
+              <p className="text-gray-600 font-medium mb-4">
+                Join thousands of users capturing moments that matter
+              </p>
+              <div className="flex items-center">
+                {AVATARS.map((avatar, index) => (
+                  <img
+                    key={index}
+                    src={avatar}
+                    alt={`User ${index + 1}`}
+                    className="w-10 h-10 rounded-full border-2 border-white -ml-3 first:ml-0"
+                  />
+                ))}
+                <div className="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-r from-blue-500 to-purple-600 -ml-3 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">+2k</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right Content - Empty as requested */}
+          <motion.div 
+            className="relative h-[400px] hidden lg:block"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            {/* No floating images or globe as requested */}
           </motion.div>
         </div>
 
-        {/* Right Column: Hero Mockup */}
-        <div className="relative w-full flex justify-center lg:justify-end">
-          <HeroMockup />
+        {/* Feature Cards Section */}
+        <div className="mt-20 grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* 5 Feature Cards - Horizontal Strip */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {FEATURE_CARDS.map((feature, index) => (
+                <motion.div
+                  key={feature.title}
+                  className="text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.6 + index * 0.1 }}
+                >
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full border-2 border-blue-300 flex items-center justify-center">
+                    <feature.icon className="text-blue-500" size={20} />
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1 text-xs uppercase tracking-wide">{feature.title}</h3>
+                  <p className="text-xs text-gray-600 leading-tight">{feature.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Glasses Card */}
+          <motion.div
+            className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg relative overflow-hidden"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 1 }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded">NEW</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    <span className="text-purple-600">AI</span> GLASSES
+                  </span>
+                </div>
+                
+                <h3 className="text-sm font-bold text-gray-900 mb-1">
+                  Capture life as it naturally happens.
+                </h3>
+                
+                <ul className="space-y-1 mb-2">
+                  {[
+                    "Hands-free recording",
+                    "AI highlights what matters",
+                    "Privacy first, always in control",
+                    "Seamless sync across devices"
+                  ].map((item, index) => (
+                    <li key={index} className="flex items-start gap-2 text-xs text-gray-600">
+                      <span className="text-purple-500 mt-0.5">•</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link 
+                  href="#" 
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2 rounded-full font-bold transition-all hover:scale-105 inline-flex items-center justify-center gap-2 text-xs"
+                >
+                  Visit Store <ChevronRight size={14} />
+                </Link>
+              </div>
+
+              <div className="relative w-20 h-20 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/glass.png" 
+                  alt="AI Glasses" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+          </motion.div>
         </div>
-
       </div>
-
-      {/* Bottom 3 Stat Cards: Compact & Left-Aligned */}
-      <div className="relative z-10 mx-auto max-w-6xl w-full px-5 mt-8 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-xl text-left">
-          <AnimatedCountUpStat targetValue={2.3} label="Memories preserved" suffix="M+" decimalPlaces={1} icon={Sparkles} />
-          <AnimatedCountUpStat targetValue={76} label="Countries" suffix="" decimalPlaces={0} icon={Globe} />
-          <AnimatedCountUpStat targetValue={4.3} label="Rated" suffix="" decimalPlaces={1} hasStar={true} icon={Star} />
-        </div>
-      </div>
-
     </section>
   );
 }
