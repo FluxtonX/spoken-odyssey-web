@@ -96,7 +96,13 @@ function CTAButton({ children, dark = false, href = "/signup" }) {
 
 function LandingNav() {
   const [open, setOpen] = useState(false);
-  const links = ["About", "Features", "Stories", "Pricing"];
+  const links = [
+    { label: "Home", href: "/" },
+    { label: "How it Works", href: "/how-it-works" },
+    { label: "Explore", href: "/explore" },
+    { label: "For Families", href: "/for-families" },
+    { label: "Pricing", href: "/pricing" },
+  ];
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-[#dad2ff]/70 bg-white/82 backdrop-blur-2xl">
@@ -107,9 +113,9 @@ function LandingNav() {
 
         <nav className="hidden items-center gap-10 md:flex">
           {links.map((link) => (
-            <a key={link} href={`#${link.toLowerCase()}`} className="text-xs font-semibold text-[#6f6985] transition hover:text-[#4f37ff]">
-              {link}
-            </a>
+            <Link key={link.label} href={link.href} className="text-xs font-semibold text-[#6f6985] transition hover:text-[#4f37ff]">
+              {link.label}
+            </Link>
           ))}
           <a 
             href="https://odyssey-store-ten.vercel.app" 
@@ -143,9 +149,9 @@ function LandingNav() {
         <div className="border-t border-[#e5ddff] bg-white px-5 py-5 md:hidden">
           <div className="flex flex-col gap-4">
             {links.map((link) => (
-              <a key={link} href={`#${link.toLowerCase()}`} onClick={() => setOpen(false)} className="text-sm font-bold text-[#52496d]">
-                {link}
-              </a>
+              <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className="text-sm font-bold text-[#52496d]">
+                {link.label}
+              </Link>
             ))}
             <a 
               href="https://odyssey-store-ten.vercel.app" 
