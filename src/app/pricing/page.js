@@ -1,5 +1,6 @@
 import PricingHeroSection from "@/components/landing/PricingHeroSection";
 import LandingNav from "@/components/landing/LandingNav";
+import LandingFooter from "@/components/landing/LandingFooter";
 
 export const metadata = {
   title: "Pricing — Spoken Odyssey",
@@ -12,6 +13,7 @@ export default function PricingPage() {
     <main className="min-h-screen">
       <LandingNav />
       <PricingHeroSection backgroundImage="/Pricing.png" />
+      <LandingFooter />
     </main>
   );
 }

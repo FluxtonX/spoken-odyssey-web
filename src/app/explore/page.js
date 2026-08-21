@@ -1,5 +1,6 @@
 import ExploreHeroSection from "@/components/landing/ExploreHeroSection";
 import LandingNav from "@/components/landing/LandingNav";
+import LandingFooter from "@/components/landing/LandingFooter";
 
 export const metadata = {
   title: "Explore — Spoken Odyssey",
@@ -12,6 +13,7 @@ export default function ExplorePage() {
     <main className="min-h-screen">
       <LandingNav />
       <ExploreHeroSection backgroundImage="/explore.png" />
+      <LandingFooter />
     </main>
   );
 }

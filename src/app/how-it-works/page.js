@@ -1,5 +1,6 @@
 import HowItWorksHeroSection from "@/components/landing/HowItWorksHeroSection";
 import LandingNav from "@/components/landing/LandingNav";
+import LandingFooter from "@/components/landing/LandingFooter";
 
 export const metadata = {
   title: "How It Works — Spoken Odyssey",
@@ -12,6 +13,7 @@ export default function HowItWorksPage() {
     <main className="min-h-screen">
       <LandingNav />
       <HowItWorksHeroSection backgroundImage="/howitworks.png" />
+      <LandingFooter />
     </main>
   );
 }
