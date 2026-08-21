@@ -27,7 +27,11 @@ export function isPublicRoute(pathname) {
     isLandingRoute(pathname) ||
     isAuthEntryRoute(pathname) ||
     isSetupRoute(pathname) ||
-    isInviteRoute(pathname)
+    isInviteRoute(pathname) ||
+    pathname?.startsWith("/how") ||
+    pathname?.startsWith("/explore") ||
+    pathname?.startsWith("/for-families") ||
+    pathname?.startsWith("/pricing")
   );
 }
 
