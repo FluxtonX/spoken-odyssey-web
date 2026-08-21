@@ -2,62 +2,48 @@
 import Link from "next/link";
 
 export default function LandingFooter() {
+  const groups = [
+    ["Product", "Features", "Voice & Video", "Stories", "AI Insights", "Pricing"],
+    ["Company", "About", "Values", "Careers", "Contact"],
+    ["Legal", "Privacy Policy", "Terms of Service", "Security", "Accessibility", "Cookie Settings"],
+  ];
+
   return (
-    <footer className="bg-stone-950 text-stone-400 pt-16 pb-10 border-t border-stone-900">
-      <div className="max-w-7xl mx-auto px-5">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-14 text-left">
-
-          {/* Brand */}
-          <div className="col-span-2 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-700 flex items-center justify-center text-white font-extrabold text-lg shadow-md">S</div>
-              <span className="font-extrabold text-white text-lg">Spoken <span className="text-amber-500">Odyssey</span></span>
-            </div>
-            <p className="text-sm leading-relaxed max-w-xs">
-              A secure memory platform for saving photos, voice notes, text records, albums, and family moments — with full privacy control.
-            </p>
-            <div className="flex gap-3 pt-2">
-              {["🐦 Twitter", "📸 Instagram", "💼 LinkedIn"].map((s) => (
-                <a key={s} href="#" className="text-xs font-bold text-stone-500 hover:text-amber-500 transition-colors">{s}</a>
-              ))}
-            </div>
-          </div>
-
-          {/* Product */}
-          <div className="space-y-3">
-            <h4 className="text-white font-extrabold text-sm uppercase tracking-widest text-stone-300">Product</h4>
-            {["Features", "Albums", "Feed", "Family Circle", "Privacy Controls", "Mobile App"].map((l) => (
-              <a key={l} href="#" className="block text-sm hover:text-amber-500 transition-colors py-0.5">{l}</a>
-            ))}
-            <a href="https://odyssey-store-ten.vercel.app" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-stone-800 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-stone-700">
-              Shop Smart Glasses <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-            </a>
-          </div>
-
-          {/* Company */}
-          <div className="space-y-3">
-            <h4 className="text-white font-extrabold text-sm uppercase tracking-widest text-stone-300">Company</h4>
-            {["About Us", "Blog", "Careers", "Press Kit", "Contact Us"].map((l) => (
-              <a key={l} href="#" className="block text-sm hover:text-amber-500 transition-colors py-0.5">{l}</a>
-            ))}
-          </div>
-
-          {/* Legal & Support */}
-          <div className="space-y-3">
-            <h4 className="text-white font-extrabold text-sm uppercase tracking-widest text-stone-300">Legal & Support</h4>
-            {["Help Center", "Privacy Policy", "Terms of Service", "Cookie Policy", "Security"].map((l) => (
-              <a key={l} href="#" className="block text-sm hover:text-amber-500 transition-colors py-0.5">{l}</a>
-            ))}
-          </div>
+    <footer className="bg-[#111111] py-14 text-white">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 lg:grid-cols-[1.2fr_2fr] lg:px-8">
+        <div>
+          <img src="/odyssey.png" alt="Spoken Odyssey" className="h-9 w-auto brightness-0 invert" />
+          <p className="mt-5 max-w-xs text-sm font-semibold leading-6 text-[#aaa6b5]">
+            Your life story. Preserved for the people who matter most.
+          </p>
+          <p className="mt-5 text-xs font-bold text-[#aaa6b5]">&quot;Tell them your voice mattered beyond your lifetime.&quot;</p>
         </div>
-
-        <div className="border-t border-stone-900 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-stone-600 font-semibold">
-          <span>© 2026 Spoken Odyssey. All rights reserved.</span>
-          <span className="flex items-center gap-5">
-            <a href="#" className="hover:text-amber-500 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-amber-500 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-amber-500 transition-colors">Support</a>
-          </span>
+        <div className="grid gap-8 sm:grid-cols-3">
+          {groups.map(([title, ...items]) => (
+            <div key={title}>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.22em] text-white">{title}</h3>
+              <div className="mt-5 space-y-3">
+                {items.map((item) => (
+                  <a key={item} href="#" className="block text-xs font-semibold text-[#aaa6b5] transition hover:text-white">
+                    {item}
+                  </a>
+                ))}
+                {title === "Product" && (
+                  <a href="https://odyssey-store-ten.vercel.app" target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/20">
+                    Buy Glasses <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mx-auto mt-12 flex max-w-6xl flex-col gap-4 border-t border-white/12 px-5 pt-6 text-xs font-semibold text-[#8b8794] sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <p>© 2026 Spoken Odyssey. All rights reserved.</p>
+        <div className="flex gap-5">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">Security</a>
         </div>
       </div>
     </footer>
