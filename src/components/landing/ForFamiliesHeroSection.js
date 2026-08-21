@@ -5,83 +5,83 @@ import { motion } from "framer-motion";
 import {
   ArrowUpRight,
   Play,
-  Shield,
+  ShieldCheck,
   Users,
   Heart,
-  Layers,
+  Trees,
   Cloud,
   BookOpen,
-  Video,
-  Send,
-  Lock,
+  Mic,
+  Mail,
+  Share2,
+  Layers,
 } from "lucide-react";
 
 const ease = [0.22, 1, 0.36, 1];
 
-
-/* ── Feature strip ── */
+/* ── 5 Feature items below hero ── */
 const FEATURES = [
   {
-    Icon: Lock,
+    Icon: Users,
     title: "Private & Secure",
-    desc: "Your family, your stories. Only invite who you trust.",
+    line1: "Your family, your stories.",
+    line2: "Only invite who you trust.",
   },
   {
     Icon: Heart,
     title: "Build Together",
-    desc: "Everyone can add, share and celebrate memories.",
+    line1: "Everyone can add, share",
+    line2: "and celebrate memories.",
   },
   {
-    Icon: Layers,
+    Icon: Trees,
     title: "Organized for Generations",
-    desc: "Timelines, collections and memories that grow with you.",
+    line1: "Timelines, collections and",
+    line2: "memories that grow with you.",
   },
   {
-    Icon: Shield,
+    Icon: ShieldCheck,
     title: "Always Yours",
-    desc: "You control your legacy. We keep it safe.",
+    line1: "You control your legacy.",
+    line2: "We keep it safe.",
   },
   {
     Icon: Cloud,
     title: "Access Anywhere",
-    desc: "Anytime, anywhere, on any device.",
+    line1: "Anytime, anywhere,",
+    line2: "on any device.",
   },
 ];
 
-/* ── "What families are creating" cards ── */
+/* ── "What families are creating" 5 Cards using local images ── */
 const CREATING_CARDS = [
   {
-    image:
-      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&q=80",
-    Icon: Layers,
+    image: "/family_timelines.jpg",
+    Icon: BookOpen,
     title: "Family Timelines",
     desc: "Capture life moments in beautiful chronological timelines.",
   },
   {
-    image:
-      "https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=600&q=80",
-    Icon: BookOpen,
+    image: "/story_collections.jpg",
+    Icon: Layers,
     title: "Story Collections",
     desc: "Organize memories by themes, events or special people.",
   },
   {
-    image:
-      "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=600&q=80",
-    Icon: Send,
+    image: "/legacy_letters.jpg",
+    Icon: Mail,
     title: "Legacy Letters",
     desc: "Write letters for your loved ones. For today or for the future.",
   },
   {
-    image:
-      "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=600&q=80",
-    Icon: Video,
+    image: "/voice_video.jpg",
+    Icon: Mic,
     title: "Voice & Video Stories",
     desc: "Hear the voices. See the moments. Keep the memories alive.",
   },
   {
-    image:
-      "https://images.unsplash.com/photo-1581579186913-45ac3e6efe93?w=600&q=80",
-    Icon: Heart,
+    image: "/pass_it_on.jpg",
+    Icon: Share2,
     title: "Pass it On",
     desc: "Choose what's shared and when. Your legacy, their future.",
   },
@@ -91,135 +91,108 @@ export default function ForFamiliesHeroSection({
   backgroundImage = "/family.png",
 }) {
   return (
-    <div>
+    <div className="bg-[#fcfbfe] text-slate-900 font-sans selection:bg-[#4f37ff]/10">
       {/* ════════════════════════════════════════════════════════
           HERO SECTION
       ════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden" style={{ minHeight: "100vh" }}>
-        {/* Background image + left-white gradient overlay */}
+      <section className="relative overflow-hidden pt-24 sm:pt-28 lg:pt-32 pb-16 lg:pb-24 min-h-[85vh] lg:min-h-[92vh] flex items-center">
+        {/* Unblurred background image extending fully to the top of the viewport */}
         <div className="absolute inset-0 z-0">
           <img
             src={backgroundImage}
             alt="For Families background"
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover object-top"
           />
+          {/* Subtle minimal tint on left edge for crisp text readability without hiding/blurring sky */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(105deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.88) 28%, rgba(255,255,255,0.45) 52%, transparent 70%)",
+                "linear-gradient(90deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.15) 30%, transparent 60%)",
             }}
           />
         </div>
 
-
-        {/* Left-side text content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 flex items-center min-h-screen">
-          <div className="w-full py-28">
+        {/* Hero content container */}
+        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full">
+          <div className="max-w-xl py-4">
             <motion.div
-              className="space-y-6 max-w-lg"
-              initial={{ opacity: 0, x: -40 }}
+              initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.9, ease }}
+              transition={{ duration: 0.8, ease }}
+              className="space-y-5"
             >
               {/* Eyebrow */}
               <motion.div
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1, ease }}
+                transition={{ duration: 0.5, delay: 0.1, ease }}
                 className="space-y-0.5"
               >
-                <p
-                  className="italic font-semibold text-base md:text-lg"
-                  style={{ color: "#4f37ff" }}
-                >
+                <p className="italic font-semibold text-sm sm:text-base text-[#4f37ff]">
                   Every family has a story.
                 </p>
-                <p
-                  className="italic font-semibold text-base md:text-lg"
-                  style={{ color: "#4f37ff" }}
-                >
+                <p className="italic font-semibold text-sm sm:text-base text-[#4f37ff]">
                   Leave a legacy of love.{" "}
-                  <span className="not-italic" aria-hidden="true">♡</span>
+                  <span className="not-italic text-sm" aria-hidden="true">
+                    ♡
+                  </span>
                 </p>
               </motion.div>
 
-              {/* Main heading */}
+              {/* Main Minimized Heading */}
               <motion.div
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2, ease }}
+                transition={{ duration: 0.6, delay: 0.2, ease }}
               >
-                <h1
-                  className="font-extrabold leading-[1.05] tracking-tight"
-                  style={{ fontSize: "clamp(2.8rem, 5.5vw, 5rem)" }}
-                >
-                  <span style={{ color: "#1a0a2e" }}>For families.</span>
-                  <br />
-                  <span style={{ color: "#4f37ff" }}>For generations.</span>
+                <h1 className="font-extrabold text-3xl sm:text-4xl lg:text-[44px] leading-[1.12] tracking-tight">
+                  <span className="text-[#1a0a2e] block">For families.</span>
+                  <span className="text-[#4f37ff] block">For generations.</span>
                 </h1>
               </motion.div>
 
-              {/* Description lines */}
+              {/* Description */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.35, ease }}
-                className="space-y-1"
+                transition={{ duration: 0.6, delay: 0.3, ease }}
+                className="space-y-0.5 text-xs sm:text-sm font-medium text-[#52496d]"
               >
-                {[
-                  "Capture the moments that matter.",
-                  "Cherish your memories together.",
-                  "Pass them on forever.",
-                ].map((line, i) => (
-                  <p
-                    key={i}
-                    className="text-base md:text-lg font-medium"
-                    style={{ color: "#52496d" }}
-                  >
-                    {line}
-                  </p>
-                ))}
+                <p>Capture the moments that matter.</p>
+                <p>Cherish your memories together.</p>
+                <p>Pass them on forever.</p>
               </motion.div>
 
-              {/* CTA Buttons */}
+              {/* Action Buttons */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5, ease }}
-                className="flex flex-wrap items-center gap-4 pt-1"
+                transition={{ duration: 0.6, delay: 0.4, ease }}
+                className="flex flex-wrap items-center gap-3 pt-2"
               >
-                {/* Primary */}
+                {/* Primary Pill Button */}
                 <Link
                   id="families-create-btn"
                   href="/signup"
-                  className="inline-flex items-center gap-2 rounded-full font-bold text-white text-sm px-7 py-3.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 sm:px-7 py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_8px_24px_rgba(79,55,255,0.32)]"
                   style={{
                     background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
-                    boxShadow:
-                      "0 10px 28px -4px rgba(79,55,255,0.38), 0 4px 10px -2px rgba(79,55,255,0.22)",
                   }}
                 >
                   Create your family space
                   <ArrowUpRight size={15} strokeWidth={2.5} />
                 </Link>
 
-                {/* Secondary */}
+                {/* Secondary Glass Pill Button */}
                 <Link
                   id="families-howitworks-btn"
                   href="/how-it-works"
-                  className="inline-flex items-center gap-2 rounded-full font-bold text-sm px-6 py-3.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border"
-                  style={{
-                    borderColor: "rgba(79,55,255,0.25)",
-                    color: "#1a0a2e",
-                    background: "rgba(255,255,255,0.80)",
-                    backdropFilter: "blur(8px)",
-                  }}
+                  className="inline-flex items-center gap-2 rounded-full font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
                 >
-                  <Play
-                    size={13}
-                    style={{ fill: "#4f37ff", color: "#4f37ff" }}
-                  />
+                  <div className="w-5 h-5 rounded-full bg-[#4f37ff]/10 flex items-center justify-center text-[#4f37ff]">
+                    <Play size={10} className="fill-[#4f37ff] ml-0.5" />
+                  </div>
                   See how it works
                 </Link>
               </motion.div>
@@ -229,95 +202,33 @@ export default function ForFamiliesHeroSection({
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          FEATURES STRIP
+          2ND SECTION: 5 FEATURES STRIP (SINGLE HORIZONTAL ROW, NO OVERLAP)
       ════════════════════════════════════════════════════════ */}
-      <section className="bg-white border-t border-gray-100 py-10 px-6 md:px-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8">
-            {FEATURES.map(({ Icon, title, desc }, i) => (
+      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto relative z-20 -mt-6 sm:-mt-10 mb-16">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-[0_12px_36px_rgba(0,0,0,0.04)] border border-purple-100/80 p-4 sm:p-5 lg:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-3">
+            {FEATURES.map(({ Icon, title, line1, line2 }, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 18 }}
+                initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.08 }}
-                className="flex flex-col gap-2"
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+                className="flex items-start gap-3 p-1 min-w-0"
               >
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(79,55,255,0.08)" }}
-                >
-                  <Icon size={16} style={{ color: "#4f37ff" }} />
+                {/* Left aligned icon badge */}
+                <div className="w-10 h-10 rounded-xl bg-[#f0edff] flex items-center justify-center flex-shrink-0 text-[#4f37ff]">
+                  <Icon size={18} strokeWidth={2} />
                 </div>
-                <p className="text-sm font-bold text-gray-900 leading-tight">
-                  {title}
-                </p>
-                <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════
-          WHAT FAMILIES ARE CREATING
-      ════════════════════════════════════════════════════════ */}
-      <section className="py-16 px-6 md:px-12 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          {/* Section header */}
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl md:text-2xl font-extrabold text-gray-900">
-              What families are creating
-            </h2>
-            <Link
-              href="/discover"
-              className="inline-flex items-center gap-1 text-sm font-bold transition-all hover:-translate-y-0.5"
-              style={{ color: "#4f37ff" }}
-            >
-              Explore all features
-              <ArrowUpRight size={14} />
-            </Link>
-          </div>
-
-          {/* 5 portrait image cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {CREATING_CARDS.map(({ image, Icon, title, desc }, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.55, delay: i * 0.09 }}
-                className="group cursor-pointer"
-              >
-                {/* Image */}
-                <div className="rounded-2xl overflow-hidden mb-3 relative"
-                  style={{ aspectRatio: "3/4" }}
-                >
-                  <img
-                    src={image}
-                    alt={title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
-                </div>
-
-                {/* Card label */}
-                <div className="flex items-start gap-2 px-1">
-                  <div
-                    className="mt-0.5 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(79,55,255,0.09)" }}
-                  >
-                    <Icon size={12} style={{ color: "#4f37ff" }} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 leading-tight">
-                      {title}
-                    </p>
-                    <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
-                      {desc}
-                    </p>
-                  </div>
+                {/* Right aligned text without overlap */}
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <h4 className="text-xs sm:text-sm font-extrabold text-[#1a0a2e] leading-snug break-words">
+                    {title}
+                  </h4>
+                  <p className="text-[11px] sm:text-xs text-slate-500 leading-tight mt-0.5">
+                    <span className="block">{line1}</span>
+                    <span className="block">{line2}</span>
+                  </p>
                 </div>
               </motion.div>
             ))}
@@ -326,41 +237,90 @@ export default function ForFamiliesHeroSection({
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          SECURITY BANNER
+          3RD SECTION: WHAT FAMILIES ARE CREATING (5 CARDS WITH LOCAL ASSETS)
       ════════════════════════════════════════════════════════ */}
-      <section className="bg-white border-t border-gray-100 py-8 px-6 md:px-12">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-          {/* Left */}
-          <div className="flex items-center gap-4">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(79,55,255,0.08)" }}
+      <section className="py-8 sm:py-12 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto mb-16">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-[#1a0a2e]">
+            What families are creating
+          </h2>
+          <Link
+            href="/discover"
+            className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#4f37ff] hover:underline transition-all"
+          >
+            Explore all features
+            <ArrowUpRight size={14} strokeWidth={2.5} />
+          </Link>
+        </div>
+
+        {/* 5 Cards Row - Compact height with wide landscape aspect ratio and local assets */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+          {CREATING_CARDS.map(({ image, Icon, title, desc }, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: i * 0.07 }}
+              className="bg-white rounded-2xl overflow-hidden border border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all duration-300 flex flex-col group"
             >
-              <Shield size={18} style={{ color: "#4f37ff" }} />
+              {/* Exact wide landscape photo cropped from screenshot */}
+              <div className="relative aspect-[1.96/1] w-full overflow-hidden bg-slate-100">
+                <img
+                  src={image}
+                  alt={title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+
+              {/* Bottom Info with Icon on left */}
+              <div className="p-3 sm:p-3.5 flex items-start gap-2.5 bg-white flex-1 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-[#f0edff] flex items-center justify-center flex-shrink-0 text-[#4f37ff] mt-0.5">
+                  <Icon size={14} strokeWidth={2} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-extrabold text-[#1a0a2e] leading-snug">
+                    {title}
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 leading-tight mt-1">
+                    {desc}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════
+          4TH SECTION: SECURITY CARD BANNER
+      ════════════════════════════════════════════════════════ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pb-16">
+        <div className="bg-[#f3efff] border border-[#e4daff] rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:px-8 lg:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          {/* Left badge & text */}
+          <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white border border-[#4f37ff]/20 flex items-center justify-center text-[#4f37ff] shadow-sm flex-shrink-0">
+              <ShieldCheck size={20} strokeWidth={2} />
             </div>
             <div>
-              <p className="font-extrabold text-gray-900 text-sm md:text-base">
+              <h3 className="text-sm sm:text-base font-extrabold text-[#1a0a2e] leading-snug">
                 Your family. Your legacy. Protected for generations.
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5 max-w-lg">
-                Enterprise-grade security to keep your stories safe, private,
-                and always accessible to your loved ones.
+              </h3>
+              <p className="text-xs sm:text-sm text-[#52496d] mt-0.5 leading-relaxed max-w-2xl">
+                Enterprise-grade security to keep your stories safe, private, and always accessible to your loved ones.
               </p>
             </div>
           </div>
 
-          {/* Right */}
+          {/* Right button */}
           <Link
             id="families-security-btn"
             href="/how-it-works"
-            className="inline-flex items-center gap-1.5 rounded-full border font-bold text-sm px-5 py-2.5 whitespace-nowrap transition-all duration-200 hover:bg-gray-50 hover:-translate-y-0.5 flex-shrink-0"
-            style={{
-              borderColor: "rgba(79,55,255,0.28)",
-              color: "#1a0a2e",
-            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#4f37ff]/40 text-[#4f37ff] bg-white font-semibold text-xs sm:text-sm px-5 sm:px-6 py-2.5 hover:bg-[#4f37ff]/5 transition-all shadow-sm whitespace-nowrap flex-shrink-0"
           >
             Learn about security
-            <ArrowUpRight size={13} />
+            <ArrowUpRight size={14} strokeWidth={2.5} />
           </Link>
         </div>
       </section>
