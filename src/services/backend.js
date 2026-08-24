@@ -515,6 +515,12 @@ export async function deleteNotification(token, notificationId) {
   return response.data;
 }
 
+/** Get current user's family circle details */
+export async function getFamilyCircleDetails(token) {
+  const response = await backendFetch("/api/family-circle", { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
 /** Get family circle members (new API) */
 export async function getFamilyCircleMembers(token) {
   const response = await backendFetch("/api/family-circle/members", { token });
@@ -575,6 +581,108 @@ export async function removeFamilyMember(token, userId) {
     method: "DELETE",
     token,
   });
+  return response.data;
+}
+
+/** Non-destructive linking of an individual memory to a Family Circle */
+export async function linkMemoryToFamilyCircle(token, familyCircleId, memoryId) {
+  const response = await backendFetch(`/api/family-circle/${familyCircleId}/link-memory`, {
+    method: "POST",
+    body: { memoryId },
+    token,
+  });
+  invalidateCachePattern("family_shared_|family_timeline_");
+  return response.data;
+}
+
+/** Unlink a memory reference from Family Circle (does NOT delete original memory) */
+export async function unlinkMemoryFromFamilyCircle(token, familyCircleId, memoryId) {
+  const response = await backendFetch(`/api/family-circle/${familyCircleId}/unlink-memory/${memoryId}`, {
+    method: "DELETE",
+    token,
+  });
+  invalidateCachePattern("family_shared_|family_timeline_");
+  return response.data;
+}
+
+/** Fetch cursor-paginated timeline for a Family Circle */
+export async function getFamilySpaceTimeline(token, familyCircleId, { limit = 20, cursor = null } = {}) {
+  const query = `limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+  const response = await backendFetch(`/api/family-circle/${familyCircleId}/timeline?${query}`, { token });
+  return response.data;
+}
+
+/** Add a multi-perspective Story Layer to a memory */
+export async function addStoryLayer(token, memoryId, { text, audioKey, audioDuration } = {}) {
+  const response = await backendFetch(`/api/family-circle/memories/${memoryId}/story-layers`, {
+    method: "POST",
+    body: { text, audioKey, audioDuration },
+    token,
+  });
+  return response.data;
+}
+
+/** Get all Story Layers for a memory */
+export async function getStoryLayers(token, memoryId) {
+  const response = await backendFetch(`/api/family-circle/memories/${memoryId}/story-layers`, { token });
+  return response.data;
+}
+
+/** Create a new Family Prompt */
+export async function createFamilyPrompt(token, familyCircleId, question, category = "Heritage") {
+  const response = await backendFetch(`/api/family-circle/${familyCircleId}/prompts`, {
+    method: "POST",
+    body: { question, category },
+    token,
+  });
+  return response.data;
+}
+
+/** Get all Family Prompts for a space */
+export async function getFamilyPrompts(token, familyCircleId) {
+  const response = await backendFetch(`/api/family-circle/${familyCircleId}/prompts`, { token });
+  return response.data;
+}
+
+/** Respond to a Family Prompt */
+export async function respondToFamilyPrompt(token, promptId, { text, audioKey } = {}) {
+  const response = await backendFetch(`/api/family-circle/prompts/${promptId}/respond`, {
+    method: "POST",
+    body: { text, audioKey },
+    token,
+  });
+  return response.data;
+}
+
+/** Get Guardian & Minor Controls for a space */
+export async function getGuardianControls(token, familyCircleId) {
+  const response = await backendFetch(`/api/family-circle/${familyCircleId}/guardian-controls`, { token });
+  return response.data;
+}
+
+/** Update Guardian consent settings for a minor user */
+export async function updateGuardianConsent(token, childUserId, { status, canPostWithoutApproval, allowMediaUploads } = {}) {
+  const response = await backendFetch(`/api/family-circle/guardian-consent/${childUserId}`, {
+    method: "PUT",
+    body: { status, canPostWithoutApproval, allowMediaUploads },
+    token,
+  });
+  return response.data;
+}
+
+/** Upsert relationship graph edge */
+export async function upsertRelationshipEdge(token, circleId, { toUserId, relationshipCode, side } = {}) {
+  const response = await backendFetch(`/api/family-circle/${circleId}/relationship-edge`, {
+    method: "POST",
+    body: { toUserId, relationshipCode, side },
+    token,
+  });
+  return response.data;
+}
+
+/** Get relationship graph */
+export async function getRelationshipGraph(token, circleId) {
+  const response = await backendFetch(`/api/family-circle/${circleId}/relationship-graph`, { token });
   return response.data;
 }
 

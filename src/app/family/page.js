@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthProvider";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck, Clock, Mic, FileText, Image as ImageIcon, Film, Play } from "lucide-react";
+import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck, Clock, Mic, FileText, Image as ImageIcon, Film, Play, Link2, Unlink } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp, fadeIn } from "@/lib/animations";
 import InviteMemberModal from "./components/InviteMemberModal";
+import LinkMemoryModal from "./components/LinkMemoryModal";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
 import { 
@@ -15,6 +16,7 @@ import {
   getFamilyInvitations, 
   acceptFamilyInvitation, 
   declineFamilyInvitation,
+  getFamilyCircleDetails,
   getFamilyCircleMembers,
   isFamilyAdmin,
   getPendingApprovals,
@@ -24,6 +26,13 @@ import {
   demoteFromAdmin,
   removeFamilyMember,
   getFamilySharedMemories,
+  getFamilySpaceTimeline,
+  unlinkMemoryFromFamilyCircle,
+  createFamilyPrompt,
+  getFamilyPrompts,
+  respondToFamilyPrompt,
+  getGuardianControls,
+  updateGuardianConsent,
   getLegacySettings,
   updateLegacySettings
 } from "@/services/backend";
@@ -146,9 +155,58 @@ export default function FamilyCirclePage() {
   const [selectedOption, setSelectedOption] = useState("");
   const [toastMessage, setToastMessage] = useState("");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [currentCircleId, setCurrentCircleId] = useState(null);
+  const [timelineItems, setTimelineItems] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineCursor, setTimelineCursor] = useState(null);
+  const [hasMoreTimeline, setHasMoreTimeline] = useState(false);
+  const [promptsList, setPromptsList] = useState([]);
+  const [promptsLoading, setPromptsLoading] = useState(false);
+  const [newQuestionText, setNewQuestionText] = useState("");
+  const [promptCategory, setPromptCategory] = useState("Heritage");
+  const [activePromptResponseId, setActivePromptResponseId] = useState(null);
+  const [replyInputText, setReplyInputText] = useState("");
+  const [guardianMinorsList, setGuardianMinorsList] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [userToken, setUserToken] = useState(null);
+
+  useEffect(() => {
+    async function loadGuardianData() {
+      if (currentCircleId && (isAdmin || currentProfile?.role === "ADMIN")) {
+        try {
+          const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+          if (token) {
+            const data = await getGuardianControls(token, currentCircleId).catch(() => []);
+            if (Array.isArray(data)) setGuardianMinorsList(data);
+          }
+        } catch (err) {
+          console.warn("Could not load guardian controls:", err);
+        }
+      }
+    }
+    loadGuardianData();
+  }, [currentCircleId, isAdmin, currentProfile]);
+
+  const handleToggleConsentPost = async (childUserId, currentVal) => {
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        const updated = await updateGuardianConsent(token, childUserId, { canPostWithoutApproval: !currentVal });
+        setGuardianMinorsList(prev => prev.map(m => {
+          if (m.user?.id === childUserId) {
+            return { ...m, consent: updated };
+          }
+          return m;
+        }));
+        setToastMessage("✓ Guardian consent setting updated!");
+        setTimeout(() => setToastMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("Toggle consent error:", err);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -168,6 +226,12 @@ export default function FamilyCirclePage() {
         if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
 
         if (token) {
+          // Load family circle details (ID)
+          const circleDetails = await getFamilyCircleDetails(token).catch(() => null);
+          if (circleDetails?.id) {
+            setCurrentCircleId(circleDetails.id);
+          }
+
           // Load family circle members (new API)
           const circleMembers = await getFamilyCircleMembers(token).catch(() => null);
           if (Array.isArray(circleMembers) && circleMembers.length > 0) {
@@ -264,6 +328,100 @@ export default function FamilyCirclePage() {
     }
     loadSharedMemories();
   }, [activeTab, auth.isAuthenticated, auth.firebaseUser]);
+
+  // Load family prompts when Ask Family tab is active
+  useEffect(() => {
+    async function loadPromptsData() {
+      if (activeTab === "Ask Family") {
+        setPromptsLoading(true);
+        try {
+          let token = null;
+          if (auth.getToken) {
+            try { token = await auth.getToken(); } catch (_) {}
+          }
+          if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+
+          let targetCircleId = currentCircleId;
+          if (!targetCircleId && token) {
+            const circleDetails = await getFamilyCircleDetails(token).catch(() => null);
+            targetCircleId = circleDetails?.id || circleDetails?.data?.id || circleDetails?.familyCircleId;
+            if (targetCircleId) setCurrentCircleId(targetCircleId);
+          }
+
+          if (token && targetCircleId) {
+            const data = await getFamilyPrompts(token, targetCircleId).catch(() => []);
+            if (Array.isArray(data)) setPromptsList(data);
+          }
+        } catch (err) {
+          console.warn("Could not load family prompts:", err);
+        } finally {
+          setPromptsLoading(false);
+        }
+      }
+    }
+    loadPromptsData();
+  }, [activeTab, currentCircleId, auth.isAuthenticated]);
+
+  const handleCreatePrompt = async (e) => {
+    e.preventDefault();
+    if (!newQuestionText.trim()) return;
+    try {
+      let token = null;
+      if (auth.getToken) {
+        try { token = await auth.getToken(); } catch (_) {}
+      }
+      if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+
+      let targetCircleId = currentCircleId;
+      if (!targetCircleId && token) {
+        const circleDetails = await getFamilyCircleDetails(token).catch(() => null);
+        targetCircleId = circleDetails?.id || circleDetails?.data?.id || circleDetails?.familyCircleId;
+        if (targetCircleId) setCurrentCircleId(targetCircleId);
+      }
+
+      if (!targetCircleId) {
+        setToastMessage("Error: Could not retrieve Family Space ID.");
+        setTimeout(() => setToastMessage(""), 3000);
+        return;
+      }
+
+      if (token) {
+        const created = await createFamilyPrompt(token, targetCircleId, newQuestionText, promptCategory);
+        if (created) {
+          setPromptsList(prev => [created, ...prev]);
+          setNewQuestionText("");
+          setToastMessage("✓ Family question posted!");
+          setTimeout(() => setToastMessage(""), 3000);
+        }
+      }
+    } catch (err) {
+      console.error("Create prompt error:", err);
+      setToastMessage(`Failed to post: ${err.message || "Server error"}`);
+      setTimeout(() => setToastMessage(""), 3500);
+    }
+  };
+
+  const handleRespondToPrompt = async (promptId) => {
+    if (!replyInputText.trim()) return;
+    try {
+      const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        const newResp = await respondToFamilyPrompt(token, promptId, { text: replyInputText });
+        setPromptsList(prev => prev.map(p => {
+          if (p.id === promptId) {
+            return { ...p, responses: [...(p.responses || []), newResp] };
+          }
+          return p;
+        }));
+        setReplyInputText("");
+        setActivePromptResponseId(null);
+        setToastMessage("✓ Response shared with family!");
+        setTimeout(() => setToastMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("Respond to prompt error:", err);
+    }
+  };
 
   const togglePermission = (id) => {
     setPermissions(permissions.map(p => 
@@ -455,16 +613,26 @@ export default function FamilyCirclePage() {
           <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div>
               <h1 className="text-[32px] md:text-[36px] font-bold text-stone-900 dark:text-white tracking-tight leading-tight">Family Circle</h1>
-              <p className="text-stone-500 dark:text-stone-400 font-medium text-[15px] mt-1">{membersList.length} members · Private circle</p>
+              <p className="text-stone-500 dark:text-stone-400 font-medium text-[15px] mt-1">{membersList.length} members · Private space</p>
             </div>
             
-            <button 
-              onClick={() => setIsInviteModalOpen(true)}
-              className="bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white px-5 py-2.5 rounded-[12px] font-bold transition-all shadow-md flex items-center justify-center gap-2 max-w-max cursor-pointer active:scale-95"
-            >
-              <UserPlus size={18} strokeWidth={2.5} />
-              <span className="text-[14px]">Invite member</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setIsLinkModalOpen(true)}
+                className="bg-white hover:bg-stone-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-[#4A3AFF] dark:text-indigo-300 border border-[#4A3AFF]/30 dark:border-indigo-500/30 px-4 py-2.5 rounded-[12px] font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95 text-[14px]"
+              >
+                <Link2 size={18} strokeWidth={2.5} />
+                <span>Link Memory</span>
+              </button>
+
+              <button 
+                onClick={() => setIsInviteModalOpen(true)}
+                className="bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white px-5 py-2.5 rounded-[12px] font-bold transition-all shadow-md flex items-center justify-center gap-2 max-w-max cursor-pointer active:scale-95 text-[14px]"
+              >
+                <UserPlus size={18} strokeWidth={2.5} />
+                <span>Invite member</span>
+              </button>
+            </div>
           </motion.div>
 
           {/* Tab Bar - Exact Figma match with dynamic badge count */}
@@ -473,6 +641,7 @@ export default function FamilyCirclePage() {
               { id: "Members", label: "Members" },
               { id: "Invitations", label: "Invitations", badge: invitationsList.length + pendingApprovals.length },
               { id: "Shared Memories", label: "Shared Memories" },
+              { id: "Ask Family", label: "Ask Family" },
               { id: "Family Tree", label: "Family Tree" },
               { id: "Legacy Access", label: "Legacy Access" }
             ].map(tab => (
@@ -546,8 +715,18 @@ export default function FamilyCirclePage() {
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[13px] font-medium text-stone-600 dark:text-stone-400">{relationshipToDisplay}</span>
-                            {member.isAdmin && (
+                            {member.role === "ADMIN" || member.isAdmin ? (
                               <span className="bg-[#4A3AFF] text-white text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Admin</span>
+                            ) : member.role === "ADULT_MEMBER" ? (
+                              <span className="bg-[#EEF2FF] text-[#4A3AFF] dark:bg-indigo-950 dark:text-indigo-300 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Adult Member</span>
+                            ) : member.role === "CONTRIBUTOR" ? (
+                              <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Contributor</span>
+                            ) : member.role === "RESTRICTED_MINOR" ? (
+                              <span className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Minor</span>
+                            ) : member.role === "GUEST" ? (
+                              <span className="bg-stone-100 text-stone-600 dark:bg-slate-800 dark:text-stone-300 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Guest</span>
+                            ) : (
+                              <span className="bg-[#EEF2FF] text-[#4A3AFF] text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]">Member</span>
                             )}
                           </div>
                           <p className="text-[12px] font-medium text-stone-500 dark:text-stone-400 mt-1">{member.sharedCount || 0} shared memories</p>
@@ -597,6 +776,57 @@ export default function FamilyCirclePage() {
                   ))}
                 </div>
               </motion.div>
+
+              {/* Guardian & Minor Safety Controls Section */}
+              {(isAdmin || currentProfile?.role === "ADMIN") && guardianMinorsList.length > 0 && (
+                <motion.div variants={fadeInUp} className="mt-8 figma-card p-6 md:p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 flex items-center justify-center font-bold">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-[18px] text-stone-900 dark:text-white">Guardian & Minor Safety Controls</h2>
+                      <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Manage posting privileges and consent for minor accounts.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {guardianMinorsList.map(({ user, consent }) => (
+                      <div key={user?.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-stone-50 dark:bg-slate-800/60 rounded-2xl border border-stone-200/60 dark:border-slate-700/60 gap-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={user?.photoURL || "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80"}
+                            alt={user?.displayName || "Minor User"}
+                            className="w-11 h-11 rounded-full object-cover border border-[#C7D2FE]"
+                          />
+                          <div>
+                            <h4 className="font-bold text-sm text-stone-900 dark:text-white">{user?.displayName || user?.name || "Minor Member"}</h4>
+                            <p className="text-xs text-stone-500 dark:text-stone-400">{user?.email}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className="text-xs font-medium text-stone-600 dark:text-stone-300">
+                            Allow publishing without approval:
+                          </span>
+                          <button
+                            onClick={() => handleToggleConsentPost(user?.id, consent?.canPostWithoutApproval)}
+                            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
+                              consent?.canPostWithoutApproval ? "bg-emerald-500" : "bg-stone-300 dark:bg-slate-700"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                                consent?.canPostWithoutApproval ? "translate-x-6 shadow-sm" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           )}
 
@@ -738,6 +968,161 @@ export default function FamilyCirclePage() {
                   )}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* Active Tab Content: Ask Family */}
+          {activeTab === "Ask Family" && (
+            <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-8">
+              {/* Question Composer Card */}
+              <motion.div variants={fadeInUp} className="figma-card p-6 md:p-8">
+                <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Ask the Family</h2>
+                <p className="text-xs text-stone-500 dark:text-stone-400 font-medium mb-4">
+                  Ask a question to start a family discussion or preserve multi-generational memories.
+                </p>
+
+                <form onSubmit={handleCreatePrompt} className="space-y-4">
+                  <div>
+                    <textarea
+                      rows={3}
+                      value={newQuestionText}
+                      onChange={(e) => setNewQuestionText(e.target.value)}
+                      placeholder="e.g. What was grandpa's favorite memory growing up? Or tell us about our first family holiday!"
+                      className="w-full p-4 rounded-2xl border border-[#C7D2FE]/70 dark:border-slate-800 bg-white dark:bg-slate-900 text-stone-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-[#4A3AFF] focus:outline-none transition resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-stone-500 dark:text-stone-400">Category:</span>
+                      {["Heritage", "Childhood", "Traditions", "Fun"].map((cat) => (
+                        <button
+                          type="button"
+                          key={cat}
+                          onClick={() => setPromptCategory(cat)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                            promptCategory === cat
+                              ? "bg-[#4A3AFF] text-white shadow-xs"
+                              : "bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={!newQuestionText.trim()}
+                      className="px-6 py-2.5 bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer active:scale-95"
+                    >
+                      Post Question
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+
+              {/* Prompts Stream */}
+              <div className="space-y-6">
+                {promptsLoading ? (
+                  <div className="text-center py-12 text-stone-400 text-sm font-medium">Loading family questions...</div>
+                ) : promptsList.length === 0 ? (
+                  <div className="figma-card p-12 text-center flex flex-col items-center justify-center">
+                    <TreePine size={32} className="text-[#4A3AFF] mb-3" />
+                    <h3 className="font-bold text-base text-stone-900 dark:text-white">No family questions yet</h3>
+                    <p className="text-xs text-stone-400 max-w-sm mt-1">
+                      Be the first to post a question above to ignite family conversations!
+                    </p>
+                  </div>
+                ) : (
+                  promptsList.map((prompt) => (
+                    <motion.div key={prompt.id} variants={fadeInUp} className="figma-card p-6 md:p-8 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={prompt.createdBy?.photoURL || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80"}
+                            alt={prompt.createdBy?.displayName || "Member"}
+                            className="w-10 h-10 rounded-full object-cover border border-[#C7D2FE]"
+                          />
+                          <div>
+                            <h4 className="font-bold text-sm text-stone-900 dark:text-white leading-tight">
+                              {prompt.createdBy?.displayName || prompt.createdBy?.name || "Family Member"}
+                            </h4>
+                            <p className="text-[11px] text-stone-400">
+                              Asked {new Date(prompt.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="px-3 py-1 bg-[#EEF2FF] text-[#4A3AFF] dark:bg-indigo-950 dark:text-indigo-300 rounded-full text-xs font-bold border border-[#D1D9FF] dark:border-indigo-800/40">
+                          {prompt.category || "Heritage"}
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg font-bold text-stone-900 dark:text-white leading-snug">
+                        "{prompt.question}"
+                      </h3>
+
+                      {/* Responses List */}
+                      {prompt.responses && prompt.responses.length > 0 && (
+                        <div className="pl-4 border-l-2 border-[#4A3AFF]/30 space-y-3 pt-2">
+                          {prompt.responses.map((resp) => (
+                            <div key={resp.id} className="bg-stone-50/80 dark:bg-slate-800/60 p-3.5 rounded-2xl space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-stone-900 dark:text-white">
+                                  {resp.author?.displayName || resp.author?.name || "Family Member"}
+                                </span>
+                                <span className="text-[10px] text-stone-400">
+                                  {new Date(resp.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-xs text-stone-700 dark:text-stone-300 font-medium">
+                                {resp.text}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Reply Action */}
+                      {activePromptResponseId === prompt.id ? (
+                        <div className="pt-2 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={replyInputText}
+                            onChange={(e) => setReplyInputText(e.target.value)}
+                            placeholder="Write your response..."
+                            className="flex-1 px-4 py-2 rounded-xl border border-stone-300 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-[#4A3AFF] focus:outline-none"
+                          />
+                          <button
+                            onClick={() => handleRespondToPrompt(prompt.id)}
+                            disabled={!replyInputText.trim()}
+                            className="px-4 py-2 bg-[#4A3AFF] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                          >
+                            Send
+                          </button>
+                          <button
+                            onClick={() => setActivePromptResponseId(null)}
+                            className="px-3 py-2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setActivePromptResponseId(prompt.id);
+                            setReplyInputText("");
+                          }}
+                          className="text-xs font-bold text-[#4A3AFF] hover:underline cursor-pointer pt-1"
+                        >
+                          + Add your response
+                        </button>
+                      )}
+                    </motion.div>
+                  ))
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -1028,14 +1413,6 @@ export default function FamilyCirclePage() {
         </div>
       </motion.div>
 
-      {/* Invite Member Modal Component */}
-      <InviteMemberModal 
-        isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        onSuccess={handleInviteSuccess}
-        userToken={userToken}
-      />
-
       {/* Edit Setting Modal */}
       {editingSetting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-left">
@@ -1095,13 +1472,23 @@ export default function FamilyCirclePage() {
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-emerald-500 text-white p-4 text-xs font-bold shadow-xl animate-fade-in">
-          <Check size={16} strokeWidth={3} />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      {/* Link Memory Modal */}
+      <LinkMemoryModal
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
+        familyCircleId={currentCircleId}
+        onLinkSuccess={() => {
+          setToastMessage("✓ Memory linked to Family Space!");
+          setTimeout(() => setToastMessage(""), 3500);
+        }}
+      />
+
+      {/* Invite Member Modal */}
+      <InviteMemberModal 
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onSuccess={handleInviteSuccess}
+      />
     </WavesBackground>
   );
 }
