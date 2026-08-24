@@ -36,8 +36,5 @@ export function isPublicRoute(pathname) {
 }
 
 export function getPostAuthRoute(profile) {
-  if (!profile?.onboardingCompleted) {
-    return "/onboarding";
-  }
   return "/home";
 }

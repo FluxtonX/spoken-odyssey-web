@@ -75,10 +75,10 @@ export default function LandingNav() {
           </a>
         </nav>
 
-        <div className="hidden items-center gap-4 md:flex">
+        <div className="hidden items-center gap-3 md:flex">
           <Link
             href="/auth"
-            className="text-xs font-bold text-[#6f6985] transition hover:text-[#19142b]"
+            className="inline-flex items-center justify-center rounded-full px-4.5 py-2 text-xs font-extrabold text-[#1a0a2e] bg-white/90 backdrop-blur-md border border-[#1a0a2e]/20 hover:border-[#4f37ff] hover:text-[#4f37ff] hover:bg-white transition-all duration-200 shadow-sm"
           >
             Sign in
           </Link>
@@ -117,7 +117,7 @@ export default function LandingNav() {
             >
               Store
             </a>
-            <Link href="/auth" className="text-sm font-bold text-[#52496d]">
+            <Link href="/auth" className="text-sm font-extrabold text-[#1a0a2e] hover:text-[#4f37ff]">
               Sign in
             </Link>
             <CTAButton href="/signup">Begin Your Journey</CTAButton>

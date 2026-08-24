@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
@@ -32,7 +33,12 @@ const onboardingSteps = [
 ];
 
 export default function Onboarding() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    router.replace("/home");
+  }, [router]);
 
   const nextStep = () => {
     if (step < onboardingSteps.length - 1) {

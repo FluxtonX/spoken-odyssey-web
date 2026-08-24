@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import LandingFooter from "./LandingFooter";
+import LandingNav from "./LandingNav";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -95,85 +96,7 @@ function CTAButton({ children, dark = false, href = "/signup" }) {
   );
 }
 
-function LandingNav() {
-  const [open, setOpen] = useState(false);
-  const links = [
-    { label: "Home", href: "/" },
-    { label: "How it Works", href: "/how-it-works" },
-    { label: "Explore", href: "/explore" },
-    { label: "For Families", href: "/for-families" },
-    { label: "Pricing", href: "/pricing" },
-  ];
 
-  return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b border-[#dad2ff]/70 bg-white/82 backdrop-blur-2xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 lg:px-8">
-        <Link href="/" className="flex items-center gap-3">
-          <img src="/odyssey.png" alt="Spoken Odyssey" className="h-8 w-auto object-contain" />
-        </Link>
-
-        <nav className="hidden items-center gap-10 md:flex">
-          {links.map((link) => (
-            <Link key={link.label} href={link.href} className="text-xs font-semibold text-[#6f6985] transition hover:text-[#4f37ff]">
-              {link.label}
-            </Link>
-          ))}
-          <a 
-            href="https://odyssey-store-ten.vercel.app" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="text-[10px] font-black uppercase tracking-wider text-white bg-[#4f37ff] hover:bg-[#3521dc] transition-all px-4 py-2 rounded-full flex items-center gap-1.5 shadow-[0_6px_16px_rgba(79,55,255,0.2)] hover:-translate-y-0.5"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            Store
-          </a>
-        </nav>
-
-        <div className="hidden items-center gap-4 md:flex">
-          <Link href="/auth" className="text-xs font-bold text-[#6f6985] transition hover:text-[#19142b]">
-            Sign in
-          </Link>
-          <CTAButton>Begin Your Journey</CTAButton>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#ddd5ff] text-[#281a77] md:hidden"
-          aria-label="Toggle menu"
-        >
-          {open ? <X size={18} /> : <Menu size={18} />}
-        </button>
-      </div>
-
-      {open && (
-        <div className="border-t border-[#e5ddff] bg-white px-5 py-5 md:hidden">
-          <div className="flex flex-col gap-4">
-            {links.map((link) => (
-              <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className="text-sm font-bold text-[#52496d]">
-                {link.label}
-              </Link>
-            ))}
-            <a 
-              href="https://odyssey-store-ten.vercel.app" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 text-sm font-bold text-[#4f37ff]"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-              Store
-            </a>
-            <Link href="/auth" className="text-sm font-bold text-[#52496d]">
-              Sign in
-            </Link>
-            <CTAButton>Begin Your Journey</CTAButton>
-          </div>
-        </div>
-      )}
-    </header>
-  );
-}
 
 function Waveform({ active = false }) {
   const bars = [20, 42, 30, 62, 36, 80, 46, 24, 58, 70, 34, 50, 82, 42, 64, 30, 56, 74, 38, 52];
@@ -428,46 +351,70 @@ function HeroSection() {
         <img 
           src="/heroo.png" 
           alt="Background" 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
+        {/* Subtle transparent mask matching other hero sections for high clarity & readability */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(105deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.70) 30%, rgba(255,255,255,0.20) 55%, transparent 75%)",
+          }}
+        />
       </div>
 
       {/* Main Hero Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pt-8 md:pt-16">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pt-16 md:pt-24 pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           
           {/* Left Content */}
           <motion.div 
-            className="space-y-8"
+            className="space-y-7"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <p className="text-lg md:text-xl text-blue-600 italic font-medium">
-              It's your journey
+            <p
+              className="italic font-semibold text-base md:text-lg flex items-center gap-1.5"
+              style={{ color: "#4f37ff" }}
+            >
+              It's your journey.{" "}
+              <span className="not-italic text-sm" aria-hidden="true">♡</span>
             </p>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-              Your life.<br />Your story.<br /><span className="bg-gradient-to-r from-purple-500 to-blue-400 bg-clip-text text-transparent">Your Odyssey.</span>
+            <h1
+              className="font-extrabold leading-[1.05] tracking-tight"
+              style={{ fontSize: "clamp(3rem, 6vw, 5.5rem)" }}
+            >
+              <span style={{ color: "#1a0a2e" }}>Your life.</span>
+              <br />
+              <span style={{ color: "#1a0a2e" }}>Your story.</span>
+              <br />
+              <span style={{ color: "#4f37ff" }}>Your Odyssey.</span>
             </h1>
             
-            <p className="text-lg md:text-xl text-gray-700 font-medium">
+            <p className="text-base md:text-lg leading-relaxed max-w-md font-medium" style={{ color: "#52496d" }}>
               Capture the moments. Tell the stories. Relive them forever.
             </p>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link 
                 href="/signup" 
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 inline-flex items-center gap-2"
+                className="inline-flex items-center gap-2 rounded-full font-bold text-white text-sm md:text-base px-8 py-3.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_10px_28px_rgba(79,55,255,0.3)]"
+                style={{
+                  background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
+                }}
               >
-                Start your Odyssey <ArrowRight size={20} />
+                Start your Odyssey <ArrowRight size={18} />
               </Link>
               <Link 
                 href="#how-it-works" 
-                className="text-gray-700 hover:text-gray-900 px-8 py-4 rounded-full font-bold text-lg transition-all inline-flex items-center gap-2"
+                className="inline-flex items-center gap-2 rounded-full font-bold text-sm md:text-base px-7 py-3.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
               >
-                <Play size={16} className="mr-1" /> See how it works
+                <div className="w-5 h-5 rounded-full bg-[#4f37ff]/10 flex items-center justify-center text-[#4f37ff]">
+                  <Play size={10} className="fill-[#4f37ff] ml-0.5" />
+                </div>
+                See how it works
               </Link>
             </div>
 

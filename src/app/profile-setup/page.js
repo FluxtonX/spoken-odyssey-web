@@ -21,12 +21,10 @@ export default function ProfileSetup() {
 
   const fileInputRef = useRef(null);
 
-  // Redirect unauthenticated users
+  // Redirect to home as onboarding/profile-setup step is disabled
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace("/auth");
-    }
-  }, [isAuthenticated, loading, router]);
+    router.replace("/home");
+  }, [router]);
 
   // Pre-populate fields from current profile or firebase user
   useEffect(() => {
