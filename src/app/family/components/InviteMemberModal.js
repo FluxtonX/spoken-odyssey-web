@@ -54,8 +54,12 @@ export const CATEGORIZED_RELATIONSHIPS = [
   {
     category: "Grandparents & Relatives",
     options: [
-      "Grandmother (Dadi / Nani)",
-      "Grandfather (Dada / Nana)",
+      "Paternal Grandmother (Dadi)",
+      "Maternal Grandmother (Nani)",
+      "Paternal Grandfather (Dada)",
+      "Maternal Grandfather (Nana)",
+      "Grandmother",
+      "Grandfather",
       "Grandson",
       "Granddaughter",
       "Cousin",
