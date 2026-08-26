@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Link2, Check, Sparkles, Image as ImageIcon, Mic, FileText, Film } from "lucide-react";
-import { getMemoriesFromBackend, linkMemoryToFamilyCircle } from "@/services/backend";
+import Link from "next/link";
+import { X, Link2, Check, FolderHeart, Image as ImageIcon, Mic, FileText, Film, Plus } from "lucide-react";
+import { getMemoriesFromBackend, linkMemoryToFamilyCircle, addMemoryToAlbumOnBackend } from "@/services/backend";
 
-export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, onLinkSuccess }) {
+export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, albumId, onLinkSuccess }) {
   const [memories, setMemories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [linkingId, setLinkingId] = useState(null);
@@ -12,10 +13,10 @@ export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, onLin
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (isOpen && familyCircleId) {
+    if (isOpen) {
       loadUserMemories();
     }
-  }, [isOpen, familyCircleId]);
+  }, [isOpen, familyCircleId, albumId]);
 
   async function loadUserMemories() {
     setLoading(true);
@@ -39,8 +40,13 @@ export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, onLin
     setLinkingId(memoryId);
     try {
       const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
-      if (token && familyCircleId) {
-        await linkMemoryToFamilyCircle(token, familyCircleId, memoryId);
+      if (token) {
+        if (albumId) {
+          await addMemoryToAlbumOnBackend(token, albumId, memoryId);
+        }
+        if (familyCircleId) {
+          await linkMemoryToFamilyCircle(token, familyCircleId, memoryId).catch(() => null);
+        }
         setLinkedIds((prev) => new Set(prev).add(memoryId));
         if (onLinkSuccess) onLinkSuccess(memoryId);
       }
@@ -65,7 +71,7 @@ export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, onLin
             </div>
             <div>
               <h2 className="text-xl font-bold text-stone-900 dark:text-white leading-tight">
-                Link Memory to Family Space
+                {albumId ? "Contribute Memory to Family Album" : "Link Memory to Family Space"}
               </h2>
               <p className="text-xs font-medium text-stone-500 dark:text-stone-400">
                 Share a memory without changing its original ownership.
@@ -80,8 +86,31 @@ export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, onLin
           </button>
         </div>
 
+        {/* Prominent Action Banner to Create New Memory directly */}
+        <div className="my-3 p-3.5 bg-gradient-to-r from-[#EEF2FF] to-indigo-50/80 dark:from-slate-800 dark:to-slate-800/60 border border-[#C7D2FE]/80 dark:border-slate-700 rounded-2xl flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-[#4A3AFF] text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+              <Plus size={18} />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-xs font-bold text-stone-900 dark:text-white truncate">Want to share something new?</h4>
+              <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate">Record a voice story or note directly into this Family Album.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              onClose();
+              window.dispatchEvent(new CustomEvent("openPublishModal", { detail: { albumId, visibility: "Family" } }));
+            }}
+            className="px-3.5 py-2 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>Create New Memory</span>
+          </button>
+        </div>
+
         {/* Content List */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto py-2 space-y-3">
           {error && (
             <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium">
               {error}
@@ -94,12 +123,12 @@ export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, onLin
             </div>
           ) : memories.length === 0 ? (
             <div className="py-12 text-center flex flex-col items-center justify-center">
-              <Sparkles size={32} className="text-[#4A3AFF] mb-2" />
+              <FolderHeart size={32} className="text-[#4A3AFF] mb-2" />
               <p className="text-sm font-bold text-stone-700 dark:text-stone-300">
                 No memories available to link
               </p>
               <p className="text-xs text-stone-400 max-w-xs mt-1">
-                Create and publish a memory in your Personal Odyssey first.
+                Create and publish a memory in your Personal Odyssey first, or click + Record Story above!
               </p>
             </div>
           ) : (
@@ -150,7 +179,7 @@ export default function LinkMemoryModal({ isOpen, onClose, familyCircleId, onLin
                       "Linking..."
                     ) : (
                       <>
-                        <Link2 size={14} /> Link to Space
+                        <Link2 size={14} /> Add to Album
                       </>
                     )}
                   </button>

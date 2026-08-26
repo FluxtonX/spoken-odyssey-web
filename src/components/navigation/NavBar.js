@@ -80,10 +80,10 @@ export default function NavBar() {
   const menuItems = [
     { name: "Home", href: "/home", icon: Home },
     { name: "Odyssey", href: "/memories", icon: Archive },
-    { name: "Timeline", href: "/timeline", icon: Clock },
+    { name: "Discover", href: "/discover", icon: Globe },
     { name: "Albums", href: "/albums", icon: ImageIcon },
     { name: "Family", href: "/family", icon: Users, badge: pendingFamilyCount > 0 ? pendingFamilyCount : undefined },
-    { name: "Discover", href: "/discover", icon: Globe },
+    { name: "Timeline", href: "/timeline", icon: Clock },
     { name: "Insights", href: "/insights", icon: Sparkles },
   ];
 
