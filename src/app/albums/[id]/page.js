@@ -27,14 +27,14 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { getStoredAlbums } from "@/data/userProfile";
-import { getAlbumDetailsFromBackend, normalizeMediaUrl, deleteAlbumOnBackend, getBackendErrorMessage } from "@/services/backend";
+import { getAlbumDetailsFromBackend, normalizeMediaUrl, deleteAlbumOnBackend, addMemoryToAlbumOnBackend, getBackendErrorMessage } from "@/services/backend";
+
+import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
 import EditAlbumModal from "@/components/ui/EditAlbumModal";
 import ShareModal from "@/components/ui/ShareModal";
 import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
-
-import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
 
 function MemoryCardItem({ memory, onCardClick }) {
   const handleCardClick = () => {
@@ -233,6 +233,8 @@ function AlbumDetailContent() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isContributeModalOpen, setIsContributeModalOpen] = useState(false);
+  const [authToken, setAuthToken] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
@@ -275,6 +277,7 @@ function AlbumDetailContent() {
       if (isAuthenticated && firebaseUser && id && !id.startsWith("album-")) {
         try {
           const token = await getToken();
+          setAuthToken(token);
           const backendData = await getAlbumDetailsFromBackend(token, id).catch(() => null);
           if (backendData) {
             setAlbum({
@@ -282,9 +285,11 @@ function AlbumDetailContent() {
               title: backendData.title || found.title,
               subtitle: backendData.subtitle || found.subtitle,
               privacy: backendData.privacy || found.privacy,
+              familyCircleId: backendData.familyCircleId || null,
+              contributors: backendData.contributors || [],
               cover: backendData.coverImageUrl || backendData.coverImageKey || found.cover
             });
-            if (Array.isArray(backendData.memories) && backendData.memories.length > 0) {
+            if (Array.isArray(backendData.memories)) {
               setMemoriesList(backendData.memories);
             }
           }
@@ -413,11 +418,11 @@ function AlbumDetailContent() {
           {/* Back Navigation Link */}
           <motion.div variants={fadeInUp} className="mb-6">
             <Link 
-              href={fromParam === "profile" ? "/profile" : "/albums"} 
+              href={fromParam === "family" ? "/family" : fromParam === "profile" ? "/profile" : "/albums"} 
               className="text-stone-500 dark:text-stone-400 hover:text-[#4A3AFF] dark:hover:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
             >
               <ArrowLeft size={16} />
-              <span>{fromParam === "profile" ? "Back to profile" : "Back to Albums"}</span>
+              <span>{fromParam === "family" ? "Back to Family Space" : fromParam === "profile" ? "Back to Profile" : "Back to Albums"}</span>
             </Link>
           </motion.div>
 
@@ -462,9 +467,16 @@ function AlbumDetailContent() {
 
             {/* Bottom Left Album Title & Details */}
             <div className="relative z-10 max-w-3xl">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-stone-300 mb-1.5 block">
-                ALBUM
-              </span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-stone-300 block">
+                  {fromParam === "family" || album.privacy === "Family" ? "FAMILY SPACE SHARED ALBUM" : "ALBUM"}
+                </span>
+                {(fromParam === "family" || album.privacy === "Family") && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-[#4A3AFF] text-white border border-white/30 shadow-xs">
+                    Family Circle
+                  </span>
+                )}
+              </div>
               <h1 className="text-[32px] sm:text-[36px] md:text-[40px] font-bold text-white tracking-tight leading-tight mb-2">
                 {album.title}
               </h1>
@@ -473,6 +485,40 @@ function AlbumDetailContent() {
               </p>
             </div>
           </motion.div>
+
+          {/* Contributor Facepile Bar for Family Albums */}
+          {album.contributors && album.contributors.length > 0 && (
+            <motion.div variants={fadeInUp} className="figma-card p-4 mb-8 flex flex-wrap items-center justify-between gap-3 bg-white/90 dark:bg-slate-900/90 border border-[#C7D2FE]/70">
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-2 overflow-hidden">
+                  {album.contributors.map((c, idx) => (
+                    c.avatar ? (
+                      <img key={idx} src={c.avatar} alt={c.name} className="inline-block h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 object-cover shadow-xs" />
+                    ) : (
+                      <div key={idx} className="inline-flex h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 bg-[#4A3AFF] text-white font-bold text-xs items-center justify-center shadow-xs">
+                        {c.name ? c.name[0].toUpperCase() : "M"}
+                      </div>
+                    )
+                  ))}
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-white">
+                    {album.contributors.length} {album.contributors.length === 1 ? "Family Contributor" : "Family Contributors"}
+                  </h4>
+                  <p className="text-[11px] font-medium text-slate-500">
+                    {album.contributors.map(c => `${c.name} (${c.memoryCount})`).join(" · ")}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsContributeModalOpen(true)}
+                className="bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Plus size={14} strokeWidth={2.5} />
+                <span>Contribute Memory</span>
+              </button>
+            </motion.div>
+          )}
 
           {/* 4 Stat Box Cards Row (Exact Figma Match) */}
           <motion.div variants={fadeInUp} className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -588,8 +634,28 @@ function AlbumDetailContent() {
             </button>
           </motion.div>
 
+          {/* Empty Album State */}
+          {memoriesList.length === 0 && !isLoading && (
+            <motion.div variants={fadeInUp} className="figma-card p-12 flex flex-col items-center justify-center text-center my-6">
+              <div className="w-16 h-16 rounded-full bg-[#EEF2FF] text-[#4A3AFF] flex items-center justify-center mb-4 shadow-sm">
+                <BookOpen size={32} strokeWidth={2.5} />
+              </div>
+              <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-2">No Memories In This Album Yet</h2>
+              <p className="text-stone-500 dark:text-stone-400 max-w-md text-sm leading-relaxed mb-6">
+                This album is currently empty. You or connected family members can contribute voice stories, photo memories, and written notes to build this collection.
+              </p>
+              <button 
+                onClick={handleAddMemory}
+                className="bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                <span>+ Contribute First Memory</span>
+              </button>
+            </motion.div>
+          )}
+
           {/* VIEW MODE 1: GRID (Multi-column responsive grid) */}
-          {viewMode === "grid" && (
+          {memoriesList.length > 0 && viewMode === "grid" && (
             <motion.div variants={staggerContainer} initial="hidden" animate="show">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {paginatedMemories.map((memory) => (
@@ -827,7 +893,126 @@ function AlbumDetailContent() {
           </div>
         </div>
       )}
+
+      {/* Contribute Memory Modal */}
+      {isContributeModalOpen && album && (
+        <ContributeMemoryModal
+          albumId={album.id}
+          token={authToken}
+          onClose={() => setIsContributeModalOpen(false)}
+          onSuccess={() => {
+            setToastMessage("Memory successfully contributed to Family Album!");
+            setTimeout(() => setToastMessage(""), 3500);
+            setIsContributeModalOpen(false);
+            window.location.reload();
+          }}
+        />
+      )}
     </WavesBackground>
+  );
+}
+
+function ContributeMemoryModal({ albumId, token, onClose, onSuccess }) {
+  const { firebaseUser } = useAuth();
+  const [userMemories, setUserMemories] = useState([]);
+  const [selectedMemoryId, setSelectedMemoryId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    try {
+      const userKey = firebaseUser?.uid ? `spokenOdysseyLocalMemories_${firebaseUser.uid}` : "spokenOdysseyLocalMemories";
+      const saved = localStorage.getItem(userKey) || localStorage.getItem("spokenOdysseyLocalMemories");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setUserMemories(parsed.filter(m => m.albumId !== albumId));
+      }
+    } catch (_) {}
+  }, [albumId, firebaseUser]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedMemoryId) return;
+
+    setIsSubmitting(true);
+    setErrorMsg("");
+
+    try {
+      if (token) {
+        await addMemoryToAlbumOnBackend(token, albumId, selectedMemoryId);
+      }
+      onSuccess?.();
+    } catch (err) {
+      console.error("Contribute Memory Error:", err);
+      setErrorMsg(getBackendErrorMessage(err));
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-left">
+      <div className="bg-white dark:bg-[#162033] border border-stone-200/80 dark:border-stone-850 rounded-[2.5rem] w-full max-w-lg p-6 md:p-8 shadow-2xl relative">
+        <button onClick={onClose} className="absolute top-6 right-6 text-stone-400 hover:text-stone-700 dark:hover:text-white transition cursor-pointer">
+          <X size={20} />
+        </button>
+
+        <h2 className="text-2xl font-black text-stone-850 dark:text-white mb-2">Contribute to Family Album</h2>
+        <p className="text-xs text-stone-500 font-medium mb-6">Select one of your voice, photo, or written memories to include in this shared album.</p>
+
+        {errorMsg && (
+          <div className="p-3 mb-4 rounded-xl bg-red-50 text-red-600 text-xs font-bold">
+            {errorMsg}
+          </div>
+        )}
+
+        {userMemories.length === 0 ? (
+          <div className="py-8 text-center border border-dashed border-stone-200 rounded-2xl p-4">
+            <p className="text-sm font-bold text-stone-700 dark:text-stone-300">No unlinked memories found</p>
+            <p className="text-xs text-stone-400 mt-1">Create a new memory first to contribute to this family album.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+              {userMemories.map((mem) => {
+                const isSelected = selectedMemoryId === mem.id;
+                return (
+                  <div
+                    key={mem.id}
+                    onClick={() => setSelectedMemoryId(mem.id)}
+                    className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
+                      isSelected ? "border-[#4A3AFF] bg-[#EEF2FF] dark:bg-indigo-950/40" : "border-stone-200 dark:border-stone-700 hover:bg-stone-50"
+                    }`}
+                  >
+                    <div>
+                      <h4 className="text-sm font-bold text-stone-850 dark:text-white">{mem.title}</h4>
+                      <p className="text-xs text-stone-500 font-medium">{mem.type || "Voice"} · {mem.date || "Recent"}</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                      isSelected ? "border-[#4A3AFF] bg-[#4A3AFF] text-white" : "border-stone-300"
+                    }`}>
+                      {isSelected && <Check size={12} strokeWidth={3} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3 pt-3">
+              <button type="button" onClick={onClose} className="flex-1 py-3.5 border rounded-2xl text-stone-700 font-bold text-sm hover:bg-stone-50 cursor-pointer">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!selectedMemoryId || isSubmitting}
+                className="flex-1 py-3.5 bg-[#4A3AFF] text-white font-bold rounded-2xl text-sm shadow-md hover:bg-[#3b2dd1] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : "Link to Album"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
 

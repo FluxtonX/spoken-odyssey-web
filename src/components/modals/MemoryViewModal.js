@@ -41,6 +41,7 @@ import {
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
 import VideoPlayer from "@/components/ui/VideoPlayer";
+import VoicePlayer from "@/components/ui/VoicePlayer";
 import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 import { 
   normalizeMediaUrl, 
@@ -52,7 +53,9 @@ import {
   addMemoryCommentOnBackend,
   reactToCommentOnBackend,
   shareMemoryOnBackend,
-  getMemoryDetailsFromBackend
+  getMemoryDetailsFromBackend,
+  addMemoryStoryLayer,
+  getMemoryStoryLayers
 } from "@/services/backend";
 import { io } from "socket.io-client";
 
@@ -184,8 +187,100 @@ function MemoryViewModalContent() {
   const [activeReplyId, setActiveReplyId] = useState(null);
   const [replyInput, setReplyInput] = useState("");
   const [isPostingReply, setIsPostingReply] = useState(false);
-  const [expandedReplies, setExpandedReplies] = useState({});
   const [activeCommentPickerId, setActiveCommentPickerId] = useState(null); // Active emoji picker for comments/replies
+
+  // Story Layers State (Voice & Text Perspectives)
+  const [storyLayers, setStoryLayers] = useState([]);
+  const [isAddingLayer, setIsAddingLayer] = useState(false);
+  const [layerText, setLayerText] = useState("");
+  const [isSubmittingLayer, setIsSubmittingLayer] = useState(false);
+  const [isRecordingLayer, setIsRecordingLayer] = useState(false);
+  const [layerRecordSecs, setLayerRecordSecs] = useState(0);
+  const [layerAudioBlob, setLayerAudioBlob] = useState(null);
+  const [layerAudioUrl, setLayerAudioUrl] = useState(null);
+  const layerRecorderRef = useRef(null);
+  const layerTimerRef = useRef(null);
+
+  const startLayerRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      layerRecorderRef.current = recorder;
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setLayerAudioBlob(blob);
+        setLayerAudioUrl(url);
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      recorder.start();
+      setIsRecordingLayer(true);
+      setLayerRecordSecs(0);
+      layerTimerRef.current = setInterval(() => setLayerRecordSecs(s => s + 1), 1000);
+    } catch (err) {
+      console.error("Mic access error:", err);
+      alert("Could not access microphone.");
+    }
+  };
+
+  const stopLayerRecording = () => {
+    if (layerRecorderRef.current && isRecordingLayer) {
+      layerRecorderRef.current.stop();
+      setIsRecordingLayer(false);
+      if (layerTimerRef.current) clearInterval(layerTimerRef.current);
+    }
+  };
+
+  const cancelLayerRecording = () => {
+    if (layerRecorderRef.current && isRecordingLayer) layerRecorderRef.current.stop();
+    setIsRecordingLayer(false);
+    setLayerAudioBlob(null);
+    setLayerAudioUrl(null);
+    setLayerRecordSecs(0);
+    if (layerTimerRef.current) clearInterval(layerTimerRef.current);
+  };
+
+  const handleAddStoryLayer = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!layerText.trim() && !layerAudioBlob && !layerAudioUrl) return;
+
+    setIsSubmittingLayer(true);
+    try {
+      const memId = memory?._id || memory?.id;
+      const token = isAuthenticated && firebaseUser ? await getToken() : null;
+
+      let audioDataUrl = layerAudioUrl;
+      if (layerAudioBlob) {
+        audioDataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(layerAudioBlob);
+        });
+      }
+
+      if (token && memId) {
+        const newLayer = await addMemoryStoryLayer(token, memId, {
+          text: layerText.trim() || "Voice Story Layer",
+          audioUrl: audioDataUrl,
+        });
+
+        if (newLayer) {
+          setStoryLayers(prev => [...prev, newLayer]);
+          setLayerText("");
+          cancelLayerRecording();
+          setIsAddingLayer(false);
+        }
+      }
+    } catch (err) {
+      console.error("Add story layer error:", err);
+    } finally {
+      setIsSubmittingLayer(false);
+    }
+  };
 
   // Audio Player State (Custom Tick Player)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -1894,6 +1989,135 @@ function MemoryViewModalContent() {
                     })}
                   </div>
                 </div>
+              </div>
+
+              {/* Family Story Layers (Multi-Contributor Perspectives) */}
+              <div className="mt-6 p-4 rounded-2xl border border-indigo-200/80 bg-indigo-50/50 dark:bg-indigo-950/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[#4A3AFF] dark:text-indigo-400">
+                    <Sparkles size={15} />
+                    <span className="text-[11px] font-extrabold tracking-widest uppercase">STORY LAYERS ({storyLayers.length})</span>
+                  </div>
+                  
+                  {!isAddingLayer && (
+                    <button
+                      onClick={() => setIsAddingLayer(true)}
+                      className="px-2.5 py-1 bg-[#4A3AFF] hover:bg-[#3b2ee0] text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={12} />
+                      <span>Add Perspective</span>
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 font-medium leading-tight">
+                  Family members can attach voice audio or notes to share their perspective on this memory.
+                </p>
+
+                {/* Add Story Layer Form */}
+                {isAddingLayer && (
+                  <form onSubmit={handleAddStoryLayer} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-200 dark:border-slate-800 space-y-2.5">
+                    <textarea
+                      rows={2}
+                      value={layerText}
+                      onChange={(e) => setLayerText(e.target.value)}
+                      placeholder="Share your story perspective or record voice below..."
+                      className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-[#4A3AFF] focus:outline-none resize-none"
+                    />
+
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        {isRecordingLayer ? (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-md text-[11px] font-bold border border-red-200">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                            <span>{Math.floor(layerRecordSecs / 60)}:{(layerRecordSecs % 60) < 10 ? '0' : ''}{layerRecordSecs % 60}</span>
+                            <button
+                              type="button"
+                              onClick={stopLayerRecording}
+                              className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold cursor-pointer"
+                            >
+                              Stop
+                            </button>
+                          </div>
+                        ) : layerAudioUrl ? (
+                          <div className="flex items-center gap-1">
+                            <audio src={layerAudioUrl} controls className="h-7 max-w-[130px]" />
+                            <button
+                              type="button"
+                              onClick={cancelLayerRecording}
+                              className="p-1 text-stone-400 hover:text-red-500 cursor-pointer"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={startLayerRecording}
+                            className="px-2.5 py-1.5 bg-indigo-50 text-[#4A3AFF] hover:bg-indigo-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer border border-[#C7D2FE]"
+                          >
+                            <Mic size={13} />
+                            <span>Voice</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingLayer(false);
+                            cancelLayerRecording();
+                          }}
+                          className="px-2.5 py-1.5 text-stone-400 hover:text-stone-600 text-xs font-bold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmittingLayer || (!layerText.trim() && !layerAudioBlob && !layerAudioUrl)}
+                          className="px-3 py-1.5 bg-[#4A3AFF] hover:bg-[#3b2ee0] disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1"
+                        >
+                          {isSubmittingLayer ? <Loader2 size={12} className="animate-spin" /> : "Attach"}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
+
+                {/* Story Layers Cards Stream */}
+                {storyLayers.length > 0 && (
+                  <div className="space-y-2 pt-1 max-h-48 overflow-y-auto hide-scrollbar">
+                    {storyLayers.map((layer) => {
+                      const authorAvatar = layer.author?.photoURL || layer.author?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(layer.author?.displayName || layer.author?.name || "Member")}&background=4A3AFF&color=fff`;
+                      const authorName = layer.author?.displayName || layer.author?.name || "Family Member";
+
+                      return (
+                        <div key={layer.id} className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-stone-100 dark:border-slate-800 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <img src={authorAvatar} alt={authorName} className="w-5 h-5 rounded-full object-cover border border-white" />
+                              <span className="font-bold text-[11px] text-stone-900 dark:text-white">{authorName}</span>
+                            </div>
+                            <span className="text-[10px] text-stone-400">{new Date(layer.createdAt).toLocaleDateString()}</span>
+                          </div>
+
+                          {layer.text && (
+                            <p className="text-[11px] text-stone-700 dark:text-stone-300 font-medium leading-snug">
+                              {layer.text}
+                            </p>
+                          )}
+
+                          {(layer.audioUrl || layer.audioKey) && (
+                            <div className="pt-1">
+                              <VoicePlayer memory={{ mediaUrl: layer.audioUrl || layer.audioKey, title: `${authorName}'s Perspective` }} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* AI Reflection Box attached directly to Details */}

@@ -181,14 +181,20 @@ export default function PublishWizard() {
     setVisualFiles((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
 
+  const [preselectedAlbumId, setPreselectedAlbumId] = useState("");
+
   useEffect(() => {
-    const handleOpen = () => {
+    const handleOpen = (e) => {
+      const albumIdFromEvent = e?.detail?.albumId || "";
+      const visibilityFromEvent = e?.detail?.visibility || "Private";
+      
+      setPreselectedAlbumId(albumIdFromEvent);
       setStep(1);
       setMemoryType("");
       setTitle("");
       setWrittenContent("");
       setMood("Reflective");
-      setVisibility("Private");
+      setVisibility(visibilityFromEvent);
       setTags("");
       setVisualFiles([]);
       setValidationError("");
@@ -980,8 +986,11 @@ export default function PublishWizard() {
                     let publishedMem = null;
                     try {
                       const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
-                      const pathAlbumId = currentPath.startsWith("/albums/") ? currentPath.split("/")[2] : "";
-                      const targetAlbum = pathAlbumId || "";
+                      let pathAlbumId = "";
+                      if (currentPath.includes("/albums/")) {
+                        pathAlbumId = currentPath.split("/albums/")[1]?.split("/")[0] || "";
+                      }
+                      const targetAlbum = preselectedAlbumId || pathAlbumId || "";
                       const formattedDuration = recordingTime > 0 
                         ? `${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` 
                         : "01:30";

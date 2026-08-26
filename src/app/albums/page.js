@@ -23,6 +23,7 @@ const getAlbumTags = (album) => {
 function AlbumCard({ album }) {
   const [imgSrc, setImgSrc] = useState(album.cover);
   const [hasError, setHasError] = useState(false);
+  const contributors = album.contributors || [];
 
   return (
     <Link href={`/albums/${album.id}`} className="group cursor-pointer h-full block">
@@ -42,11 +43,16 @@ function AlbumCard({ album }) {
           {/* Gradient Overlay for text */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent opacity-95" />
           
-          {/* Title */}
-          <div className="absolute bottom-3 left-4 right-4 text-white z-10">
-            <h3 className="font-bold text-[15px] sm:text-[17px] md:text-[18px] leading-snug filter drop-shadow-md tracking-tight">
+          {/* Title & Privacy Badge */}
+          <div className="absolute bottom-3 left-4 right-4 text-white z-10 flex items-end justify-between gap-2">
+            <h3 className="font-bold text-[15px] sm:text-[17px] md:text-[18px] leading-snug filter drop-shadow-md tracking-tight truncate">
               {album.title}
             </h3>
+            {album.privacy === "Family" && (
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#4A3AFF] text-white border border-white/30 shadow-xs">
+                Family
+              </span>
+            )}
           </div>
         </div>
         
@@ -56,6 +62,27 @@ function AlbumCard({ album }) {
             {album.subtitle || "No description provided."}
           </p>
           
+          {/* Contributor Facepile Stack */}
+          {contributors.length > 0 && (
+            <div className="flex items-center gap-2 mb-3 pt-2 border-t border-indigo-100/60 dark:border-slate-700/60">
+              <div className="flex -space-x-2 overflow-hidden">
+                {contributors.slice(0, 4).map((c, idx) => {
+                  const initial = c.name ? c.name[0].toUpperCase() : "M";
+                  return c.avatar ? (
+                    <img key={idx} src={c.avatar} alt={c.name} className="inline-block h-6 w-6 rounded-full border-2 border-white dark:border-slate-800 object-cover shadow-xs" />
+                  ) : (
+                    <div key={idx} className="inline-flex h-6 w-6 rounded-full border-2 border-white dark:border-slate-800 bg-[#4A3AFF] text-white font-bold text-[10px] items-center justify-center shadow-xs">
+                      {initial}
+                    </div>
+                  );
+                })}
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                {contributors.length} {contributors.length === 1 ? "contributor" : "contributors"}
+              </span>
+            </div>
+          )}
+
           {/* Footer row: Tags and Memory Count */}
           <div className="flex items-center justify-between mt-auto">
             <div className="flex flex-wrap items-center gap-1.5">

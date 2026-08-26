@@ -202,6 +202,28 @@ export async function deleteAlbumOnBackend(token, albumId) {
     token,
   });
   invalidateCachePattern("album");
+  return response;
+}
+
+/** Contribute / link a memory to an album */
+export async function addMemoryToAlbumOnBackend(token, albumId, memoryId) {
+  const response = await backendFetch(`/api/albums/${albumId}/memories`, {
+    method: "POST",
+    body: { memoryId },
+    token,
+  });
+  invalidateCachePattern("album");
+  return response.data;
+}
+
+/** Get all Family Albums for a specific Family Space */
+export async function getFamilyCircleAlbumsFromBackend(token, familyCircleId) {
+  const cacheKey = `family_albums_${familyCircleId}_${token ? token.slice(-16) : "public"}`;
+  const cached = getCachedData(cacheKey, 2 * 60 * 1000);
+  if (cached) return cached;
+
+  const response = await backendFetch(`/api/albums/space/${familyCircleId}`, { token });
+  if (response?.data) setCachedData(cacheKey, response.data);
   return response.data;
 }
 
@@ -218,19 +240,26 @@ export async function getMemoriesFromBackend(token, userId = null) {
 }
 
 /** Get family shared memories */
-export async function getFamilySharedMemories(token) {
-  const cacheKey = `family_shared_${token ? token.slice(-16) : "public"}`;
-  const cached = getCachedData(cacheKey, 3 * 60 * 1000);
+export async function getFamilySharedMemories(token, { userId, type, search, sort } = {}) {
+  const queryParams = new URLSearchParams();
+  if (userId && userId !== "ALL") queryParams.append("userId", userId);
+  if (type && type !== "ALL") queryParams.append("type", type);
+  if (search && search.trim()) queryParams.append("search", search.trim());
+  if (sort) queryParams.append("sort", sort);
+
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+  const cacheKey = `family_shared_${token ? token.slice(-16) : "public"}_${queryString}`;
+  const cached = getCachedData(cacheKey, 1 * 60 * 1000);
   if (cached) return cached;
 
   try {
-    const response = await backendFetch("/api/family-circle/shared-memories", { token });
+    const response = await backendFetch(`/api/family-circle/shared-memories${queryString}`, { token });
     const resData = response?.data !== undefined ? response.data : response;
     if (resData) setCachedData(cacheKey, resData);
     return resData;
   } catch (err) {
     if (err?.status === 404) {
-      const fallback = await backendFetch("/api/memories/family-shared", { token });
+      const fallback = await backendFetch(`/api/memories/family-shared${queryString}`, { token });
       const fbData = fallback?.data !== undefined ? fallback.data : fallback;
       if (fbData) setCachedData(cacheKey, fbData);
       return fbData;
@@ -629,10 +658,10 @@ export async function getStoryLayers(token, memoryId) {
 }
 
 /** Create a new Family Prompt */
-export async function createFamilyPrompt(token, familyCircleId, question, category = "Heritage") {
+export async function createFamilyPrompt(token, familyCircleId, question, category = "Heritage", audioKey = null, audioUrl = null) {
   const response = await backendFetch(`/api/family-circle/${familyCircleId}/prompts`, {
     method: "POST",
-    body: { question, category },
+    body: { question, category, audioKey, audioUrl },
     token,
   });
   return response.data;
@@ -645,10 +674,10 @@ export async function getFamilyPrompts(token, familyCircleId) {
 }
 
 /** Respond to a Family Prompt */
-export async function respondToFamilyPrompt(token, promptId, { text, audioKey } = {}) {
+export async function respondToFamilyPrompt(token, promptId, { text, audioKey, audioUrl } = {}) {
   const response = await backendFetch(`/api/family-circle/prompts/${promptId}/respond`, {
     method: "POST",
-    body: { text, audioKey },
+    body: { text, audioKey, audioUrl },
     token,
   });
   return response.data;
@@ -657,6 +686,22 @@ export async function respondToFamilyPrompt(token, promptId, { text, audioKey } 
 /** Get Guardian & Minor Controls for a space */
 export async function getGuardianControls(token, familyCircleId) {
   const response = await backendFetch(`/api/family-circle/${familyCircleId}/guardian-controls`, { token });
+  return response.data;
+}
+
+/** Add a Multi-Contributor Story Layer (Voice or Text Perspective) */
+export async function addMemoryStoryLayer(token, memoryId, { text, audioKey, audioUrl } = {}) {
+  const response = await backendFetch(`/api/memories/${memoryId}/story-layers`, {
+    method: "POST",
+    body: { text, audioKey, audioUrl },
+    token,
+  });
+  return response.data;
+}
+
+/** Get all Story Layers for a memory */
+export async function getMemoryStoryLayers(token, memoryId) {
+  const response = await backendFetch(`/api/memories/${memoryId}/story-layers`, { token });
   return response.data;
 }
 

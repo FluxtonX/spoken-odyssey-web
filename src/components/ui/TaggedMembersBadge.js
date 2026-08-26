@@ -3,10 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserCheck, AtSign, Users, ChevronRight } from "lucide-react";
+import { UserCheck, ChevronRight } from "lucide-react";
 import { normalizeMediaUrl } from "@/services/backend";
 
-// Known fallback connections map so tagged members always resolve real photos and names
+// Known fallback connections map for legacy demo IDs
 const KNOWN_CONNECTIONS = {
   "conn-sarah": { name: "Sarah Mitchell", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80", profession: "Family Circle" },
   "sarah": { name: "Sarah Mitchell", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80", profession: "Family Circle" },
@@ -20,15 +20,6 @@ const KNOWN_CONNECTIONS = {
   "ciaran": { name: "Ciarán Murphy", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=240&q=80", profession: "Family Circle" },
 };
 
-/**
- * TaggedMembersBadge Component
- *
- * Displays a compact, beautiful label for tagged members next to the memory title or author header:
- * - 1 tagged member: Profile avatar image + "Tagged" text label.
- * - 2+ tagged members: 2 overlapping avatar images + "and more" (or "+N more") text label.
- * - Interactive hover/tap tooltip popup listing all tagged members with links.
- * - Fully responsive on all device viewports without layout clipping.
- */
 export default function TaggedMembersBadge({
   memory,
   taggedUsers: propTaggedUsers,
@@ -41,7 +32,7 @@ export default function TaggedMembersBadge({
   const badgeRef = useRef(null);
   const timeoutRef = useRef(null);
 
-  // Extract and normalize tagged users list from all possible formats
+  // Extract tagged users list from all possible formats
   let rawTaggedList = [];
 
   if (Array.isArray(propTaggedUsers) && propTaggedUsers.length > 0) {
@@ -57,41 +48,94 @@ export default function TaggedMembersBadge({
     try {
       const parsedIds = typeof memory.taggedUserIds === "string" ? JSON.parse(memory.taggedUserIds) : memory.taggedUserIds;
       if (Array.isArray(parsedIds) && parsedIds.length > 0) {
-        rawTaggedList = parsedIds.map((id, idx) => {
+        rawTaggedList = parsedIds.map((id) => {
           if (typeof id === "object" && id !== null) return id;
-          const known = KNOWN_CONNECTIONS[String(id).toLowerCase()] || {};
+          const idStr = String(id).toLowerCase();
+          const known = KNOWN_CONNECTIONS[idStr];
+          if (known) {
+            return {
+              id: String(id),
+              displayName: known.name,
+              name: known.name,
+              avatar: known.avatar,
+              profession: known.profession,
+            };
+          }
+
+          // Match memory owner details if tagged ID matches owner
+          if (memory?.owner && (memory.owner.id === id || memory.ownerId === id)) {
+            const ownerName = memory.owner.displayName || memory.owner.name || memory.ownerDisplayName;
+            const ownerAvatar = memory.owner.photoURL || memory.owner.avatarUrl || memory.ownerAvatarUrl;
+            if (ownerName) {
+              return {
+                id: String(id),
+                displayName: ownerName,
+                name: ownerName,
+                avatar: ownerAvatar || "",
+                profession: memory.owner.profession || "Family Member",
+              };
+            }
+          }
+
+          if (memory?.ownerDisplayName && (memory.ownerId === id || String(id) === String(memory.ownerId))) {
+            return {
+              id: String(id),
+              displayName: memory.ownerDisplayName,
+              name: memory.ownerDisplayName,
+              avatar: memory.ownerAvatarUrl || "",
+              profession: "Family Member",
+            };
+          }
+
           return {
             id: String(id),
-            displayName: known.name || `Family Member ${idx + 1}`,
-            name: known.name || `Family Member ${idx + 1}`,
-            avatar: known.avatar || "",
-            profession: known.profession || "",
+            displayName: idStr.includes("@") ? idStr.split("@")[0] : "",
+            name: idStr.includes("@") ? idStr.split("@")[0] : "",
+            avatar: "",
+            profession: "",
           };
         });
       }
     } catch (_) {}
   }
 
-  // Format and enrich all tagged users
+  // Format and resolve all tagged users with REAL data from database
   const taggedUsers = rawTaggedList.map((user, idx) => {
     if (typeof user === "string") {
-      const known = KNOWN_CONNECTIONS[user.toLowerCase()] || {};
+      const known = KNOWN_CONNECTIONS[user.toLowerCase()];
+      const realName = known ? known.name : (user.includes("@") ? user.split("@")[0] : user);
       return {
         id: user,
-        displayName: known.name || user.replace(/^@/, ""),
-        name: known.name || user.replace(/^@/, ""),
-        avatar: known.avatar || "",
-        profession: known.profession || "",
+        displayName: realName,
+        name: realName,
+        avatar: known ? known.avatar : "",
+        profession: known ? known.profession : "",
       };
     }
+
     const idKey = String(user?.id || user?._id || user?.uid || `user-${idx}`).toLowerCase();
-    const known = KNOWN_CONNECTIONS[idKey] || {};
+    const known = KNOWN_CONNECTIONS[idKey];
+    
+    const realName = 
+      user?.displayName || 
+      user?.name || 
+      (known ? known.name : null) || 
+      (user?.email ? user.email.split("@")[0] : "");
+
+    const realAvatar = 
+      user?.avatar || 
+      user?.photoURL || 
+      user?.avatarUrl || 
+      user?.photoKey || 
+      user?.image || 
+      (known ? known.avatar : "");
+
     return {
       id: user?.id || user?._id || user?.uid || idKey,
-      displayName: user?.displayName || user?.name || known.name || `Family Member ${idx + 1}`,
-      name: user?.name || user?.displayName || known.name || `Family Member ${idx + 1}`,
-      avatar: user?.avatar || user?.photoURL || user?.photoKey || user?.image || known.avatar || "",
-      profession: user?.profession || user?.relation || known.profession || "",
+      displayName: realName,
+      name: realName,
+      avatar: realAvatar,
+      profession: user?.profession || user?.relation || (known ? known.profession : ""),
     };
   }).filter(u => Boolean(u.id || u.name || u.displayName));
 
@@ -150,13 +194,20 @@ export default function TaggedMembersBadge({
 
   const getAvatarUrl = (user) => {
     const raw = user?.avatar || user?.photoURL || user?.photoKey || user?.avatarUrl || user?.image;
-    return raw ? normalizeMediaUrl(raw) : null;
+    if (raw && typeof raw === "string" && (raw.startsWith("http") || raw.length > 5)) {
+      return normalizeMediaUrl(raw);
+    }
+    const idKey = String(user?.id || user?._id || user?.uid || "").toLowerCase();
+    if (KNOWN_CONNECTIONS[idKey]?.avatar) return KNOWN_CONNECTIONS[idKey].avatar;
+    const name = user?.displayName || user?.name || "Member";
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4A3AFF&color=fff`;
   };
 
-  const getInitials = (user) => {
-    const name = user?.displayName || user?.name || "U";
-    return name.charAt(0).toUpperCase();
-  };
+  const firstUserName = firstUser?.displayName || firstUser?.name || "";
+  const isGenericName = !firstUserName || firstUserName.toLowerCase().startsWith("family member") || firstUserName.toLowerCase() === "family";
+  const displayLabel = !isMultiple 
+    ? (!isGenericName ? `@${firstUserName.split(" ")[0]}` : "Tagged")
+    : "and more";
 
   return (
     <div
@@ -169,42 +220,30 @@ export default function TaggedMembersBadge({
         type="button"
         onClick={handleBadgeClick}
         aria-label={`${taggedUsers.length} tagged ${taggedUsers.length === 1 ? "member" : "members"}`}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-[#EEF2FF] dark:bg-[#1E1B4B]/90 text-[#4A3AFF] dark:text-[#A5B4FC] border border-[#C7D2FE] dark:border-[#4338CA]/60 font-bold shrink-0 shadow-2xs hover:bg-[#E0E7FF] dark:hover:bg-[#312E81] hover:border-[#818CF8] transition-all duration-200 cursor-pointer select-none max-w-max ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EEF2FF] dark:bg-[#1E1B4B]/90 text-[#4A3AFF] dark:text-[#A5B4FC] border border-[#C7D2FE] dark:border-[#4338CA]/60 font-bold shrink-0 shadow-2xs hover:bg-[#E0E7FF] dark:hover:bg-[#312E81] hover:border-[#818CF8] transition-all duration-200 cursor-pointer select-none max-w-max ${className}`}
       >
         {/* Avatars Container */}
         <div className="flex items-center shrink-0">
-          {/* Avatar 1 */}
-          {getAvatarUrl(firstUser) ? (
-            <img
-              src={getAvatarUrl(firstUser)}
-              alt={firstUser.displayName || firstUser.name || "Tagged member"}
-              className="w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full object-cover ring-1.5 ring-white dark:ring-slate-900 shrink-0 z-10 shadow-2xs"
-            />
-          ) : (
-            <div className="w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full bg-[#4A3AFF] text-white flex items-center justify-center text-[9px] sm:text-[10px] font-black ring-1.5 ring-white dark:ring-slate-900 shrink-0 z-10 shadow-2xs">
-              {getInitials(firstUser)}
-            </div>
-          )}
+          {/* Avatar 1: Profile image */}
+          <img
+            src={getAvatarUrl(firstUser)}
+            alt={firstUserName || "Tagged Member"}
+            className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full object-cover ring-1.5 ring-white dark:ring-slate-900 shrink-0 z-10 shadow-2xs"
+          />
 
           {/* Avatar 2 (if multiple users) */}
           {isMultiple && (
-            getAvatarUrl(secondUser) ? (
-              <img
-                src={getAvatarUrl(secondUser)}
-                alt={secondUser.displayName || secondUser.name || "Tagged member"}
-                className="w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full object-cover ring-1.5 ring-white dark:ring-slate-900 shrink-0 -ml-2 sm:-ml-2.5 z-0 shadow-2xs"
-              />
-            ) : (
-              <div className="w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full bg-[#818CF8] text-white flex items-center justify-center text-[9px] sm:text-[10px] font-black ring-1.5 ring-white dark:ring-slate-900 shrink-0 -ml-2 sm:-ml-2.5 z-0 shadow-2xs">
-                {getInitials(secondUser)}
-              </div>
-            )
+            <img
+              src={getAvatarUrl(secondUser)}
+              alt={secondUser.displayName || secondUser.name || "Tagged member"}
+              className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full object-cover ring-1.5 ring-white dark:ring-slate-900 shrink-0 -ml-2.5 z-0 shadow-2xs"
+            />
           )}
         </div>
 
         {/* Text Label */}
-        <span className="text-[10px] sm:text-[11px] font-bold shrink-0 tracking-tight leading-none whitespace-nowrap">
-          {!isMultiple ? "Tagged" : "and more"}
+        <span className="text-[11px] font-bold shrink-0 tracking-tight leading-none whitespace-nowrap">
+          {displayLabel}
         </span>
       </button>
 
@@ -222,27 +261,22 @@ export default function TaggedMembersBadge({
           <div className="space-y-1 max-h-48 overflow-y-auto hide-scrollbar py-0.5">
             {taggedUsers.map((user) => {
               const avatar = getAvatarUrl(user);
-              const name = user.displayName || user.name || "Family Member";
+              const rawName = user.displayName || user.name || "";
+              const showName = rawName && !rawName.toLowerCase().startsWith("family member") ? rawName : "Tagged Member";
               const relation = user.profession || user.relation || "";
 
               return (
                 <div
-                  key={user.id || name}
+                  key={user.id || showName}
                   onClick={(e) => handleUserClick(e, user)}
                   className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[#EEF2FF] dark:hover:bg-[#2C2D54] transition-colors cursor-pointer group"
                 >
-                  <div className="w-7 h-7 rounded-full overflow-hidden bg-[#4A3AFF] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-2xs border border-white dark:border-slate-800">
-                    {avatar ? (
-                      <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                    ) : (
-                      getInitials(user)
-                    )}
-                  </div>
+                  <img src={avatar} alt={showName} className="w-7 h-7 rounded-full object-cover shrink-0 shadow-2xs border border-white dark:border-slate-800" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-stone-900 dark:text-white truncate group-hover:text-[#4A3AFF] transition-colors">
-                      @{name}
+                      @{showName}
                     </p>
-                    {relation && (
+                    {relation && relation.toLowerCase() !== "family member" && (
                       <p className="text-[10px] text-stone-400 dark:text-stone-400 truncate">
                         {relation}
                       </p>
