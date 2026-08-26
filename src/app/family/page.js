@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthProvider";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck, Clock, Mic, FileText, Image as ImageIcon, Film, Play, Link2, Unlink } from "lucide-react";
+import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck, Clock, Mic, FileText, Image as ImageIcon, Film, Play, Link2, Unlink, FolderHeart, Plus, Square, Radio, Trash2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp, fadeIn } from "@/lib/animations";
 import InviteMemberModal from "./components/InviteMemberModal";
 import LinkMemoryModal from "./components/LinkMemoryModal";
+import CreateFamilyAlbumModal from "./components/CreateFamilyAlbumModal";
+import FamilyTreeCanvas from "./components/FamilyTreeCanvas";
+import FamilyMissionsWidget from "./components/FamilyMissionsWidget";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
 import { 
@@ -34,7 +39,8 @@ import {
   getGuardianControls,
   updateGuardianConsent,
   getLegacySettings,
-  updateLegacySettings
+  updateLegacySettings,
+  getFamilyCircleAlbumsFromBackend
 } from "@/services/backend";
 
 const MOCK_MEMBERS = [
@@ -136,14 +142,31 @@ const FAMILY_TREE_DATA = {
   ]
 };
 
-export default function FamilyCirclePage() {
+function FamilyCircleContent() {
   const auth = useAuth() || {};
   const currentProfile = auth.profile;
-  const [activeTab, setActiveTab] = useState("Members");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams?.get("tab") || "Members";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tabParam = searchParams?.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
   const [membersList, setMembersList] = useState([]); // Start with empty array, no mock data
   const [invitationsList, setInvitationsList] = useState([]);
   const [sharedMemories, setSharedMemories] = useState([]);
   const [loadingMemories, setLoadingMemories] = useState(false);
+
+  const [selectedMemberFilter, setSelectedMemberFilter] = useState("ALL");
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState("ALL");
+  const [timelineSearch, setTimelineSearch] = useState("");
+  const [timelineSort, setTimelineSort] = useState("newest");
+
+  const [familyAlbums, setFamilyAlbums] = useState([]);
+  const [loadingFamilyAlbums, setLoadingFamilyAlbums] = useState(false);
   const [permissions, setPermissions] = useState(INITIAL_PERMISSIONS);
   const [legacySettings, setLegacySettings] = useState({
     administrator: "Sarah Murphy",
@@ -156,6 +179,7 @@ export default function FamilyCirclePage() {
   const [toastMessage, setToastMessage] = useState("");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isCreateAlbumModalOpen, setIsCreateAlbumModalOpen] = useState(false);
   const [currentCircleId, setCurrentCircleId] = useState(null);
   const [timelineItems, setTimelineItems] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
@@ -171,6 +195,113 @@ export default function FamilyCirclePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [userToken, setUserToken] = useState(null);
+
+  // Voice Recording state for Question Composer & Reply Form
+  const [isRecordingQuestion, setIsRecordingQuestion] = useState(false);
+  const [questionRecordSecs, setQuestionRecordSecs] = useState(0);
+  const [questionAudioBlob, setQuestionAudioBlob] = useState(null);
+  const [questionAudioUrl, setQuestionAudioUrl] = useState(null);
+  const qRecorderRef = useRef(null);
+  const qTimerRef = useRef(null);
+
+  const [isRecordingReply, setIsRecordingReply] = useState(false);
+  const [replyRecordSecs, setReplyRecordSecs] = useState(0);
+  const [replyAudioBlob, setReplyAudioBlob] = useState(null);
+  const [replyAudioUrl, setReplyAudioUrl] = useState(null);
+  const rRecorderRef = useRef(null);
+  const rTimerRef = useRef(null);
+
+  const startQuestionRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      qRecorderRef.current = recorder;
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setQuestionAudioBlob(blob);
+        setQuestionAudioUrl(url);
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      recorder.start();
+      setIsRecordingQuestion(true);
+      setQuestionRecordSecs(0);
+      qTimerRef.current = setInterval(() => setQuestionRecordSecs(s => s + 1), 1000);
+    } catch (err) {
+      console.error("Mic access error:", err);
+      alert("Could not access microphone.");
+    }
+  };
+
+  const stopQuestionRecording = () => {
+    if (qRecorderRef.current && isRecordingQuestion) {
+      qRecorderRef.current.stop();
+      setIsRecordingQuestion(false);
+      if (qTimerRef.current) clearInterval(qTimerRef.current);
+    }
+  };
+
+  const cancelQuestionRecording = () => {
+    if (qRecorderRef.current && isRecordingQuestion) qRecorderRef.current.stop();
+    setIsRecordingQuestion(false);
+    setQuestionAudioBlob(null);
+    setQuestionAudioUrl(null);
+    setQuestionRecordSecs(0);
+    if (qTimerRef.current) clearInterval(qTimerRef.current);
+  };
+
+  const startReplyRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      rRecorderRef.current = recorder;
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setReplyAudioBlob(blob);
+        setReplyAudioUrl(url);
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      recorder.start();
+      setIsRecordingReply(true);
+      setReplyRecordSecs(0);
+      rTimerRef.current = setInterval(() => setReplyRecordSecs(s => s + 1), 1000);
+    } catch (err) {
+      console.error("Mic access error:", err);
+      alert("Could not access microphone.");
+    }
+  };
+
+  const stopReplyRecording = () => {
+    if (rRecorderRef.current && isRecordingReply) {
+      rRecorderRef.current.stop();
+      setIsRecordingReply(false);
+      if (rTimerRef.current) clearInterval(rTimerRef.current);
+    }
+  };
+
+  const cancelReplyRecording = () => {
+    if (rRecorderRef.current && isRecordingReply) rRecorderRef.current.stop();
+    setIsRecordingReply(false);
+    setReplyAudioBlob(null);
+    setReplyAudioUrl(null);
+    setReplyRecordSecs(0);
+    if (rTimerRef.current) clearInterval(rTimerRef.current);
+  };
+
+  const formatSecs = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   useEffect(() => {
     async function loadGuardianData() {
@@ -303,7 +434,12 @@ export default function FamilyCirclePage() {
           if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
 
           if (token) {
-            const memories = await getFamilySharedMemories(token).catch(() => []);
+            const memories = await getFamilySharedMemories(token, {
+              userId: selectedMemberFilter,
+              type: selectedTypeFilter,
+              search: timelineSearch,
+              sort: timelineSort,
+            }).catch(() => []);
             if (Array.isArray(memories)) {
               const uniqueMap = new Map();
               memories.forEach(m => {
@@ -327,7 +463,44 @@ export default function FamilyCirclePage() {
       }
     }
     loadSharedMemories();
-  }, [activeTab, auth.isAuthenticated, auth.firebaseUser]);
+  }, [activeTab, selectedMemberFilter, selectedTypeFilter, timelineSearch, timelineSort, auth.isAuthenticated, auth.firebaseUser]);
+
+  // Load family albums when Family Albums tab is active
+  useEffect(() => {
+    async function loadFamilyAlbumsData() {
+      if (activeTab === "Family Albums") {
+        setLoadingFamilyAlbums(true);
+        try {
+          let token = null;
+          if (auth.getToken) {
+            try { token = await auth.getToken(); } catch (_) {}
+          }
+          if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+
+          let targetCircleId = currentCircleId;
+          if (!targetCircleId && token) {
+            const familyCircleData = await getFamilyCircleDetails(token).catch(() => null);
+            if (familyCircleData?.id) {
+              targetCircleId = familyCircleData.id;
+              setCurrentCircleId(targetCircleId);
+            }
+          }
+
+          if (token && targetCircleId) {
+            const albums = await getFamilyCircleAlbumsFromBackend(token, targetCircleId).catch(() => []);
+            if (Array.isArray(albums)) {
+              setFamilyAlbums(albums);
+            }
+          }
+        } catch (err) {
+          console.warn("Could not load family albums:", err);
+        } finally {
+          setLoadingFamilyAlbums(false);
+        }
+      }
+    }
+    loadFamilyAlbumsData();
+  }, [activeTab, currentCircleId, auth.isAuthenticated]);
 
   // Load family prompts when Ask Family tab is active
   useEffect(() => {
@@ -364,14 +537,10 @@ export default function FamilyCirclePage() {
 
   const handleCreatePrompt = async (e) => {
     e.preventDefault();
-    if (!newQuestionText.trim()) return;
-    try {
-      let token = null;
-      if (auth.getToken) {
-        try { token = await auth.getToken(); } catch (_) {}
-      }
-      if (!token) token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+    if (!newQuestionText.trim() && !questionAudioBlob && !questionAudioUrl) return;
 
+    try {
+      let token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
       let targetCircleId = currentCircleId;
       if (!targetCircleId && token) {
         const circleDetails = await getFamilyCircleDetails(token).catch(() => null);
@@ -385,11 +554,27 @@ export default function FamilyCirclePage() {
         return;
       }
 
+      let audioDataUrl = questionAudioUrl;
+      if (questionAudioBlob) {
+        audioDataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(questionAudioBlob);
+        });
+      }
+
       if (token) {
-        const created = await createFamilyPrompt(token, targetCircleId, newQuestionText, promptCategory);
+        const qText = newQuestionText.trim() || "Voice Question";
+        const created = await createFamilyPrompt(token, targetCircleId, qText, promptCategory, null, audioDataUrl);
         if (created) {
-          setPromptsList(prev => [created, ...prev]);
+          const promptWithAudio = {
+            ...created,
+            audioUrl: created.audioUrl || audioDataUrl,
+            audioKey: created.audioKey || audioDataUrl,
+          };
+          setPromptsList(prev => [promptWithAudio, ...prev]);
           setNewQuestionText("");
+          cancelQuestionRecording();
           setToastMessage("✓ Family question posted!");
           setTimeout(() => setToastMessage(""), 3000);
         }
@@ -402,18 +587,34 @@ export default function FamilyCirclePage() {
   };
 
   const handleRespondToPrompt = async (promptId) => {
-    if (!replyInputText.trim()) return;
+    if (!replyInputText.trim() && !replyAudioBlob && !replyAudioUrl) return;
     try {
       const token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      
+      let audioDataUrl = replyAudioUrl;
+      if (replyAudioBlob) {
+        audioDataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(replyAudioBlob);
+        });
+      }
+
       if (token) {
-        const newResp = await respondToFamilyPrompt(token, promptId, { text: replyInputText });
+        const newResp = await respondToFamilyPrompt(token, promptId, { text: replyInputText.trim() || "Voice Answer", audioUrl: audioDataUrl });
+        const respWithAudio = {
+          ...newResp,
+          audioUrl: newResp?.audioUrl || audioDataUrl,
+          audioKey: newResp?.audioKey || audioDataUrl,
+        };
         setPromptsList(prev => prev.map(p => {
           if (p.id === promptId) {
-            return { ...p, responses: [...(p.responses || []), newResp] };
+            return { ...p, responses: [...(p.responses || []), respWithAudio] };
           }
           return p;
         }));
         setReplyInputText("");
+        cancelReplyRecording();
         setActivePromptResponseId(null);
         setToastMessage("✓ Response shared with family!");
         setTimeout(() => setToastMessage(""), 3000);
@@ -641,6 +842,7 @@ export default function FamilyCirclePage() {
               { id: "Members", label: "Members" },
               { id: "Invitations", label: "Invitations", badge: invitationsList.length + pendingApprovals.length },
               { id: "Shared Memories", label: "Shared Memories" },
+              { id: "Family Albums", label: "Family Albums" },
               { id: "Ask Family", label: "Ask Family" },
               { id: "Family Tree", label: "Family Tree" },
               { id: "Legacy Access", label: "Legacy Access" }
@@ -975,10 +1177,10 @@ export default function FamilyCirclePage() {
           {activeTab === "Ask Family" && (
             <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-8">
               {/* Question Composer Card */}
-              <motion.div variants={fadeInUp} className="figma-card p-6 md:p-8">
-                <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Ask the Family</h2>
+              <motion.div id="ask-family-composer" variants={fadeInUp} className="figma-card p-6 md:p-8 transition-all duration-500">
+                <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Ask a Family Question</h2>
                 <p className="text-xs text-stone-500 dark:text-stone-400 font-medium mb-4">
-                  Ask a question to start a family discussion or preserve multi-generational memories.
+                  Ask a question via text or record a voice question to start a family memory discussion.
                 </p>
 
                 <form onSubmit={handleCreatePrompt} className="space-y-4">
@@ -987,12 +1189,52 @@ export default function FamilyCirclePage() {
                       rows={3}
                       value={newQuestionText}
                       onChange={(e) => setNewQuestionText(e.target.value)}
-                      placeholder="e.g. What was grandpa's favorite memory growing up? Or tell us about our first family holiday!"
+                      placeholder="e.g. What was grandpa's favorite memory growing up? Or record a voice question below!"
                       className="w-full p-4 rounded-2xl border border-[#C7D2FE]/70 dark:border-slate-800 bg-white dark:bg-slate-900 text-stone-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-[#4A3AFF] focus:outline-none transition resize-none"
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  {/* Voice Question Recording Panel */}
+                  <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-2xl border border-[#C7D2FE]/80 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      {isRecordingQuestion ? (
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+                          <span className="text-xs font-bold text-red-600 dark:text-red-400">
+                            Recording ({formatSecs(questionRecordSecs)})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={stopQuestionRecording}
+                            className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <Square size={12} /> Stop
+                          </button>
+                        </div>
+                      ) : questionAudioUrl ? (
+                        <div className="flex items-center gap-3">
+                          <audio src={questionAudioUrl} controls className="h-8 max-w-[200px]" />
+                          <button
+                            type="button"
+                            onClick={cancelQuestionRecording}
+                            className="p-1.5 text-stone-400 hover:text-red-500 transition cursor-pointer"
+                            title="Discard recording"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={startQuestionRecording}
+                          className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-stone-100 text-[#4A3AFF] dark:text-indigo-300 border border-[#C7D2FE] rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs transition"
+                        >
+                          <Mic size={15} className="text-[#4A3AFF]" />
+                          <span>Record Voice Question</span>
+                        </button>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-stone-500 dark:text-stone-400">Category:</span>
                       {["Heritage", "Childhood", "Traditions", "Fun"].map((cat) => (
@@ -1013,8 +1255,8 @@ export default function FamilyCirclePage() {
 
                     <button
                       type="submit"
-                      disabled={!newQuestionText.trim()}
-                      className="px-6 py-2.5 bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer active:scale-95"
+                      disabled={!newQuestionText.trim() && !questionAudioBlob && !questionAudioUrl}
+                      className="px-6 py-2.5 bg-[#4A3AFF] hover:bg-[#3b2dd1] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer active:scale-95 ml-auto"
                     >
                       Post Question
                     </button>
@@ -1059,64 +1301,147 @@ export default function FamilyCirclePage() {
                         </span>
                       </div>
 
-                      <h3 className="text-lg font-bold text-stone-900 dark:text-white leading-snug">
-                        "{prompt.question}"
-                      </h3>
+                      {prompt.question && prompt.question !== "Voice Question" && (
+                        <h3 className="text-lg font-bold text-stone-900 dark:text-white leading-snug">
+                          "{prompt.question}"
+                        </h3>
+                      )}
+
+                      {prompt.question === "Voice Question" && !(prompt.audioUrl || prompt.audioKey) && (
+                        <h3 className="text-lg font-bold text-stone-900 dark:text-white leading-snug">
+                          "Voice Question"
+                        </h3>
+                      )}
+
+                      {(prompt.audioUrl || prompt.audioKey) && (
+                        <div className="pt-1 space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#4A3AFF]">
+                            <Mic size={13} />
+                            <span>Spoken Voice Question</span>
+                          </div>
+                          <VoicePlayer memory={{ mediaUrl: prompt.audioUrl || prompt.audioKey, title: prompt.question !== "Voice Question" ? prompt.question : "Spoken Voice Question" }} />
+                        </div>
+                      )}
 
                       {/* Responses List */}
                       {prompt.responses && prompt.responses.length > 0 && (
                         <div className="pl-4 border-l-2 border-[#4A3AFF]/30 space-y-3 pt-2">
-                          {prompt.responses.map((resp) => (
-                            <div key={resp.id} className="bg-stone-50/80 dark:bg-slate-800/60 p-3.5 rounded-2xl space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-xs text-stone-900 dark:text-white">
-                                  {resp.author?.displayName || resp.author?.name || "Family Member"}
-                                </span>
-                                <span className="text-[10px] text-stone-400">
-                                  {new Date(resp.createdAt).toLocaleDateString()}
-                                </span>
+                          {prompt.responses.map((resp) => {
+                            const authorAvatar = resp.author?.photoURL || resp.author?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(resp.author?.displayName || resp.author?.name || "Member")}&background=4A3AFF&color=fff`;
+                            const authorName = resp.author?.displayName || resp.author?.name || "Family Member";
+                            const hasAudio = resp.audioUrl || resp.audioKey;
+
+                            return (
+                              <div key={resp.id} className="bg-stone-50/80 dark:bg-slate-800/60 p-3.5 rounded-2xl space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <img src={authorAvatar} alt={authorName} className="w-5 h-5 rounded-full object-cover border border-white" />
+                                    <span className="font-bold text-xs text-stone-900 dark:text-white">
+                                      {authorName}
+                                    </span>
+                                    <span className="text-[10px] text-stone-400">
+                                      {new Date(resp.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {hasAudio && (
+                                    <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold flex items-center gap-1 border border-amber-200">
+                                      <Mic size={10} /> Voice Answer
+                                    </span>
+                                  )}
+                                </div>
+
+                                {resp.text && resp.text !== "Voice Answer" && (
+                                  <p className="text-xs text-stone-700 dark:text-stone-300 font-medium leading-relaxed">
+                                    {resp.text}
+                                  </p>
+                                )}
+
+                                {hasAudio && (
+                                  <div className="pt-1">
+                                    <VoicePlayer memory={{ mediaUrl: resp.audioUrl || resp.audioKey, title: `${authorName}'s Voice Response` }} />
+                                  </div>
+                                )}
                               </div>
-                              <p className="text-xs text-stone-700 dark:text-stone-300 font-medium">
-                                {resp.text}
-                              </p>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
                       {/* Reply Action */}
                       {activePromptResponseId === prompt.id ? (
-                        <div className="pt-2 flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={replyInputText}
-                            onChange={(e) => setReplyInputText(e.target.value)}
-                            placeholder="Write your response..."
-                            className="flex-1 px-4 py-2 rounded-xl border border-stone-300 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-[#4A3AFF] focus:outline-none"
-                          />
-                          <button
-                            onClick={() => handleRespondToPrompt(prompt.id)}
-                            disabled={!replyInputText.trim()}
-                            className="px-4 py-2 bg-[#4A3AFF] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
-                          >
-                            Send
-                          </button>
-                          <button
-                            onClick={() => setActivePromptResponseId(null)}
-                            className="px-3 py-2 text-stone-400 hover:text-stone-600 text-xs font-bold"
-                          >
-                            Cancel
-                          </button>
+                        <div className="pt-2 flex flex-col gap-2 bg-stone-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-stone-200 dark:border-slate-700">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={replyInputText}
+                              onChange={(e) => setReplyInputText(e.target.value)}
+                              placeholder="Write or record your response..."
+                              className="flex-1 px-4 py-2 rounded-xl border border-stone-300 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-[#4A3AFF] focus:outline-none"
+                            />
+
+                            {isRecordingReply ? (
+                              <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-bold border border-red-200">
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                                <span>{formatSecs(replyRecordSecs)}</span>
+                                <button
+                                  type="button"
+                                  onClick={stopReplyRecording}
+                                  className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold"
+                                >
+                                  Stop
+                                </button>
+                              </div>
+                            ) : replyAudioUrl ? (
+                              <div className="flex items-center gap-1">
+                                <audio src={replyAudioUrl} controls className="h-7 max-w-[140px]" />
+                                <button
+                                  type="button"
+                                  onClick={cancelReplyRecording}
+                                  className="p-1 text-stone-400 hover:text-red-500"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={startReplyRecording}
+                                className="px-3 py-2 bg-indigo-50 text-[#4A3AFF] hover:bg-indigo-100 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer border border-[#C7D2FE]"
+                                title="Record Voice Answer"
+                              >
+                                <Mic size={14} />
+                                <span>Voice</span>
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => handleRespondToPrompt(prompt.id)}
+                              disabled={!replyInputText.trim() && !replyAudioBlob && !replyAudioUrl}
+                              className="px-4 py-2 bg-[#4A3AFF] hover:bg-[#3b2ee0] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                            >
+                              Send
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActivePromptResponseId(null);
+                                cancelReplyRecording();
+                              }}
+                              className="px-2 py-2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <button
                           onClick={() => {
                             setActivePromptResponseId(prompt.id);
                             setReplyInputText("");
+                            cancelReplyRecording();
                           }}
-                          className="text-xs font-bold text-[#4A3AFF] hover:underline cursor-pointer pt-1"
+                          className="text-xs font-bold text-[#4A3AFF] hover:underline cursor-pointer pt-1 flex items-center gap-1"
                         >
-                          + Add your response
+                          <Plus size={13} /> Add your response
                         </button>
                       )}
                     </motion.div>
@@ -1178,84 +1503,119 @@ export default function FamilyCirclePage() {
               <div className="figma-card mb-12 p-10 min-h-[500px] flex flex-col items-center justify-center">
                 
                 {/* Header */}
-                <div className="text-center mb-16">
-                  <div className="mx-auto text-[#4A3AFF] mb-4 flex justify-center">
+                <div className="text-center mb-8">
+                  <div className="mx-auto text-[#4A3AFF] mb-3 flex justify-center">
                     <TreePine size={40} strokeWidth={2.5} />
                   </div>
-                  <h2 className="font-bold text-[24px] text-stone-900 dark:text-white mb-2">Family Tree</h2>
+                  <h2 className="font-bold text-[24px] text-stone-900 dark:text-white mb-1">Family Tree</h2>
                   <p className="text-[15px] font-medium text-stone-600 dark:text-stone-400 max-w-sm mx-auto">
-                    Build your family tree and connect memories across generations.
+                    Explore generational layers and connect family memories.
                   </p>
                 </div>
 
-                {/* Tree Diagram */}
-                {(() => {
-                  const myEmail = currentProfile?.email?.toLowerCase();
-                  const myName = currentProfile?.displayName || currentProfile?.name || myEmail?.split("@")[0] || "Mu Safi";
-                  const myAvatar = currentProfile?.photoURL || currentProfile?.avatar;
-                  const myInitials = String(myName).split(" ").map(n => n ? n[0] : "").join("").toUpperCase().slice(0, 2) || "M";
-
-                  const otherMembers = membersList.filter(m => {
-                    if (!m) return false;
-                    if (myEmail && m.email && m.email.toLowerCase() === myEmail) return false;
-                    return true;
-                  });
-
-                  return (
-                    <div className="flex flex-col items-center">
-                      
-                      {/* Root Node (You) */}
-                      <div className="flex flex-col items-center z-10">
-                        {myAvatar && typeof myAvatar === "string" && myAvatar.startsWith("http") ? (
-                          <img src={myAvatar} alt={myName} className="w-16 h-16 rounded-full object-cover shadow-md mb-2" />
-                        ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#4A3AFF] to-[#6C5DD3] text-white font-bold text-base flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-md mb-2">
-                            {myInitials}
-                          </div>
-                        )}
-                        <span className="font-bold text-[15px] text-stone-900 dark:text-white">{myName}</span>
-                        <span className="text-[12px] font-medium text-stone-500 dark:text-stone-400">You</span>
-                      </div>
-
-                      {/* Vertical connecting line */}
-                      <div className="w-[1.5px] h-16 bg-stone-300 dark:bg-stone-700 my-4"></div>
-
-                      {/* Children / Connected Member Nodes */}
-                      <div className="flex flex-wrap justify-center gap-8 md:gap-12 mt-2">
-                        {otherMembers.length > 0 ? (
-                          otherMembers.map((member) => {
-                            const mName = member.name || member.email?.split("@")[0] || "Family Member";
-                            const mInitials = String(mName).split(" ").map(n => n ? n[0] : "").join("").toUpperCase().slice(0, 2) || "M";
-                            const mAvatar = member.avatar || member.photoURL;
-                            const mRel = member.relationship || (member.isAdmin ? "Admin" : "Family Member");
-
-                            return (
-                              <div key={member.id || member.email} className="flex flex-col items-center z-10">
-                                {mAvatar && typeof mAvatar === "string" && mAvatar.startsWith("http") ? (
-                                  <img src={mAvatar} alt={mName} className="w-14 h-14 rounded-full object-cover shadow-sm mb-2" />
-                                ) : (
-                                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#4A3AFF] to-[#6C5DD3] text-white font-bold text-sm flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm mb-2">
-                                    {mInitials}
-                                  </div>
-                                )}
-                                <span className="font-bold text-[14px] text-stone-900 dark:text-white">{mName}</span>
-                                <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400">{mRel}</span>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="text-center text-xs font-medium text-stone-500 dark:text-stone-400">
-                            No other connected family members yet.
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  );
-                })()}
+                {/* Interactive Multi-Generational Family Tree Canvas */}
+                <FamilyTreeCanvas
+                  circleId={currentCircleId}
+                  userToken={userToken}
+                  currentUserId={currentProfile?.id}
+                  membersList={membersList}
+                />
 
               </div>
             </div>
+          )}
+
+          {/* Family Albums Tab */}
+          {activeTab === "Family Albums" && (
+            <motion.div variants={staggerContainer} initial="hidden" animate="show" className="w-full">
+              {loadingFamilyAlbums ? (
+                <motion.div variants={fadeInUp} className="figma-card py-20 flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 border-4 border-[#4A3AFF] border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-stone-500 dark:text-stone-400 font-bold text-sm">Loading family albums...</p>
+                </motion.div>
+              ) : familyAlbums.length === 0 ? (
+                <motion.div variants={fadeInUp} className="figma-card p-12 flex flex-col items-center justify-center text-center my-6">
+                  <div className="w-16 h-16 rounded-full bg-[#EEF2FF] text-[#4A3AFF] flex items-center justify-center mb-4 shadow-sm">
+                    <FolderHeart size={32} strokeWidth={2.5} />
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-900 dark:text-white mb-2">No Family Albums Created Yet</h2>
+                  <p className="text-stone-500 dark:text-stone-400 max-w-md text-sm leading-relaxed mb-6">
+                    Create a shared Family Album to start curating memories, photo stories, and voice notes together across generations.
+                  </p>
+                  <button 
+                    onClick={() => setIsCreateAlbumModalOpen(true)} 
+                    className="bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Plus size={16} />
+                    <span>Create Family Album</span>
+                  </button>
+                </motion.div>
+              ) : (
+                <div className="space-y-6 w-full my-4">
+                  <div className="flex items-center justify-between p-2 mb-2">
+                    <div>
+                      <h2 className="font-bold text-xl text-stone-900 dark:text-white mb-0.5 flex items-center gap-2">
+                        <span>Family Space Albums</span>
+                        <span className="bg-[#4A3AFF] text-white text-xs font-bold px-2.5 py-0.5 rounded-full">{familyAlbums.length}</span>
+                      </h2>
+                      <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Collaborative memory collections curated by your connected family members.</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsCreateAlbumModalOpen(true)} 
+                      className="bg-[#4A3AFF] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xs hover:bg-[#3b2dd1] transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <Plus size={14} />
+                      <span>New Album</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                    {familyAlbums.map((album) => (
+                      <Link key={album.id} href={`/family/albums/${album.id}`} className="group cursor-pointer block h-full">
+                        <div className="relative w-full overflow-hidden figma-card flex flex-col h-full cursor-pointer">
+                          <div className="relative w-full aspect-[4/2.4] overflow-hidden bg-stone-200 dark:bg-slate-700 shrink-0">
+                            <img src={album.coverImageUrl || "https://images.unsplash.com/photo-1517971071642-34a2d3ecc9cd"} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent opacity-95" />
+                            <div className="absolute bottom-3 left-4 right-4 text-white z-10">
+                              <h3 className="font-bold text-[16px] truncate">{album.title}</h3>
+                            </div>
+                          </div>
+                          <div className="p-4 flex flex-col justify-between flex-1 bg-[#E8E9FF]/90 dark:bg-slate-800/90">
+                            <p className="text-stone-700 dark:text-stone-300 text-xs font-medium line-clamp-2 mb-3">
+                              {album.subtitle || "No description provided."}
+                            </p>
+                            {album.contributors && album.contributors.length > 0 && (
+                              <div className="flex items-center justify-between border-t pt-2 border-indigo-100/60 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex -space-x-2 overflow-hidden">
+                                    {album.contributors.slice(0, 4).map((c, i) => (
+                                      c.avatar ? (
+                                        <img key={i} src={c.avatar} alt={c.name || "Contributor"} title={`${c.name || "Family Member"} (${c.role || "Contributor"})`} className="h-6 w-6 rounded-full border-2 border-white dark:border-slate-800 object-cover shadow-xs" />
+                                      ) : (
+                                        <div key={i} title={`${c.name || "Family Member"} (${c.role || "Contributor"})`} className="h-6 w-6 rounded-full bg-[#4A3AFF] text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-xs">
+                                          {c.name ? c.name[0].toUpperCase() : "M"}
+                                        </div>
+                                      )
+                                    ))}
+                                  </div>
+                                  <span className="text-[11px] font-semibold text-stone-500">
+                                    {album.contributors.length} {album.contributors.length === 1 ? "contributor" : "contributors"}
+                                  </span>
+                                </div>
+
+                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-slate-700 text-[#4A3AFF] dark:text-indigo-300">
+                                  {album.memoryCount ?? album.entries ?? 0} {(album.memoryCount ?? album.entries ?? 0) === 1 ? "memory" : "memories"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
           )}
 
           {/* Shared Memories Tab */}
@@ -1285,6 +1645,97 @@ export default function FamilyCirclePage() {
                         <span className="bg-[#4A3AFF] text-white text-xs font-bold px-2.5 py-0.5 rounded-full">{sharedMemories.length}</span>
                       </h2>
                       <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Stories, voices, and photos shared across your connected family circle.</p>
+                    </div>
+                  </div>
+
+                  {/* Interactive Timeline Controls Bar */}
+                  <div className="figma-card p-4 mb-6 space-y-4 bg-white/90 dark:bg-slate-900/90 border border-[#C7D2FE]/70">
+                    {/* Row 1: Member Filter Pills */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full [&::-webkit-scrollbar]:hidden">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Member:</span>
+                      <button
+                        onClick={() => setSelectedMemberFilter("ALL")}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                          selectedMemberFilter === "ALL"
+                            ? "bg-[#4A3AFF] text-white shadow-xs"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                        }`}
+                      >
+                        All Members
+                      </button>
+
+                      {membersList.map((m) => {
+                        const isSelected = selectedMemberFilter === m.userId || selectedMemberFilter === m.id;
+                        const initial = m.name ? m.name[0].toUpperCase() : "M";
+                        return (
+                          <button
+                            key={m.id || m.userId}
+                            onClick={() => setSelectedMemberFilter(m.userId || m.id)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                              isSelected
+                                ? "bg-[#4A3AFF] text-white shadow-xs"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                            }`}
+                          >
+                            {m.avatar ? (
+                              <img src={m.avatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+                            ) : (
+                              <span className="w-4 h-4 rounded-full bg-white/30 font-extrabold text-[9px] flex items-center justify-center">
+                                {initial}
+                              </span>
+                            )}
+                            <span>{m.name || m.displayName}</span>
+                            <span className="text-[10px] opacity-75 font-semibold">({m.relationship || m.role})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Row 2: Media Type Chips & Search */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+                      {/* Media Type Chips */}
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+                        {[
+                          { id: "ALL", label: "All Formats" },
+                          { id: "Voice", label: "🎙️ Voice Stories" },
+                          { id: "Photo", label: "📷 Photos" },
+                          { id: "Written", label: "📝 Written" },
+                          { id: "Milestone", label: "🏆 Milestones" }
+                        ].map((typeChip) => (
+                          <button
+                            key={typeChip.id}
+                            onClick={() => setSelectedTypeFilter(typeChip.id)}
+                            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                              selectedTypeFilter === typeChip.id
+                                ? "bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-xs"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                            }`}
+                          >
+                            {typeChip.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Search & Sort Controls */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="relative flex-1 sm:w-48">
+                          <input
+                            type="text"
+                            placeholder="Search stories..."
+                            value={timelineSearch}
+                            onChange={(e) => setTimelineSearch(e.target.value)}
+                            className="w-full pl-3 pr-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-[#4A3AFF]"
+                          />
+                        </div>
+                        <select
+                          value={timelineSort}
+                          onChange={(e) => setTimelineSort(e.target.value)}
+                          className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                        >
+                          <option value="newest">Newest First</option>
+                          <option value="oldest">Oldest First</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -1489,6 +1940,40 @@ export default function FamilyCirclePage() {
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={handleInviteSuccess}
       />
+
+      {/* Create Family Album Modal */}
+      <CreateFamilyAlbumModal
+        isOpen={isCreateAlbumModalOpen}
+        onClose={() => setIsCreateAlbumModalOpen(false)}
+        familyCircleId={currentCircleId}
+        onSuccess={async () => {
+          setToastMessage("✓ Family Album created successfully!");
+          setTimeout(() => setToastMessage(""), 3500);
+          setActiveTab("Family Albums");
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            url.searchParams.set("tab", "Family Albums");
+            window.history.pushState({}, "", url.toString());
+          }
+          let token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+          if (token && currentCircleId) {
+            const albums = await getFamilyCircleAlbumsFromBackend(token, currentCircleId).catch(() => []);
+            if (Array.isArray(albums)) setFamilyAlbums(albums);
+          }
+        }}
+      />
     </WavesBackground>
+  );
+}
+
+export default function FamilyCirclePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F5F6FF] dark:bg-slate-950 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-[#4A3AFF] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <FamilyCircleContent />
+    </Suspense>
   );
 }

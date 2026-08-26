@@ -212,7 +212,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
             </div>
 
             {/* Profile Row */}
-            <Link href="/profile" onClick={onClose} className="flex items-center gap-4 mb-6 hover:opacity-80 transition cursor-pointer">
+            <div className="flex items-center gap-4 mb-6">
               <img 
                 src={userProfile?.photoURL || "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80"} 
                 alt="Profile" 
@@ -226,7 +226,7 @@ export default function MemoryDetailModal({ memory, userProfile, onClose }) {
                   {userProfile?.profession || "Cardiac Surgeon"}
                 </p>
               </div>
-            </Link>
+            </div>
 
             {/* Badges */}
             <div className="flex items-center gap-2 mb-8">

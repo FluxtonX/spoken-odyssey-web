@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { Search, Loader2, Headphones, Heart, UserPlus, UserCheck, Inbox, Mic, FileText, Image as ImageIcon, Film, Play, Lock } from "lucide-react";
+import { Search, Loader2, Headphones, Heart, UserPlus, UserCheck, Inbox, Mic, FileText, Image as ImageIcon, Film, Play, Lock, Grid, List, ChevronRight } from "lucide-react";
 import { getDiscoveryMemories, getFeaturedPeople, followUser, unfollowUser, reactToMemory, normalizeMediaUrl } from "@/services/backend";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
@@ -107,6 +107,7 @@ export default function DiscoverPage() {
   // Tab state: "latest-stories" vs "featured-people"
   const [activeTab, setActiveTab] = useState("latest-stories");
   const [activeFilter, setActiveFilter] = useState("All Stories");
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   
   // Search state & Debounce state
   const [searchQuery, setSearchQuery] = useState("");
@@ -504,21 +505,51 @@ export default function DiscoverPage() {
             </div>
           </motion.div>
 
-          {/* Filter Pills Bar */}
-          <motion.div variants={fadeInUp} className="w-full flex overflow-x-auto hide-scrollbar gap-3 mb-10 pb-2">
-            {currentFilters.map(filter => (
-              <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`shrink-0 px-5 py-2.5 rounded-full text-[14px] font-bold transition-all ${
-                  activeFilter === filter
-                    ? "bg-transparent border-2 border-[#4A3AFF] text-[#4A3AFF]"
-                    : "bg-white/70 backdrop-blur-md border border-transparent text-stone-500 hover:text-stone-800 shadow-sm"
-                }`}
-              >
-                {filter}
-              </button>
-            ))}
+          {/* Filter Pills Bar & View Mode Toggle Switcher */}
+          <motion.div variants={fadeInUp} className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-2">
+            <div className="flex-1 overflow-x-auto hide-scrollbar flex gap-3 pb-1">
+              {currentFilters.map(filter => (
+                <button
+                  key={filter}
+                  onClick={() => setActiveFilter(filter)}
+                  className={`shrink-0 px-5 py-2.5 rounded-full text-[14px] font-bold transition-all ${
+                    activeFilter === filter
+                      ? "bg-transparent border-2 border-[#4A3AFF] text-[#4A3AFF]"
+                      : "bg-white/70 backdrop-blur-md border border-transparent text-stone-500 hover:text-stone-800 shadow-sm"
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+
+            {/* Grid / List View Toggle Switcher */}
+            {activeTab === "latest-stories" && (
+              <div className="bg-white/80 dark:bg-slate-900/80 border border-[#C7D2FE]/70 dark:border-slate-800 p-1.5 rounded-full inline-flex items-center gap-1 shadow-xs shrink-0 self-end sm:self-auto">
+                <button 
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  aria-label="Grid View"
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    viewMode === "grid" ? "bg-[#4A3AFF] text-white shadow-md" : "text-stone-600 dark:text-stone-300 hover:bg-[#EEF2FF]"
+                  }`}
+                >
+                  <Grid size={14} />
+                  <span>Grid</span>
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  aria-label="List View"
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    viewMode === "list" ? "bg-[#4A3AFF] text-white shadow-md" : "text-stone-600 dark:text-stone-300 hover:bg-[#EEF2FF]"
+                  }`}
+                >
+                  <List size={14} />
+                  <span>List</span>
+                </button>
+              </div>
+            )}
           </motion.div>
 
           {isLoading ? (
@@ -670,6 +701,102 @@ export default function DiscoverPage() {
                     : "No public stories have been published to the database yet."}
                 </p>
               </div>
+            ) : viewMode === "list" ? (
+              /* ==========================================
+                 LIST VIEW MODE FOR LATEST STORIES
+                 ========================================== */
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3.5 w-full">
+                {dbMemoriesList.map((story) => {
+                  const normType = (story.type || "").toLowerCase();
+                  const mediaSources = getMemoryMediaSources(story);
+                  const isVoice = normType === "voice" || normType === "audio" || (!!story.audioUrl && !mediaSources.video && !mediaSources.image);
+                  const isVideo = !isVoice && (normType === "video" || !!mediaSources.video);
+                  const isPhoto = !isVoice && !isVideo && (normType === "photo" || normType === "visual" || normType === "image" || !!mediaSources.image);
+                  const isWritten = !isVoice && !isVideo && !isPhoto;
+                  const dateStr = formatDateSafely(story.date || story.createdAt || story.occurredAt);
+                  const reactionCount = reactionsCountMap[story.id] ?? story.totalReactions ?? story.likes ?? 0;
+                  const userReactType = userReactionMap[story.id] || (story.userReaction ? "heart" : null);
+                  const isLiked = !!userReactType;
+
+                  return (
+                    <motion.div
+                      key={story.id}
+                      variants={fadeInUp}
+                      id={`memory-${story.id}`}
+                      onClick={(e) => handleOpenMemoryModal(e, story)}
+                      className="figma-card p-4 sm:p-5 flex items-center justify-between gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer group w-full"
+                    >
+                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                        <div className={`w-11 h-11 rounded-2xl ${
+                          isVoice ? "bg-[#FFF7ED] text-[#F59E0B]" :
+                          isVideo ? "bg-[#FDF2F8] text-[#EC4899]" :
+                          isWritten ? "bg-[#ECFDF5] text-[#10B981]" :
+                          "bg-[#EFF6FF] text-[#3B82F6]"
+                        } font-bold text-sm flex items-center justify-center shrink-0 shadow-xs`}>
+                          {isVoice ? <Mic size={20} /> :
+                           isVideo ? <Film size={20} /> :
+                           isWritten ? <FileText size={20} /> :
+                           <ImageIcon size={20} />}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <h3 className="font-bold text-base text-stone-900 leading-tight truncate group-hover:text-[#4A3AFF] transition-colors">
+                                {story.title}
+                              </h3>
+                              <span className="text-xs text-stone-400 font-semibold shrink-0">• {dateStr}</span>
+                            </div>
+                            <TaggedMembersBadge memory={story} />
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-1">
+                            <img 
+                              src={story.ownerAvatarUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop"} 
+                              alt={story.ownerDisplayName || "Author"} 
+                              className="w-4 h-4 rounded-full object-cover shrink-0 border border-stone-200"
+                            />
+                            <span className="text-xs font-semibold text-stone-500 truncate">
+                              {story.ownerDisplayName || "Author"}
+                            </span>
+                            {story.description && (
+                              <span className="text-xs font-medium text-stone-400 truncate hidden md:inline">
+                                — {story.description}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        {Array.isArray(story.tags) && story.tags.filter(Boolean).slice(0, 2).map(tag => (
+                          <span key={tag} className="hidden lg:inline-block px-2.5 py-1 bg-[#EEF2FF] text-[#4A3AFF] rounded-full text-[10px] font-bold">
+                            #{String(tag).replace(/^#/, "")}
+                          </span>
+                        ))}
+
+                        <button 
+                          onClick={(e) => handleReactionToggle(e, story)}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-bold transition-colors cursor-pointer ${
+                            isLiked ? "bg-red-50 text-[#ef4444]" : "bg-stone-100 text-stone-500 hover:text-[#ef4444]"
+                          }`}
+                        >
+                          <Heart size={14} fill={isLiked ? "currentColor" : "none"} strokeWidth={2.5} />
+                          <span>{reactionCount}</span>
+                        </button>
+
+                        <ChevronRight size={16} className="text-stone-400 group-hover:text-[#4A3AFF] transition shrink-0" />
+                      </div>
+                    </motion.div>
+                  );
+                })}
+                {isFetchingMore && (
+                  <div className="w-full flex items-center justify-center py-8">
+                    <Loader2 size={24} className="animate-spin text-[#4A3AFF] mr-2" />
+                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading more public stories...</span>
+                  </div>
+                )}
+              </motion.div>
             ) : (
               <motion.div variants={staggerContainer} className="flex flex-col gap-8 w-full">
                 
