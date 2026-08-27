@@ -36,7 +36,7 @@ import {
   Bookmark, Share2, Download, Edit2, Trash2, Play, Pause, ChevronLeft, ChevronRight, 
   Sparkles, Lock, Users, Maximize2, Check, Loader2, Film, ThumbsUp, Laugh, Frown, Send, 
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp, Reply, Copy, MessageCircle, 
-  Mail, ExternalLink, MoreVertical, Gauge, CornerDownRight, Award
+  Mail, ExternalLink, MoreVertical, Gauge, CornerDownRight, Award, Plus
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/context/AuthProvider";
@@ -188,6 +188,7 @@ function MemoryViewModalContent() {
   const [replyInput, setReplyInput] = useState("");
   const [isPostingReply, setIsPostingReply] = useState(false);
   const [activeCommentPickerId, setActiveCommentPickerId] = useState(null); // Active emoji picker for comments/replies
+  const [expandedReplies, setExpandedReplies] = useState({});
 
   // Story Layers State (Voice & Text Perspectives)
   const [storyLayers, setStoryLayers] = useState([]);
@@ -251,7 +252,11 @@ function MemoryViewModalContent() {
     setIsSubmittingLayer(true);
     try {
       const memId = memory?._id || memory?.id;
-      const token = isAuthenticated && firebaseUser ? await getToken() : null;
+      let token = null;
+      try { token = await getToken(); } catch (_) {}
+      if (!token && typeof window !== "undefined") {
+        token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      }
 
       let audioDataUrl = layerAudioUrl;
       if (layerAudioBlob) {
@@ -274,6 +279,8 @@ function MemoryViewModalContent() {
           cancelLayerRecording();
           setIsAddingLayer(false);
         }
+      } else {
+        console.warn("Could not submit story layer: Missing token or memory ID", { token: !!token, memId });
       }
     } catch (err) {
       console.error("Add story layer error:", err);
@@ -341,7 +348,7 @@ function MemoryViewModalContent() {
 
         // Load real comments only; do not seed video memories from static/local demo comments.
         let initialComments = [];
-        const memId = mem._id || mem.id;
+        const memId = mem.id || mem._id || mem.memoryId;
         const openedMediaList = [];
         const collectOpenedMedia = (item) => {
           if (!item) return;
@@ -368,13 +375,25 @@ function MemoryViewModalContent() {
 
         if (memId) {
           try {
-            const token = isAuthenticated && firebaseUser ? await getToken() : null;
+            let token = isAuthenticated && firebaseUser ? await getToken() : null;
+            if (!token && typeof window !== "undefined") {
+              token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+            }
 
-            // Fetch live memory details (reactions) from PostgreSQL
+            // Fetch live memory details (photos, audio notes, media, reactions) from PostgreSQL
             if (token) {
               try {
                 const liveMemory = await getMemoryDetailsFromBackend(token, memId);
                 if (liveMemory) {
+                  // HYDRATE FULL MEMORY DETAILS: photos, mediaFiles, audioUrl, tags, owner
+                  setMemory(prev => ({
+                    ...prev,
+                    ...liveMemory,
+                    id: liveMemory.id || memId,
+                    audioUrl: liveMemory.audioUrl || liveMemory.voiceAssetUrl || prev?.audioUrl,
+                    mediaFiles: (Array.isArray(liveMemory.mediaFiles) && liveMemory.mediaFiles.length > 0) ? liveMemory.mediaFiles : (prev?.mediaFiles || [])
+                  }));
+
                   // Update reaction counts with fresh DB data
                   if (liveMemory.reactions && typeof liveMemory.reactions === "object") {
                     setReactionCounts({
@@ -422,6 +441,14 @@ function MemoryViewModalContent() {
                 }
               } catch (_) {}
             }
+
+            // Fetch live story layers (family perspectives) from backend
+            try {
+              const layers = await getMemoryStoryLayers(token, memId);
+              if (Array.isArray(layers)) {
+                setStoryLayers(layers);
+              }
+            } catch (_) {}
           } catch (err) {
             console.warn("Failed to sync data from backend:", err.message);
           }

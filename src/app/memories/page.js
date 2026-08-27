@@ -12,6 +12,7 @@ import { staggerContainer, fadeInUp } from "@/lib/animations";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
 import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
+import TimeCapsuleCountdown from "@/components/ui/TimeCapsuleCountdown";
 
 export default function MyArchive() {
   const router = useRouter();
@@ -88,7 +89,9 @@ export default function MyArchive() {
       if (!url || typeof url !== "string") return;
       const mediaType = isVideoLike(url, mimeType, type) ? "video" : "image";
       const normUrl = normalizeMediaUrl(url);
-      if (normUrl && !items.some(i => i.url === normUrl)) {
+      if (!normUrl) return;
+      const cleanKey = normUrl.split("?")[0].split("/").pop();
+      if (!items.some(i => i.url === normUrl || (cleanKey && i.url.split("?")[0].split("/").pop() === cleanKey))) {
         items.push({ url: normUrl, type: mediaType });
       }
     };
@@ -528,7 +531,12 @@ export default function MyArchive() {
                             {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={14} className="text-stone-400 shrink-0" />}
                             <h3 className="text-[16px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors truncate">{memory.title}</h3>
                           </div>
-                          <TaggedMembersBadge memory={memory} />
+                          <div className="flex items-center gap-2">
+                            {(memory.unlockAt || memory.isVaultLocked) && (
+                              <TimeCapsuleCountdown unlockAt={memory.unlockAt} />
+                            )}
+                            <TaggedMembersBadge memory={memory} />
+                          </div>
                         </div>
                         <span className="text-[13px] font-medium text-stone-500">{dateStr}</span>
                       </div>
@@ -680,9 +688,14 @@ export default function MyArchive() {
                             {getTypeLabel(memory.type)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
-                          <span className="text-[13px] font-bold text-stone-700">{dateStr}</span>
+                        <div className="flex flex-col items-end gap-1">
+                          {(memory.unlockAt || memory.isVaultLocked) && (
+                            <TimeCapsuleCountdown unlockAt={memory.unlockAt} />
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
+                            <span className="text-[13px] font-bold text-stone-700">{dateStr}</span>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-start justify-between gap-2 mb-3">

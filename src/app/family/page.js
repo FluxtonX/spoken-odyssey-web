@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthProvider";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck, Clock, Mic, FileText, Image as ImageIcon, Film, Play, Link2, Unlink, FolderHeart, Plus, Square, Radio, Trash2, Loader2 } from "lucide-react";
+import { UserPlus, Heart, Lock, Check, TreePine, X, ShieldCheck, Clock, Mic, FileText, Image as ImageIcon, Film, Play, Link2, Unlink, FolderHeart, Plus, Square, Radio, Trash2, Loader2, Sparkles, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp, fadeIn } from "@/lib/animations";
 import InviteMemberModal from "./components/InviteMemberModal";
@@ -16,6 +16,7 @@ import FamilyTreeCanvas from "./components/FamilyTreeCanvas";
 import FamilyMissionsWidget from "./components/FamilyMissionsWidget";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
+import TimeCapsuleCountdown from "@/components/ui/TimeCapsuleCountdown";
 import { 
   getFamilyMembers, 
   getFamilyInvitations, 
@@ -40,6 +41,12 @@ import {
   updateGuardianConsent,
   getLegacySettings,
   updateLegacySettings,
+  requestVaultRelease,
+  approveVaultRelease,
+  rejectVaultRelease,
+  getPendingVaultRequests,
+  getVaultMemories,
+  getFamilyCircleVaults,
   getFamilyCircleAlbumsFromBackend
 } from "@/services/backend";
 
@@ -146,15 +153,18 @@ function FamilyCircleContent() {
   const auth = useAuth() || {};
   const currentProfile = auth.profile;
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialTab = searchParams?.get("tab") || "Members";
   const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
     const tabParam = searchParams?.get("tab");
-    if (tabParam) {
+    if (tabParam === "ai-historian" || tabParam === "AI Historian") {
+      router.push("/family-historian");
+    } else if (tabParam) {
       setActiveTab(tabParam);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
   const [membersList, setMembersList] = useState([]); // Start with empty array, no mock data
   const [invitationsList, setInvitationsList] = useState([]);
   const [sharedMemories, setSharedMemories] = useState([]);
@@ -195,6 +205,17 @@ function FamilyCircleContent() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [userToken, setUserToken] = useState(null);
+
+  // Vault & Legacy Access state
+  const [vaultMemories, setVaultMemories] = useState([]);
+  const [loadingVaultMemories, setLoadingVaultMemories] = useState(false);
+  const [isVaultReleaseModalOpen, setIsVaultReleaseModalOpen] = useState(false);
+  const [vaultReleaseReason, setVaultReleaseReason] = useState("");
+  const [vaultReleaseRequests, setVaultReleaseRequests] = useState([]);
+  const [isVaultReleased, setIsVaultReleased] = useState(false);
+  const [familyVaultsList, setFamilyVaultsList] = useState([]);
+  const [targetLegacyUserId, setTargetLegacyUserId] = useState(null);
+  const [adminPendingVaultRequests, setAdminPendingVaultRequests] = useState([]);
 
   // Voice Recording state for Question Composer & Reply Form
   const [isRecordingQuestion, setIsRecordingQuestion] = useState(false);
@@ -535,6 +556,126 @@ function FamilyCircleContent() {
     loadPromptsData();
   }, [activeTab, currentCircleId, auth.isAuthenticated]);
 
+  // Helper to deduplicate items by id
+  const deduplicateById = (arr = []) => {
+    const seen = new Set();
+    return arr.filter(item => {
+      if (!item || !item.id) return true;
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
+
+  // Load vault memories & settings when Legacy Access tab is active
+  useEffect(() => {
+    async function loadVaultData() {
+      if (activeTab === "Legacy Access") {
+        setLoadingVaultMemories(true);
+        try {
+          let token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+          if (token) {
+            const backendLegacy = await getLegacySettings(token).catch(() => null);
+            if (backendLegacy) {
+              setIsVaultReleased(Boolean(backendLegacy.isReleased));
+              if (Array.isArray(backendLegacy.releaseRequests)) {
+                setVaultReleaseRequests(deduplicateById(backendLegacy.releaseRequests));
+              }
+            }
+
+            const vaultData = await getVaultMemories(token).catch(() => []);
+            if (Array.isArray(vaultData)) {
+              setVaultMemories(vaultData);
+            }
+
+            const circleVaults = await getFamilyCircleVaults(token).catch(() => []);
+            if (Array.isArray(circleVaults)) {
+              setFamilyVaultsList(circleVaults);
+            }
+
+            const adminPending = await getPendingVaultRequests(token).catch(() => []);
+            if (Array.isArray(adminPending)) {
+              setAdminPendingVaultRequests(deduplicateById(adminPending));
+            }
+          }
+        } catch (err) {
+          console.warn("Could not load vault data:", err);
+        } finally {
+          setLoadingVaultMemories(false);
+        }
+      }
+    }
+    loadVaultData();
+  }, [activeTab, auth.isAuthenticated]);
+
+  const handleRequestVaultRelease = async (e) => {
+    e.preventDefault();
+    try {
+      let token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        const req = await requestVaultRelease(token, { legacyUserId: targetLegacyUserId, reason: vaultReleaseReason });
+        if (req) {
+          setVaultReleaseRequests(prev => deduplicateById([req, ...prev]));
+          setIsVaultReleaseModalOpen(false);
+          setVaultReleaseReason("");
+          setTargetLegacyUserId(null);
+          setToastMessage("✓ Vault release request submitted successfully!");
+          setTimeout(() => setToastMessage(""), 3500);
+
+          const circleVaults = await getFamilyCircleVaults(token).catch(() => []);
+          if (Array.isArray(circleVaults)) setFamilyVaultsList(circleVaults);
+          const adminPending = await getPendingVaultRequests(token).catch(() => []);
+          if (Array.isArray(adminPending)) setAdminPendingVaultRequests(deduplicateById(adminPending));
+        }
+      }
+    } catch (err) {
+      console.error("Request vault release error:", err);
+      setToastMessage(`Error: ${err.message || "Failed to submit request"}`);
+      setTimeout(() => setToastMessage(""), 3500);
+    }
+  };
+
+  const handleApproveVaultRelease = async (requestId) => {
+    try {
+      let token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        const updated = await approveVaultRelease(token, requestId);
+        if (updated) {
+          setIsVaultReleased(true);
+          setVaultReleaseRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "APPROVED" } : r));
+          setAdminPendingVaultRequests(prev => prev.filter(r => r.id !== requestId));
+          setToastMessage("✓ Vault release approved & unlocked!");
+          setTimeout(() => setToastMessage(""), 3500);
+
+          const vaultData = await getVaultMemories(token).catch(() => []);
+          if (Array.isArray(vaultData)) setVaultMemories(vaultData);
+          const circleVaults = await getFamilyCircleVaults(token).catch(() => []);
+          if (Array.isArray(circleVaults)) setFamilyVaultsList(circleVaults);
+        }
+      }
+    } catch (err) {
+      console.error("Approve vault release error:", err);
+    }
+  };
+
+  const handleRejectVaultRelease = async (requestId) => {
+    try {
+      let token = localStorage.getItem("spokenOdysseyToken") || localStorage.getItem("token");
+      if (token) {
+        await rejectVaultRelease(token, requestId);
+        setAdminPendingVaultRequests(prev => prev.filter(r => r.id !== requestId));
+        setVaultReleaseRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: "REJECTED" } : r));
+        setToastMessage("✓ Release request rejected");
+        setTimeout(() => setToastMessage(""), 3500);
+
+        const circleVaults = await getFamilyCircleVaults(token).catch(() => []);
+        if (Array.isArray(circleVaults)) setFamilyVaultsList(circleVaults);
+      }
+    } catch (err) {
+      console.error("Reject vault release error:", err);
+    }
+  };
+
   const handleCreatePrompt = async (e) => {
     e.preventDefault();
     if (!newQuestionText.trim() && !questionAudioBlob && !questionAudioUrl) return;
@@ -845,11 +986,18 @@ function FamilyCircleContent() {
               { id: "Family Albums", label: "Family Albums" },
               { id: "Ask Family", label: "Ask Family" },
               { id: "Family Tree", label: "Family Tree" },
-              { id: "Legacy Access", label: "Legacy Access" }
+              { id: "Legacy Access", label: "Legacy Access" },
+              { id: "AI Historian", label: "✨ AI Historian", href: "/family-historian" }
             ].map(tab => (
               <button 
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  if (tab.href) {
+                    router.push(tab.href);
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
                 className={`px-5 py-2.5 rounded-[14px] text-[14px] font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
                   activeTab === tab.id 
                   ? "bg-[#4A3AFF] text-white shadow-md" 
@@ -978,6 +1126,65 @@ function FamilyCircleContent() {
                   ))}
                 </div>
               </motion.div>
+
+              {/* Admin Pending Approvals Portal Card (Visible when Admin has pending requests across family circle) */}
+              {adminPendingVaultRequests.length > 0 && (
+                <motion.div variants={fadeInUp} className="figma-card p-6 md:p-8 bg-gradient-to-r from-amber-500/10 via-orange-50/40 to-amber-50/20 dark:from-amber-950/40 dark:to-slate-900 border border-amber-300 dark:border-amber-700/60 shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs">
+                        <Clock size={20} />
+                      </div>
+                      <div>
+                        <h2 className="font-bold text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                          <span>Family Circle Admin Release Requests</span>
+                          <span className="bg-amber-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">{adminPendingVaultRequests.length}</span>
+                        </h2>
+                        <p className="text-xs text-stone-600 dark:text-stone-300 font-medium">
+                          Review and verify digital legacy vault release requests submitted by connected family members.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    {adminPendingVaultRequests.map((req) => (
+                      <div key={req.id} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-amber-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-stone-900 dark:text-white">
+                              Target Vault: {req.targetUser?.name || req.targetUser?.displayName || "Family Member"}
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-amber-100 text-amber-800 border border-amber-200">
+                              PENDING APPROVAL
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-600 dark:text-stone-300 font-medium mt-1">
+                            Requested by: <span className="font-bold text-stone-800 dark:text-stone-200">{req.requester?.name || req.requester?.displayName || "Administrator"}</span>
+                          </p>
+                          <p className="text-xs text-stone-500 dark:text-stone-400 italic mt-0.5">"{req.reason}"</p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleRejectVaultRelease(req.id)}
+                            className="px-3.5 py-2 border border-stone-300 dark:border-slate-600 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            onClick={() => handleApproveVaultRelease(req.id)}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-1.5"
+                          >
+                            <ShieldCheck size={15} />
+                            <span>Approve & Release Archive</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
               {/* Guardian & Minor Safety Controls Section */}
               {(isAdmin || currentProfile?.role === "ADMIN") && guardianMinorsList.length > 0 && (
@@ -1451,10 +1658,211 @@ function FamilyCircleContent() {
             </motion.div>
           )}
 
-          {/* Active Tab Content: Legacy Access (Exact Figma match - 3D Card with Inset Shadow) */}
+          {/* Active Tab Content: Legacy Access */}
           {activeTab === "Legacy Access" && (
-            <motion.div variants={staggerContainer} initial="hidden" animate="show">
-              {/* Single Large 3D Card */}
+            <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-8">
+              
+              {/* Vault Status Banner */}
+              <motion.div variants={fadeInUp} className="figma-card p-6 md:p-8 bg-gradient-to-r from-[#4A3AFF]/10 via-indigo-50/50 to-purple-50/30 dark:from-indigo-950/40 dark:to-slate-900 border border-[#C7D2FE]">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-md ${
+                      isVaultReleased ? "bg-emerald-600" : "bg-[#4A3AFF]"
+                    }`}>
+                      {isVaultReleased ? <ShieldCheck size={28} /> : <Lock size={28} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-bold text-xl text-stone-900 dark:text-white">
+                          Family Vault Status: {isVaultReleased ? "RELEASED & UNLOCKED" : "SECURED & LOCKED"}
+                        </h2>
+                        {isVaultReleased ? (
+                          <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Full Archive Access</span>
+                        ) : (
+                          <span className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Private & Protected</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-stone-500 dark:text-stone-400 font-medium mt-1">
+                        {isVaultReleased 
+                          ? "Your digital legacy vault has been verified and released to connected family members." 
+                          : `Trusted Administrator (${legacySettings.administrator || "Sarah Murphy"}) holds release authorization.`
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  {!isVaultReleased && (
+                    <button
+                      onClick={() => setIsVaultReleaseModalOpen(true)}
+                      className="px-5 py-2.5 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-xl font-bold text-xs shadow-md transition shrink-0 cursor-pointer active:scale-95 flex items-center gap-2"
+                    >
+                      <Clock size={15} />
+                      <span>Request Vault Release</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Pending Vault Release Requests (for Circle Admins) */}
+                {vaultReleaseRequests.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-indigo-100 dark:border-slate-800 space-y-3">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-stone-600 dark:text-stone-300">
+                      Pending Release Requests ({vaultReleaseRequests.filter(r => r.status === "PENDING").length})
+                    </h3>
+                    {vaultReleaseRequests.map((req) => (
+                      <div key={req.id} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-stone-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-stone-900 dark:text-white">
+                              Request by {req.requester?.displayName || req.requester?.name || "Administrator"}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                              req.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {req.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">"{req.reason}"</p>
+                        </div>
+
+                        {req.status === "PENDING" && (isAdmin || currentProfile?.role === "ADMIN") && (
+                          <button
+                            onClick={() => handleApproveVaultRelease(req.id)}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition shrink-0 cursor-pointer"
+                          >
+                            Approve & Release Vault
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Time-Capsule & Vault Memories Grid */}
+              <motion.div variants={fadeInUp} className="figma-card p-6 md:p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-bold text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                      <Lock size={18} className="text-[#4A3AFF]" />
+                      <span>Time-Capsule Memories & Vault Archives</span>
+                      <span className="bg-[#4A3AFF] text-white text-xs font-bold px-2.5 py-0.5 rounded-full">{vaultMemories.length}</span>
+                    </h2>
+                    <p className="text-xs text-stone-500 dark:text-stone-400 font-medium mt-0.5">
+                      Memories sealed until future dates or unlocked via legacy release rules.
+                    </p>
+                  </div>
+                </div>
+
+                {loadingVaultMemories ? (
+                  <div className="py-12 text-center text-stone-400 text-xs font-medium">Loading time-capsules...</div>
+                ) : vaultMemories.length === 0 ? (
+                  <div className="py-12 text-center text-stone-400 text-xs font-medium">
+                    No time-capsule memories created yet. When creating a memory, set an unlock date to seal it in your Vault!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {vaultMemories.map((vm) => (
+                      <div key={vm.id} className="p-4 rounded-2xl border border-stone-200 dark:border-slate-800 bg-stone-50/70 dark:bg-slate-800/60 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <span className="font-bold text-sm text-stone-900 dark:text-white flex items-center gap-1.5">
+                            {vm.isLocked ? <Lock size={14} className="text-amber-500" /> : <ShieldCheck size={14} className="text-emerald-500" />}
+                            {vm.title}
+                          </span>
+                          {vm.unlockAt && (
+                            <TimeCapsuleCountdown unlockAt={vm.unlockAt} />
+                          )}
+                        </div>
+                        <p className="text-xs text-stone-600 dark:text-stone-300 font-medium">{vm.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Family Circle Member Vaults & Administrator Portal */}
+              <motion.div variants={fadeInUp} className="figma-card p-6 md:p-8 space-y-6">
+                <div>
+                  <h2 className="font-bold text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                    <ShieldCheck size={20} className="text-[#4A3AFF]" />
+                    <span>Family Circle Members' Vaults & Release Portal</span>
+                    <span className="bg-[#4A3AFF] text-white text-xs font-bold px-2.5 py-0.5 rounded-full">{familyVaultsList.length}</span>
+                  </h2>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 font-medium mt-0.5">
+                    View digital legacy vault status across connected family members and manage release authorizations.
+                  </p>
+                </div>
+
+                {familyVaultsList.length === 0 ? (
+                  <div className="py-8 text-center text-stone-400 text-xs font-medium">
+                    No connected family circle member vaults found.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {familyVaultsList.map((item) => {
+                      const member = item.memberUser;
+                      const legacy = item.legacySettings;
+                      const isMe = member.id === currentProfile?.id;
+                      const pendingRequest = (legacy.releaseRequests || []).find(r => r.status === "PENDING");
+
+                      return (
+                        <div key={member.id} className="p-4 rounded-2xl border border-stone-200 dark:border-slate-800 bg-stone-50/60 dark:bg-slate-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            {member.avatar ? (
+                              <img src={member.avatar} alt={member.name} className="w-10 h-10 rounded-full object-cover border border-[#C7D2FE]" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-[#4A3AFF] text-white text-xs font-bold flex items-center justify-center">
+                                {member.name ? member.name[0].toUpperCase() : "M"}
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-sm text-stone-900 dark:text-white">
+                                  {member.name || member.displayName} {isMe && "(You)"}
+                                </h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                  legacy.isReleased ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"
+                                }`}>
+                                  {legacy.isReleased ? "UNLOCKED & RELEASED" : "SECURED & LOCKED"}
+                                </span>
+                              </div>
+                              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">
+                                Trusted Admin: <span className="font-bold text-stone-700 dark:text-stone-300">{legacy.administratorName || "Sarah Murphy"}</span> • Condition: {legacy.releaseCondition}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {pendingRequest && (isAdmin || currentProfile?.role === "ADMIN") ? (
+                              <button
+                                onClick={() => handleApproveVaultRelease(pendingRequest.id)}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                              >
+                                Approve Release Request
+                              </button>
+                            ) : pendingRequest ? (
+                              <span className="px-3 py-1.5 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-200">
+                                Release Request Pending
+                              </span>
+                            ) : !legacy.isReleased && !isMe ? (
+                              <button
+                                onClick={() => {
+                                  setTargetLegacyUserId(member.id);
+                                  setIsVaultReleaseModalOpen(true);
+                                }}
+                                className="px-4 py-2 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                              >
+                                Request Release
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Single Large 3D Card for Legacy Release Settings */}
               <motion.div variants={fadeInUp} className="legacy-3d-card p-8 md:p-10 mb-8 relative overflow-hidden">
                 
                 {/* Card Header */}
@@ -1615,6 +2023,31 @@ function FamilyCircleContent() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* Active Tab Content: AI Historian */}
+          {activeTab === "AI Historian" && (
+            <motion.div variants={fadeInUp} className="figma-card p-8 bg-gradient-to-r from-[#4A3AFF]/10 via-indigo-50/50 to-purple-50/30 dark:from-indigo-950/40 dark:to-slate-900 border border-[#C7D2FE] text-center space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-[#4A3AFF] text-white flex items-center justify-center mx-auto shadow-xl shadow-[#4A3AFF]/20">
+                <Sparkles size={32} className="animate-pulse" />
+              </div>
+              <div className="max-w-xl mx-auto space-y-2">
+                <h2 className="text-2xl font-black text-stone-900 dark:text-white">AI Family Historian Engine</h2>
+                <p className="text-sm text-stone-600 dark:text-stone-300 font-medium leading-relaxed">
+                  Ask natural-language questions about preserved family stories, voice notes, and heritage. Grounded strictly in authorized family memories.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap justify-center gap-4 pt-2">
+                <Link
+                  href="/family-historian"
+                  className="px-6 py-3 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition cursor-pointer active:scale-95"
+                >
+                  <Sparkles size={18} />
+                  <span>Launch AI Family Historian Page →</span>
+                </Link>
+              </div>
             </motion.div>
           )}
 
@@ -1919,6 +2352,62 @@ function FamilyCircleContent() {
                 Save Setting
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request Vault Release Modal */}
+      {isVaultReleaseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-left">
+          <div className="bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 rounded-[28px] w-full max-w-md p-6 shadow-2xl relative">
+            <button 
+              onClick={() => setIsVaultReleaseModalOpen(false)}
+              className="absolute top-5 right-5 text-stone-400 hover:text-stone-700 dark:hover:text-white transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] dark:bg-indigo-950 text-[#4A3AFF] dark:text-indigo-400 flex items-center justify-center">
+                <Lock size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-stone-900 dark:text-white">Request Vault Release</h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Submit a request to unlock family digital legacy archives.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleRequestVaultRelease} className="space-y-4 mt-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  Reason for Release Request
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={vaultReleaseReason}
+                  onChange={(e) => setVaultReleaseReason(e.target.value)}
+                  placeholder="e.g. Terms specified under legacy settings have been fulfilled."
+                  className="w-full p-3 rounded-xl border border-stone-300 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-[#4A3AFF] focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsVaultReleaseModalOpen(false)}
+                  className="flex-1 py-3 border border-stone-200 dark:border-stone-700 rounded-xl text-stone-700 dark:text-stone-300 font-extrabold text-xs hover:bg-stone-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer active:scale-95"
+                >
+                  Submit Request
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
