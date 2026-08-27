@@ -822,6 +822,56 @@ export async function updateLegacySettings(token, settingsData) {
   return response?.data !== undefined ? response.data : response;
 }
 
+/** Request Legacy Vault Release */
+export async function requestVaultRelease(token, { legacyUserId, reason } = {}) {
+  const response = await backendFetch("/api/legacy-access/request-release", {
+    method: "POST",
+    body: { legacyUserId, reason },
+    token,
+  });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Approve/Verify Legacy Vault Release */
+export async function approveVaultRelease(token, requestId) {
+  const response = await backendFetch(`/api/legacy-access/verify-release/${requestId}`, {
+    method: "POST",
+    token,
+  });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Reject Legacy Vault Release */
+export async function rejectVaultRelease(token, requestId, reason = "") {
+  const response = await backendFetch(`/api/legacy-access/reject-release/${requestId}`, {
+    method: "POST",
+    body: { reason },
+    token,
+  });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Get Pending Vault Requests for Admins */
+export async function getPendingVaultRequests(token, familyCircleId = null) {
+  const qStr = familyCircleId ? `?familyCircleId=${familyCircleId}` : "";
+  const response = await backendFetch(`/api/legacy-access/pending-requests${qStr}`, { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Get Time-Capsule & Vault Memories */
+export async function getVaultMemories(token, userId = null) {
+  const qStr = userId ? `?userId=${userId}` : "";
+  const response = await backendFetch(`/api/legacy-access/vault-memories${qStr}`, { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
+/** Get Family Circle Vaults & Pending Release Requests */
+export async function getFamilyCircleVaults(token, familyCircleId = null) {
+  const qStr = familyCircleId ? `?familyCircleId=${familyCircleId}` : "";
+  const response = await backendFetch(`/api/legacy-access/family-vaults${qStr}`, { token });
+  return response?.data !== undefined ? response.data : response;
+}
+
 /** Get connected family members for legacy administrator selection */
 export async function getFamilyFromBackend(token) {
   try {

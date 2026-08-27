@@ -4,6 +4,8 @@ import Link from "next/link";
 import { CalendarDays, FileText, Image as ImageIcon, Mic2, Play, Video } from "lucide-react";
 import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
 
+import TimeCapsuleCountdown from "@/components/ui/TimeCapsuleCountdown";
+
 export const familyMemoryTypeConfig = {
   Photo: { icon: ImageIcon, label: "Photo", className: "bg-sky-50 text-sky-700 border-sky-100" },
   Video: { icon: Video, label: "Video", className: "bg-rose-50 text-rose-700 border-rose-100" },
@@ -39,14 +41,20 @@ export default function FamilyMemoryCard({ memory }) {
             <h2 className="line-clamp-2 text-lg font-black leading-tight">{memory.title}</h2>
             <TaggedMembersBadge memory={memory} />
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-[11px] font-bold text-white/80">
-            <CalendarDays size={12} />
-            {memory.dateLabel}
-          </p>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold text-white/80">
+              <CalendarDays size={12} />
+              {memory.dateLabel}
+            </p>
+            {(memory.unlockAt || memory.isVaultLocked) && (
+              <TimeCapsuleCountdown unlockAt={memory.unlockAt} />
+            )}
+          </div>
         </div>
       </div>
 
       <div className="flex flex-1 flex-col p-5">
+
         <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wide">
           <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[var(--brand)]">{memory.sharedWith}</span>
           {memory.duration && <span className="rounded-full bg-stone-100 px-2.5 py-1 text-stone-500">{memory.duration}</span>}

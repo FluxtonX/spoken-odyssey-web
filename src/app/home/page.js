@@ -15,6 +15,7 @@ import { staggerContainer, fadeInUp, fadeInScale } from "@/lib/animations";
 
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
+import TimeCapsuleCountdown from "@/components/ui/TimeCapsuleCountdown";
 
 const formatDateSafely = (dateVal, memoryItem) => {
   if (!dateVal && memoryItem?.year) {
@@ -52,7 +53,10 @@ const getMemoryMediaSources = (memory) => {
   const items = [];
   const addItem = (url, type = "image", mimeType = "") => {
     if (!url || typeof url !== "string") return;
-    items.push({ url, type: isVideoLike(url, mimeType, type) ? "video" : "image" });
+    const cleanKey = url.split("?")[0].split("/").pop();
+    if (!items.some(i => i.url === url || (cleanKey && i.url.split("?")[0].split("/").pop() === cleanKey))) {
+      items.push({ url, type: isVideoLike(url, mimeType, type) ? "video" : "image" });
+    }
   };
 
   if (Array.isArray(memory.mediaList)) {
@@ -150,7 +154,12 @@ function MemoryCard({ memory, index }) {
               <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" />
               <span className="text-[11px] font-bold uppercase tracking-widest text-[#ec4899]">VIDEO</span>
             </div>
-            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+            <div className="flex flex-col items-end gap-1">
+              {(memory.unlockAt || memory.isVaultLocked) && (
+                <TimeCapsuleCountdown unlockAt={memory.unlockAt} />
+              )}
+              <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+            </div>
           </div>
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
@@ -175,7 +184,12 @@ function MemoryCard({ memory, index }) {
             <Mic size={16} strokeWidth={2.5} />
             <span className="text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]">VOICE</span>
           </div>
-          <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+          <div className="flex flex-col items-end gap-1">
+            {(memory.unlockAt || memory.isVaultLocked) && (
+              <TimeCapsuleCountdown unlockAt={memory.unlockAt} />
+            )}
+            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+          </div>
         </div>
         <div className="flex items-start justify-between gap-2 mb-3">
           <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
@@ -205,7 +219,12 @@ function MemoryCard({ memory, index }) {
               <FileText size={16} strokeWidth={2.5} className="text-[#10b981]" />
               <span className="text-[11px] font-bold uppercase tracking-widest text-[#10b981]">WRITTEN</span>
             </div>
-            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+            <div className="flex flex-col items-end gap-1">
+              {(memory.unlockAt || memory.isVaultLocked) && (
+                <TimeCapsuleCountdown unlockAt={memory.unlockAt} />
+              )}
+              <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+            </div>
           </div>
           <div className="flex items-start justify-between gap-2 mb-3">
             <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>
@@ -236,7 +255,12 @@ function MemoryCard({ memory, index }) {
             <ImageIcon size={16} strokeWidth={2.5} className="text-[#3b82f6]" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-[#3b82f6]">PHOTO</span>
           </div>
-          <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+          <div className="flex flex-col items-end gap-1">
+            {(memory.unlockAt || memory.isVaultLocked) && (
+              <TimeCapsuleCountdown unlockAt={memory.unlockAt} />
+            )}
+            <span className="text-xs font-semibold text-stone-500">{dateStr}</span>
+          </div>
         </div>
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="text-[22px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors leading-snug">{memory.title}</h3>

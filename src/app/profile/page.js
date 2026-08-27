@@ -44,7 +44,6 @@ import { staggerContainer, fadeInUp } from "@/lib/animations";
 import VoicePlayer from "@/components/ui/VoicePlayer";
 import CardMediaSlider from "@/components/ui/CardMediaSlider";
 import TaggedMembersBadge from "@/components/ui/TaggedMembersBadge";
-import MemoryDetailModal from "@/components/ui/MemoryDetailModal";
 import { ALBUM_MEMORIES_MAP } from "@/data/mockApp";
 import { getStoredAlbums } from "@/data/userProfile";
 

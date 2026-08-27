@@ -62,6 +62,10 @@ export default function PublishWizard() {
   const publishingRef = useRef(false);
   const [validationError, setValidationError] = useState("");
 
+  // Time Capsule state
+  const [isTimeCapsule, setIsTimeCapsule] = useState(false);
+  const [capsuleUnlockAt, setCapsuleUnlockAt] = useState("");
+
   // Voice recording handlers using MediaRecorder API
   const startRecording = async () => {
     setValidationError("");
@@ -812,6 +816,41 @@ export default function PublishWizard() {
                 </div>
               </div>
 
+              {/* Time Capsule Controls */}
+              <div className="p-4 rounded-2xl border border-indigo-200 bg-indigo-50/50 dark:bg-slate-800/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#4A3AFF] text-white flex items-center justify-center font-bold">
+                      <Lock size={16} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-stone-900 dark:text-white">Seal as Time Capsule</h4>
+                      <p className="text-[11px] text-stone-500 font-medium">Keep memory sealed in vault until a future date</p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isTimeCapsule}
+                    onChange={(e) => setIsTimeCapsule(e.target.checked)}
+                    className="w-5 h-5 rounded border-stone-300 text-[#4A3AFF] focus:ring-[#4A3AFF] cursor-pointer"
+                  />
+                </div>
+
+                {isTimeCapsule && (
+                  <div className="pt-2 border-t border-indigo-100 dark:border-slate-700">
+                    <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Unlock Date & Time (UTC/Server Enforced)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={capsuleUnlockAt}
+                      onChange={(e) => setCapsuleUnlockAt(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-stone-300 dark:border-slate-700 text-xs font-bold text-stone-800 bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* User Tag Picker */}
               <UserTagPicker taggedUsers={taggedUsers} onChange={setTaggedUsers} />
 
@@ -1091,6 +1130,12 @@ export default function PublishWizard() {
                         if (tags) formData.append("tags", tags);
                         if (taggedUsers.length > 0) {
                           formData.append("taggedUserIds", JSON.stringify(taggedUsers.map(u => u.id)));
+                        }
+                        if (isTimeCapsule) {
+                          formData.append("isVaultLocked", "true");
+                          if (capsuleUnlockAt) {
+                            formData.append("unlockAt", new Date(capsuleUnlockAt).toISOString());
+                          }
                         }
                         
                         if (memoryType === "voice" && audioBlob) {
