@@ -8,6 +8,7 @@ import {
   Heart,
   Lock,
   ArrowUpRight,
+  Play,
 } from "lucide-react";
 
 const ease = [0.22, 1, 0.36, 1];
@@ -54,31 +55,23 @@ export default function HowItWorksHeroSection({
   backgroundImage = "/howitworks.png",
 }) {
   return (
-    <section className="relative overflow-hidden min-h-screen bg-slate-50">
-      {/* Background Image */}
+    <section className="relative overflow-hidden min-h-screen">
+      {/* Background Image - Clean full opacity hero artwork */}
       <div className="absolute inset-0 z-0">
         <img
           src={backgroundImage}
           alt="How Spoken Odyssey works background"
           className="w-full h-full object-cover object-center"
         />
-        {/* Subtle transparent mask so text stays readable while artwork is clear */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(105deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.70) 30%, rgba(255,255,255,0.20) 55%, transparent 75%)",
-          }}
-        />
       </div>
 
       {/* Main Content Container */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 py-20 md:py-28">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 items-start">
+      <div className="relative z-10 max-w-[1360px] mx-auto px-6 md:px-12 py-20 lg:py-24">
+        <div className="max-w-xl">
           
           {/* ── LEFT COLUMN ── */}
           <motion.div
-            className="lg:col-span-6 space-y-6"
+            className="space-y-6"
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease }}
@@ -105,7 +98,7 @@ export default function HowItWorksHeroSection({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.2, ease }}
             >
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#1a0a2e] leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#1a0a2e] leading-[1.1]">
                 How <br />
                 <span style={{ color: "#4f37ff" }}>Spoken Odyssey</span> <br />
                 works.
@@ -191,13 +184,7 @@ export default function HowItWorksHeroSection({
               className="pt-2"
             >
               <div
-                className="inline-flex items-center gap-3.5 rounded-2xl px-4 py-3"
-                style={{
-                  background: "rgba(255, 255, 255, 0.95)",
-                  border: "1px solid rgba(79, 55, 255, 0.12)",
-                  boxShadow:
-                    "0 8px 20px -4px rgba(79, 55, 255, 0.10), 0 2px 6px rgba(0,0,0,0.03)",
-                }}
+                className="inline-flex items-center gap-3.5 rounded-2xl px-4 py-3 bg-white/95 border border-indigo-100 shadow-md backdrop-blur-sm"
               >
                 {/* Avatars */}
                 <div className="flex items-center -space-x-2.5">
@@ -223,52 +210,6 @@ export default function HowItWorksHeroSection({
               </div>
             </motion.div>
           </motion.div>
-
-          {/* ── RIGHT COLUMN (4 COMPACT STEP CARDS) ── */}
-          <motion.div
-            className="lg:col-span-6 space-y-3"
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease }}
-          >
-            {STEPS.map((step, index) => (
-              <motion.div
-                key={step.num}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 + index * 0.08, ease }}
-                className="bg-white/95 rounded-2xl p-3.5 sm:px-4 sm:py-3 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-4 justify-between"
-              >
-                {/* Text & badge info */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-white font-extrabold text-xs flex-shrink-0 shadow-sm"
-                    style={{ background: "#4f37ff" }}
-                  >
-                    {step.num}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-gray-900 leading-snug">
-                      {step.title}
-                    </h4>
-                    <p className="text-xs text-gray-500 leading-tight mt-0.5 truncate sm:whitespace-normal">
-                      {step.desc}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Right Thumbnail Image */}
-                <div className="w-24 sm:w-28 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 shadow-inner">
-                  <img
-                    src={step.image}
-                    alt={step.alt}
-                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-
         </div>
 
         {/* ── BOTTOM SECURITY BANNER ── */}
@@ -276,29 +217,21 @@ export default function HowItWorksHeroSection({
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.7, ease }}
-          className="mt-16"
+          className="mt-20 lg:mt-28"
         >
           <div
-            className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 rounded-2xl p-5 sm:px-8 sm:py-6"
-            style={{
-              background: "rgba(255, 255, 255, 0.95)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              border: "1px solid rgba(79, 55, 255, 0.15)",
-              boxShadow:
-                "0 12px 35px -10px rgba(79, 55, 255, 0.12), 0 2px 10px rgba(0,0,0,0.03)",
-            }}
+            className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 rounded-2xl p-5 sm:px-8 sm:py-5 bg-white/95 border border-indigo-100/90 shadow-md backdrop-blur-sm"
           >
             {/* Left Info */}
             <div className="flex items-center gap-4">
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm"
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm"
                 style={{
                   background: "rgba(79, 55, 255, 0.08)",
                   border: "1px solid rgba(79, 55, 255, 0.2)",
                 }}
               >
-                <Lock size={20} style={{ color: "#4f37ff" }} />
+                <Lock size={18} style={{ color: "#4f37ff" }} />
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-extrabold text-gray-900">
@@ -314,7 +247,7 @@ export default function HowItWorksHeroSection({
             <Link
               id="howitworks-see-all-features-btn"
               href="/discover"
-              className="inline-flex items-center gap-2 rounded-full border border-indigo-200 text-gray-900 bg-white hover:bg-slate-50 font-bold text-xs sm:text-sm px-6 py-3 transition-all duration-200 shadow-sm hover:scale-105 flex-shrink-0"
+              className="inline-flex items-center gap-2 rounded-full border border-indigo-200 text-gray-900 bg-white hover:bg-slate-50 font-bold text-xs sm:text-sm px-6 py-2.5 transition-all duration-200 shadow-sm hover:scale-105 flex-shrink-0"
             >
               See all features
               <ArrowUpRight size={14} style={{ color: "#4f37ff" }} />

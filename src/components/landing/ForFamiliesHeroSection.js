@@ -93,29 +93,29 @@ export default function ForFamiliesHeroSection({
   return (
     <div className="bg-[#fcfbfe] text-slate-900 font-sans selection:bg-[#4f37ff]/10">
       {/* ════════════════════════════════════════════════════════
-          HERO SECTION
+          HERO SECTION (EXACT 3:2 ASPECT RATIO - SHOWS FULL FAMILY.PNG FULLY)
       ════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden pt-24 sm:pt-28 lg:pt-32 pb-16 lg:pb-24 min-h-[85vh] lg:min-h-[92vh] flex items-center">
-        {/* Unblurred background image extending fully to the top of the viewport */}
+      <section className="relative overflow-hidden pt-12 sm:pt-16 lg:pt-20 pb-8 min-h-[480px] sm:min-h-[540px] lg:min-h-0 lg:aspect-[1535/1024] flex items-start">
+        {/* Full background image - 100% complete without top or bottom hiding */}
         <div className="absolute inset-0 z-0">
           <img
             src={backgroundImage}
             alt="For Families background"
-            className="w-full h-full object-cover object-top"
+            className="w-full h-full object-cover object-center"
           />
-          {/* Subtle minimal tint on left edge for crisp text readability without hiding/blurring sky */}
+          {/* Subtle minimal tint on left edge for crisp text readability without hiding sky */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(90deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.15) 30%, transparent 60%)",
+                "linear-gradient(90deg, rgba(252,251,254,0.55) 0%, rgba(252,251,254,0.25) 35%, transparent 70%)",
             }}
           />
         </div>
 
         {/* Hero content container */}
-        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full">
-          <div className="max-w-xl py-4">
+        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full pt-2 sm:pt-4">
+          <div className="max-w-xl py-0 sm:py-2">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -202,9 +202,9 @@ export default function ForFamiliesHeroSection({
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          2ND SECTION: 5 FEATURES STRIP (SINGLE HORIZONTAL ROW, NO OVERLAP)
+          2ND SECTION: 5 FEATURES STRIP (FITTED ON HERO DOWNSIDE)
       ════════════════════════════════════════════════════════ */}
-      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto relative z-20 -mt-6 sm:-mt-10 mb-16">
+      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto relative z-20 -mt-10 sm:-mt-14 lg:-mt-16 mb-4 sm:mb-6">
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-[0_12px_36px_rgba(0,0,0,0.04)] border border-purple-100/80 p-4 sm:p-5 lg:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-3">
             {FEATURES.map(({ Icon, title, line1, line2 }, i) => (
@@ -237,11 +237,11 @@ export default function ForFamiliesHeroSection({
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          3RD SECTION: WHAT FAMILIES ARE CREATING (5 CARDS WITH LOCAL ASSETS)
+          3RD SECTION: WHAT FAMILIES ARE CREATING (MINIMIZED TOP GAP)
       ════════════════════════════════════════════════════════ */}
-      <section className="py-8 sm:py-12 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto mb-16">
+      <section className="py-4 sm:py-6 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto mb-12">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#1a0a2e]">
             What families are creating
           </h2>
