@@ -105,19 +105,19 @@ export default function PricingHeroSection({
             >
               {/* Eyebrow */}
               <motion.div
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1, ease }}
+                transition={{ duration: 0.5, delay: 0.1, ease }}
                 className="space-y-0.5"
               >
                 <p
-                  className="italic font-semibold text-base md:text-lg"
+                  className="italic font-semibold text-xs sm:text-sm"
                   style={{ color: "#4f37ff" }}
                 >
                   Simple plans.
                 </p>
                 <p
-                  className="italic font-semibold text-base md:text-lg"
+                  className="italic font-semibold text-xs sm:text-sm flex items-center gap-1.5"
                   style={{ color: "#4f37ff" }}
                 >
                   A lifetime of impact.{" "}
@@ -127,14 +127,11 @@ export default function PricingHeroSection({
 
               {/* Heading */}
               <motion.div
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2, ease }}
+                transition={{ duration: 0.6, delay: 0.2, ease }}
               >
-                <h1
-                  className="font-extrabold leading-[1.08] tracking-tight"
-                  style={{ fontSize: "clamp(2.5rem, 5vw, 4.5rem)" }}
-                >
+                <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-extrabold leading-[1.12] tracking-tight">
                   <span style={{ color: "#1a0a2e" }}>Choose the plan</span>
                   <br />
                   <span style={{ color: "#1a0a2e" }}>that&rsquo;s</span>{" "}
@@ -144,10 +141,10 @@ export default function PricingHeroSection({
 
               {/* Sub-description */}
               <motion.p
-                initial={{ opacity: 0, y: 18 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.35, ease }}
-                className="text-base md:text-lg leading-relaxed"
+                className="text-xs sm:text-sm leading-relaxed max-w-sm"
                 style={{ color: "#52496d" }}
               >
                 Start free. Upgrade anytime.
