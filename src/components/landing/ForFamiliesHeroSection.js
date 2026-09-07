@@ -93,29 +93,29 @@ export default function ForFamiliesHeroSection({
   return (
     <div className="bg-[#fcfbfe] text-slate-900 font-sans selection:bg-[#4f37ff]/10">
       {/* ════════════════════════════════════════════════════════
-          HERO SECTION
+          HERO SECTION (EXACT 3:2 ASPECT RATIO - SHOWS FULL FAMILY.PNG FULLY)
       ════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden pt-24 sm:pt-28 lg:pt-32 pb-16 lg:pb-24 min-h-[85vh] lg:min-h-[92vh] flex items-center">
-        {/* Unblurred background image extending fully to the top of the viewport */}
+      <section className="relative overflow-hidden pt-12 sm:pt-16 lg:pt-20 pb-8 min-h-[480px] sm:min-h-[540px] lg:min-h-0 lg:aspect-[1535/1024] flex items-start">
+        {/* Full background image - 100% complete without top or bottom hiding */}
         <div className="absolute inset-0 z-0">
           <img
             src={backgroundImage}
             alt="For Families background"
-            className="w-full h-full object-cover object-top"
+            className="w-full h-full object-cover object-center"
           />
-          {/* Subtle minimal tint on left edge for crisp text readability without hiding/blurring sky */}
+          {/* Subtle minimal tint on left edge for crisp text readability without hiding sky */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(90deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.15) 30%, transparent 60%)",
+                "linear-gradient(90deg, rgba(252,251,254,0.55) 0%, rgba(252,251,254,0.25) 35%, transparent 70%)",
             }}
           />
         </div>
 
         {/* Hero content container */}
-        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full">
-          <div className="max-w-xl py-4">
+        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full pt-2 sm:pt-4">
+          <div className="max-w-xl py-0 sm:py-2">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -129,10 +129,10 @@ export default function ForFamiliesHeroSection({
                 transition={{ duration: 0.5, delay: 0.1, ease }}
                 className="space-y-0.5"
               >
-                <p className="italic font-semibold text-sm sm:text-base text-[#4f37ff]">
+                <p className="italic font-semibold text-xs sm:text-sm text-[#4f37ff]">
                   Every family has a story.
                 </p>
-                <p className="italic font-semibold text-sm sm:text-base text-[#4f37ff]">
+                <p className="italic font-semibold text-xs sm:text-sm text-[#4f37ff]">
                   Leave a legacy of love.{" "}
                   <span className="not-italic text-sm" aria-hidden="true">
                     ♡
@@ -169,26 +169,26 @@ export default function ForFamiliesHeroSection({
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4, ease }}
-                className="flex flex-wrap items-center gap-3 pt-2"
+                className="flex flex-wrap items-center gap-3 pt-5 sm:pt-7 lg:pt-8"
               >
                 {/* Primary Pill Button */}
                 <Link
                   id="families-create-btn"
                   href="/signup"
-                  className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 sm:px-7 py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_8px_24px_rgba(79,55,255,0.32)]"
+                  className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_8px_24px_rgba(79,55,255,0.32)]"
                   style={{
                     background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
                   }}
                 >
                   Create your family space
-                  <ArrowUpRight size={15} strokeWidth={2.5} />
+                  <ArrowUpRight size={14} strokeWidth={2.5} />
                 </Link>
 
                 {/* Secondary Glass Pill Button */}
                 <Link
                   id="families-howitworks-btn"
                   href="/how-it-works"
-                  className="inline-flex items-center gap-2 rounded-full font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-full font-bold text-xs sm:text-sm px-5 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
                 >
                   <div className="w-5 h-5 rounded-full bg-[#4f37ff]/10 flex items-center justify-center text-[#4f37ff]">
                     <Play size={10} className="fill-[#4f37ff] ml-0.5" />
@@ -202,11 +202,11 @@ export default function ForFamiliesHeroSection({
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          2ND SECTION: 5 FEATURES STRIP (SINGLE HORIZONTAL ROW, NO OVERLAP)
+          2ND SECTION: 5 FEATURES STRIP (FITTED ON HERO DOWNSIDE)
       ════════════════════════════════════════════════════════ */}
-      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto relative z-20 -mt-6 sm:-mt-10 mb-16">
-        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-[0_12px_36px_rgba(0,0,0,0.04)] border border-purple-100/80 p-4 sm:p-5 lg:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-3">
+      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto relative z-20 -mt-16 sm:-mt-20 lg:-mt-24 mb-4 sm:mb-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.05)] border border-purple-100/80 px-4 sm:px-6 py-2.5 sm:py-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-2.5">
             {FEATURES.map(({ Icon, title, line1, line2 }, i) => (
               <motion.div
                 key={i}
@@ -214,18 +214,18 @@ export default function ForFamiliesHeroSection({
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.06 }}
-                className="flex items-start gap-3 p-1 min-w-0"
+                className="flex items-center gap-2.5 p-1 min-w-0"
               >
                 {/* Left aligned icon badge */}
-                <div className="w-10 h-10 rounded-xl bg-[#f0edff] flex items-center justify-center flex-shrink-0 text-[#4f37ff]">
-                  <Icon size={18} strokeWidth={2} />
+                <div className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg bg-[#f0edff] flex items-center justify-center flex-shrink-0 text-[#4f37ff]">
+                  <Icon size={15} strokeWidth={2} />
                 </div>
                 {/* Right aligned text without overlap */}
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <h4 className="text-xs sm:text-sm font-extrabold text-[#1a0a2e] leading-snug break-words">
+                  <h4 className="text-xs sm:text-[13px] font-extrabold text-[#1a0a2e] leading-snug break-words">
                     {title}
                   </h4>
-                  <p className="text-[11px] sm:text-xs text-slate-500 leading-tight mt-0.5">
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 leading-tight mt-0.5">
                     <span className="block">{line1}</span>
                     <span className="block">{line2}</span>
                   </p>
@@ -237,11 +237,11 @@ export default function ForFamiliesHeroSection({
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          3RD SECTION: WHAT FAMILIES ARE CREATING (5 CARDS WITH LOCAL ASSETS)
+          3RD SECTION: WHAT FAMILIES ARE CREATING (MINIMIZED TOP GAP)
       ════════════════════════════════════════════════════════ */}
-      <section className="py-8 sm:py-12 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto mb-16">
+      <section className="py-4 sm:py-6 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto mb-12">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#1a0a2e]">
             What families are creating
           </h2>

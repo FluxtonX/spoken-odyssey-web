@@ -369,23 +369,20 @@ function HeroSection() {
           
           {/* Left Content */}
           <motion.div 
-            className="space-y-7"
+            className="space-y-4 sm:space-y-5 max-w-md"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
             <p
-              className="italic font-semibold text-base md:text-lg flex items-center gap-1.5"
+              className="italic font-semibold text-xs sm:text-sm flex items-center gap-1.5"
               style={{ color: "#4f37ff" }}
             >
               It's your journey.{" "}
               <span className="not-italic text-sm" aria-hidden="true">♡</span>
             </p>
             
-            <h1
-              className="font-extrabold leading-[1.05] tracking-tight"
-              style={{ fontSize: "clamp(3rem, 6vw, 5.5rem)" }}
-            >
+            <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-extrabold leading-[1.12] tracking-tight">
               <span style={{ color: "#1a0a2e" }}>Your life.</span>
               <br />
               <span style={{ color: "#1a0a2e" }}>Your story.</span>
@@ -393,23 +390,23 @@ function HeroSection() {
               <span style={{ color: "#4f37ff" }}>Your Odyssey.</span>
             </h1>
             
-            <p className="text-base md:text-lg leading-relaxed max-w-md font-medium" style={{ color: "#52496d" }}>
+            <p className="text-xs sm:text-sm leading-relaxed max-w-md font-medium" style={{ color: "#52496d" }}>
               Capture the moments. Tell the stories. Relive them forever.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <Link 
                 href="/signup" 
-                className="inline-flex items-center gap-2 rounded-full font-bold text-white text-sm md:text-base px-8 py-3.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_10px_28px_rgba(79,55,255,0.3)]"
+                className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_8px_24px_rgba(79,55,255,0.3)]"
                 style={{
                   background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
                 }}
               >
-                Start your Odyssey <ArrowRight size={18} />
+                Start your Odyssey <ArrowRight size={15} />
               </Link>
               <Link 
                 href="#how-it-works" 
-                className="inline-flex items-center gap-2 rounded-full font-bold text-sm md:text-base px-7 py-3.5 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
+                className="inline-flex items-center gap-2 rounded-full font-bold text-xs sm:text-sm px-5 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
               >
                 <div className="w-5 h-5 rounded-full bg-[#4f37ff]/10 flex items-center justify-center text-[#4f37ff]">
                   <Play size={10} className="fill-[#4f37ff] ml-0.5" />
@@ -419,8 +416,8 @@ function HeroSection() {
             </div>
 
             {/* Social Proof */}
-            <div className="pt-4">
-              <p className="text-gray-600 font-medium mb-4">
+            <div className="pt-2">
+              <p className="text-xs text-gray-600 font-medium mb-2.5">
                 Join thousands of users capturing moments that matter
               </p>
               <div className="flex items-center">
@@ -429,11 +426,11 @@ function HeroSection() {
                     key={index}
                     src={avatar}
                     alt={`User ${index + 1}`}
-                    className="w-10 h-10 rounded-full border-2 border-white -ml-3 first:ml-0"
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white -ml-2.5 first:ml-0 object-cover"
                   />
                 ))}
-                <div className="w-10 h-10 rounded-full border-2 border-white bg-gradient-to-r from-blue-500 to-purple-600 -ml-3 flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">+2k</span>
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white bg-gradient-to-r from-blue-500 to-purple-600 -ml-2.5 flex items-center justify-center text-white text-[10px] sm:text-xs font-bold shadow-sm">
+                  +2k
                 </div>
               </div>
             </div>
@@ -476,54 +473,57 @@ function HeroSection() {
 
           {/* AI Glasses Card */}
           <motion.div
-            className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg relative overflow-hidden"
+            className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg relative overflow-hidden flex flex-col justify-between"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 1 }}
           >
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-gray-900 text-white text-xs font-bold px-2 py-1 rounded">NEW</span>
-                  <span className="text-sm font-bold text-gray-900">
-                    <span className="text-purple-600">AI</span> GLASSES
-                  </span>
-                </div>
-                
-                <h3 className="text-sm font-bold text-gray-900 mb-1">
-                  Capture life as it naturally happens.
-                </h3>
-                
-                <ul className="space-y-1 mb-2">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="bg-gray-900 text-white text-[11px] font-bold px-2 py-0.5 rounded tracking-wide">NEW</span>
+                <span className="text-sm font-bold text-gray-900 tracking-wide">
+                  <span className="text-purple-600">AI</span> GLASSES
+                </span>
+              </div>
+              
+              <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-3">
+                Capture life as it naturally happens.
+              </h3>
+              
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <ul className="space-y-1.5 flex-1">
                   {[
                     "Hands-free recording",
                     "AI highlights what matters",
                     "Privacy first, always in control",
                     "Seamless sync across devices"
                   ].map((item, index) => (
-                    <li key={index} className="flex items-start gap-2 text-xs text-gray-600">
-                      <span className="text-purple-500 mt-0.5">•</span>
-                      {item}
+                    <li key={index} className="flex items-center gap-2 text-xs sm:text-[13px] text-gray-600 font-medium">
+                      <span className="text-purple-500 font-bold">•</span>
+                      <span>{item}</span>
                     </li>
                   ))}
                 </ul>
 
-                <Link 
-                  href="#" 
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2 rounded-full font-bold transition-all hover:scale-105 inline-flex items-center justify-center gap-2 text-xs"
-                >
-                  Visit Store <ChevronRight size={14} />
-                </Link>
-              </div>
-
-              <div className="relative w-20 h-20 flex items-center justify-center flex-shrink-0">
-                <img 
-                  src="/glass.png" 
-                  alt="AI Glasses" 
-                  className="w-full h-full object-contain"
-                />
+                <div className="relative w-40 sm:w-48 md:w-52 lg:w-44 xl:w-52 flex-shrink-0 flex items-center justify-center">
+                  <img 
+                    src="/blackglass.png" 
+                    alt="AI Glasses" 
+                    className="w-full h-auto object-contain drop-shadow-md transition-transform duration-300 hover:scale-105"
+                  />
+                </div>
               </div>
             </div>
+
+            <a 
+              href="https://odyssey-store-ten.vercel.app" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2.5 rounded-full font-bold transition-all hover:scale-[1.01] inline-flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md"
+            >
+              <span>Visit Store</span>
+              <ChevronRight size={15} />
+            </a>
           </motion.div>
         </div>
       </div>
