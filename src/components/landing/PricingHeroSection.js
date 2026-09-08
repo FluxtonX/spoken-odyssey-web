@@ -3,63 +3,144 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Check,
-  ArrowUpRight,
+  CheckCircle2,
+  ArrowRight,
   Shield,
-  Send,
-  Star,
-  Gem,
+  Lock,
+  Cloud,
+  RotateCcw,
+  Gift,
+  Users,
+  GraduationCap,
+  Headphones,
 } from "lucide-react";
 
 const ease = [0.22, 1, 0.36, 1];
 
-const PLANS = [
+const FEATURE_BADGES = [
   {
-    icon: Send,
-    name: "Free",
-    price: "$0",
+    icon: Shield,
+    title: "Your data is yours",
+    subtitle: "We don't sell your data.",
+  },
+  {
+    icon: Lock,
+    title: "Bank-level security",
+    subtitle: "End-to-end encryption.",
+  },
+  {
+    icon: Cloud,
+    title: "Access anywhere",
+    subtitle: "Web, iOS, Android.",
+  },
+  {
+    icon: RotateCcw,
+    title: "Cancel anytime",
+    subtitle: "No hassle, no fees.",
+  },
+];
+
+const PRICING_PLANS = [
+  {
+    id: "begin",
+    name: "Odyssey Begin",
+    tagline: "Start capturing your life",
+    image: "/pricing-begin.png",
+    nameColor: "text-emerald-700",
+    checkColor: "text-emerald-600",
+    popular: false,
+    price: "Free",
     period: "Forever",
+    subPrice1: null,
+    subPrice2: null,
     features: [
-      "Record voice notes and stories",
-      "Add photos",
+      "Capture voice, photos & videos",
+      "Create moments & albums (3 albums)",
       "Basic timeline",
-      "Up to 5 GB storage",
+      "5 GB storage",
+      "Access on web & mobile",
+      "Standard support",
     ],
-    cta: "Get started",
+    cta: "Get started for free",
     ctaHref: "/signup",
-    popular: false,
+    ctaStyle:
+      "border border-gray-300 hover:border-emerald-600 text-gray-800 hover:text-emerald-700 bg-white hover:bg-emerald-50/40",
   },
   {
-    icon: Star,
-    name: "Premium",
-    price: "$7.99",
-    period: "/month",
-    features: [
-      "Everything in Free",
-      "Unlimited stories",
-      "AI highlights",
-      "50 GB storage",
-      "Priority support",
-    ],
-    cta: "Get Premium",
-    ctaHref: "/signup?plan=premium",
+    id: "journey",
+    name: "Odyssey Journey",
+    tagline: "Build, understand and explore your personal Odyssey",
+    image: "/pricing-journey.png",
+    nameColor: "text-blue-600",
+    checkColor: "text-blue-600",
     popular: true,
-  },
-  {
-    icon: Gem,
-    name: "Legacy",
-    price: "$19.99",
-    period: "/month",
+    price: "CHF 9.99",
+    period: "/ month",
+    subPrice1: "Billed annually (CHF 119.88 / year)",
+    subPrice2: "or CHF 9.99 month-to-month",
     features: [
-      "Everything in Premium",
-      "Advanced privacy controls",
-      "1 TB storage",
-      "Family sharing",
+      "Everything in Odyssey Begin",
+      "Unlimited storage (100 GB personal)",
+      "All life insights & reflections",
+      "AI monthly life interview",
+      "Advanced search & memories",
+      "Export your Odyssey",
       "Priority support",
     ],
-    cta: "Get Legacy",
-    ctaHref: "/signup?plan=legacy",
+    cta: "Start your Journey",
+    ctaHref: "/signup?plan=journey",
+    ctaStyle:
+      "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25",
+  },
+  {
+    id: "together",
+    name: "Odyssey Together",
+    tagline: "Bring multiple lives and generations together",
+    image: "/pricing-together.png",
+    nameColor: "text-purple-700",
+    checkColor: "text-purple-600",
     popular: false,
+    price: "CHF 19.99",
+    period: "/ month",
+    subPrice1: "Billed annually (CHF 239.88 / year)",
+    subPrice2: "or CHF 19.99 month-to-month",
+    features: [
+      "Everything in Odyssey Journey",
+      "Create family spaces",
+      "Invite up to 10 members",
+      "AI family questions & responses",
+      "Generational timeline & lineage",
+      "Shared albums & collaborative stories",
+      "Role-based privacy controls",
+      "Priority support",
+    ],
+    cta: "Start your Together",
+    ctaHref: "/signup?plan=together",
+    ctaStyle:
+      "bg-purple-700 hover:bg-purple-800 text-white shadow-lg shadow-purple-600/25",
+  },
+];
+
+const BOTTOM_FEATURES = [
+  {
+    icon: Gift,
+    title: "Special offer",
+    description: "Save 15% with annual billing.",
+  },
+  {
+    icon: Users,
+    title: "For larger families",
+    description: "Need more than 10 members? Contact us for custom plans.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Student discount",
+    description: "Students get 20% off all paid plans.",
+  },
+  {
+    icon: Headphones,
+    title: "Need help?",
+    description: "We're here to help you choose the right plan.",
   },
 ];
 
@@ -67,246 +148,231 @@ export default function PricingHeroSection({
   backgroundImage = "/Pricing.png",
 }) {
   return (
-    <div>
-      {/* ════════════════════════════════════════════════
-          HERO  +  PRICING CARDS
-      ════════════════════════════════════════════════ */}
-      <section
-        className="relative overflow-hidden"
-        style={{ minHeight: "100vh" }}
-      >
-        {/* Background */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={backgroundImage}
-            alt="Pricing background"
-            className="w-full h-full object-cover object-center"
-          />
-          {/* Left white gradient so text stays readable */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(105deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.85) 25%, rgba(255,255,255,0.30) 52%, transparent 70%)",
-            }}
-          />
-        </div>
+    <div className="relative overflow-hidden min-h-screen text-slate-900 selection:bg-blue-600/10">
+      {/* ── Background Image - Clear and sharp without blurry wash ── */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={backgroundImage}
+          alt="Pricing background"
+          className="w-full h-full object-cover object-center"
+        />
+      </div>
 
-        {/* Content grid */}
-        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 min-h-screen flex items-center">
-          <div className="w-full grid grid-cols-1 lg:grid-cols-[33%_1fr] gap-8 lg:gap-10 py-28 items-stretch">
-
-            {/* ── LEFT: Text ── */}
-            <motion.div
-              className="space-y-6 max-w-md flex flex-col justify-center"
-              initial={{ opacity: 0, x: -40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.9, ease }}
+      {/* ── Main Section Content ── */}
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 pt-20 sm:pt-24 lg:pt-28 pb-12 sm:pb-16 min-h-screen flex flex-col justify-between">
+        
+        {/* Top Split: Left Info + Right 3 Pricing Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-[28%_1fr] gap-8 lg:gap-8 items-start w-full">
+          
+          {/* ── LEFT COLUMN ── */}
+          <motion.div
+            className="flex flex-col justify-start pt-2"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, ease }}
+          >
+            {/* Eyebrow */}
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1, ease }}
+              className="italic font-semibold text-xs sm:text-sm text-blue-600 mb-2 flex items-center gap-1"
             >
-              {/* Eyebrow */}
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1, ease }}
-                className="space-y-0.5"
-              >
-                <p
-                  className="italic font-semibold text-xs sm:text-sm"
-                  style={{ color: "#4f37ff" }}
-                >
-                  Simple plans.
-                </p>
-                <p
-                  className="italic font-semibold text-xs sm:text-sm flex items-center gap-1.5"
-                  style={{ color: "#4f37ff" }}
-                >
-                  A lifetime of impact.{" "}
-                  <span className="not-italic" aria-hidden="true">♡</span>
-                </p>
-              </motion.div>
+              It&rsquo;s your journey <span className="not-italic text-sm">♡</span>
+            </motion.p>
 
-              {/* Heading */}
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2, ease }}
-              >
-                <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-extrabold leading-[1.12] tracking-tight">
-                  <span style={{ color: "#1a0a2e" }}>Choose the plan</span>
-                  <br />
-                  <span style={{ color: "#1a0a2e" }}>that&rsquo;s</span>{" "}
-                  <span style={{ color: "#4f37ff" }}>right for you.</span>
-                </h1>
-              </motion.div>
+            {/* Heading */}
+            <motion.h1
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2, ease }}
+              className="text-3xl sm:text-4xl lg:text-[40px] font-black leading-[1.12] tracking-tight text-[#1a0a2e] mb-3"
+            >
+              Choose the Odyssey<br />
+              that fits <span className="text-blue-600">your life.</span>
+            </motion.h1>
 
-              {/* Sub-description */}
-              <motion.p
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.35, ease }}
-                className="text-xs sm:text-sm leading-relaxed max-w-sm"
-                style={{ color: "#52496d" }}
-              >
-                Start free. Upgrade anytime.
-                <br />
-                Your story is always worth it.
-              </motion.p>
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3, ease }}
+              className="text-xs sm:text-sm font-medium text-gray-700 leading-relaxed mb-6"
+            >
+              Start capturing today and<br />build a legacy that lasts.
+            </motion.p>
+
+            {/* 4 Feature Badges (Icons with filled background, backgroundless text) */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4, ease }}
+              className="space-y-4 max-w-xs"
+            >
+              {FEATURE_BADGES.map((badge, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3.5"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100/90 shadow-sm flex items-center justify-center text-blue-600 flex-shrink-0">
+                    <badge.icon size={18} strokeWidth={2} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">
+                      {badge.title}
+                    </h4>
+                    <p className="text-[11px] sm:text-xs text-gray-500 leading-tight mt-0.5">
+                      {badge.subtitle}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </motion.div>
+          </motion.div>
 
-            {/* ── RIGHT: Pricing cards ── */}
-            <div className="flex flex-col sm:flex-row items-start gap-4 lg:gap-5 w-full">
-              {PLANS.map((plan, i) => (
-                <motion.div
-                  key={plan.name}
-                  className="relative flex flex-col w-full sm:flex-1 rounded-3xl overflow-visible"
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.65, delay: 0.3 + i * 0.12, ease }}
+          {/* ── RIGHT COLUMN: 3 PRICING CARDS ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-4 items-stretch w-full pt-4 lg:pt-0">
+            {PRICING_PLANS.map((plan, index) => (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, delay: 0.2 + index * 0.1, ease }}
+                className="relative flex flex-col h-full"
+              >
+                {/* Most Popular Pill Badge */}
+                {plan.popular && (
+                  <div className="absolute -top-3 left-0 right-0 flex justify-center z-20">
+                    <span className="bg-[#1d4ed8] text-white text-[10px] font-extrabold px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                      MOST POPULAR
+                    </span>
+                  </div>
+                )}
+
+                {/* Card Body */}
+                <div
+                  className={`bg-white rounded-3xl p-5 sm:p-6 flex flex-col justify-between text-center h-full transition-all duration-300 ${
+                    plan.popular
+                      ? "border-2 border-blue-600 shadow-2xl relative z-10 pt-6"
+                      : "border border-gray-100 shadow-xl"
+                  }`}
                 >
-                  {/* Most Popular badge */}
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-0 right-0 flex justify-center z-10">
-                      <span
-                        className="text-xs font-bold text-white rounded-full px-4 py-1.5 shadow-lg"
-                        style={{
-                          background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
-                          boxShadow: "0 4px 14px -2px rgba(79,55,255,0.45)",
-                        }}
-                      >
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Card body */}
-                  <div
-                    className={`flex flex-col h-full rounded-3xl p-6 pt-8 ${
-                      plan.popular
-                        ? "ring-2 ring-[#4f37ff]/70 shadow-2xl shadow-[#4f37ff]/15"
-                        : "border border-gray-200/80 shadow-lg shadow-black/5"
-                    }`}
-                    style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(16px)" }}
-                  >
-                    {/* Icon */}
-                    <div
-                      className="w-12 h-12 rounded-full border-2 flex items-center justify-center mb-4"
-                      style={{
-                        borderColor: plan.popular ? "#4f37ff" : "#d1d5db",
-                        color: plan.popular ? "#4f37ff" : "#6b7280",
-                      }}
-                    >
-                      <plan.icon size={20} strokeWidth={1.8} />
+                  <div>
+                    {/* Circular Planet/Space Artwork Image */}
+                    <div className="w-24 h-24 mx-auto rounded-full overflow-hidden shadow-sm border-2 border-white mb-3 bg-slate-900">
+                      <img
+                        src={plan.image}
+                        alt={plan.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
 
-                    {/* Plan name */}
-                    <p className="text-base font-bold text-gray-900 mb-2">{plan.name}</p>
+                    {/* Plan Name */}
+                    <h3 className={`text-base sm:text-lg font-bold ${plan.nameColor}`}>
+                      {plan.name}
+                    </h3>
 
-                    {/* Price */}
-                    <div className="flex items-end gap-1 mb-5">
-                      <span
-                        className="font-extrabold leading-none"
-                        style={{ fontSize: "clamp(2rem, 4vw, 2.6rem)", color: "#1a0a2e" }}
-                      >
-                        {plan.price}
-                      </span>
-                      <span className="text-sm text-gray-500 mb-1 font-medium">
-                        {plan.period}
-                      </span>
+                    {/* Tagline */}
+                    <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 mb-3 leading-tight min-h-[30px] flex items-center justify-center">
+                      {plan.tagline}
+                    </p>
+
+                    {/* Pricing */}
+                    <div className="mb-4">
+                      {plan.period === "Forever" ? (
+                        <div>
+                          <div className="text-3xl sm:text-[32px] font-black text-gray-900 leading-none">
+                            {plan.price}
+                          </div>
+                          <div className="text-xs font-semibold text-gray-400 mt-1">
+                            {plan.period}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-2xl sm:text-[28px] font-black text-gray-900 leading-none">
+                              {plan.price}
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium">
+                              {plan.period}
+                            </span>
+                          </div>
+                          {plan.subPrice1 && (
+                            <div className="text-[10px] text-gray-500 font-medium mt-1">
+                              {plan.subPrice1}
+                            </div>
+                          )}
+                          {plan.subPrice2 && (
+                            <div className="text-[10px] text-gray-400">
+                              {plan.subPrice2}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Features */}
-                    <ul className="space-y-2.5 flex-1 mb-7">
-                      {plan.features.map((feat, j) => (
-                        <li key={j} className="flex items-start gap-2.5">
-                          <Check
+                    {/* Features List */}
+                    <ul className="space-y-2 text-left mb-6">
+                      {plan.features.map((feature, fIdx) => (
+                        <li
+                          key={fIdx}
+                          className="flex items-start gap-2 text-[11px] sm:text-xs text-gray-600 font-medium leading-tight"
+                        >
+                          <CheckCircle2
                             size={14}
-                            className="mt-0.5 flex-shrink-0"
-                            style={{ color: "#4f37ff" }}
-                            strokeWidth={2.5}
+                            className={`${plan.checkColor} flex-shrink-0 mt-0.5`}
                           />
-                          <span className="text-sm text-gray-700 leading-snug">{feat}</span>
+                          <span>{feature}</span>
                         </li>
                       ))}
                     </ul>
+                  </div>
 
-                    {/* CTA Button */}
+                  {/* CTA Action Button */}
+                  <div className="pt-2">
                     <Link
-                      id={`pricing-${plan.name.toLowerCase()}-btn`}
+                      id={`pricing-${plan.id}-btn`}
                       href={plan.ctaHref}
-                      className={`w-full text-center rounded-full font-bold text-sm py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 ${
-                        plan.popular
-                          ? "text-white shadow-lg"
-                          : "border border-gray-300 text-gray-900 hover:border-[#4f37ff] hover:text-[#4f37ff]"
-                      }`}
-                      style={
-                        plan.popular
-                          ? {
-                              background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
-                              boxShadow: "0 8px 22px -4px rgba(79,55,255,0.4)",
-                            }
-                          : {}
-                      }
+                      className={`w-full rounded-full font-bold text-xs sm:text-sm py-2.5 px-4 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-1.5 ${plan.ctaStyle}`}
                     >
-                      {plan.cta}
+                      <span>{plan.cta}</span>
+                      <ArrowRight size={14} />
                     </Link>
                   </div>
-                </motion.div>
-              ))}
-            </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
 
-        {/* ── BOTTOM PRIVACY BANNER (inside section, floating over bg) ── */}
+        {/* ── BOTTOM BANNER (4 COLUMNS) ── */}
         <motion.div
-          className="absolute bottom-8 left-0 right-0 z-10 px-6 md:px-12"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.9, ease }}
+          transition={{ duration: 0.7, delay: 0.6, ease }}
+          className="mt-10 sm:mt-12 w-full"
         >
-          <div
-            className="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl px-6 py-5"
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow: "0 8px 32px -8px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.05)",
-              border: "1px solid rgba(255,255,255,0.8)",
-            }}
-          >
-            {/* Left */}
-            <div className="flex items-center gap-4">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(79,55,255,0.09)" }}
-              >
-                <Shield size={18} style={{ color: "#4f37ff" }} strokeWidth={1.8} />
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-gray-100/80 shadow-lg p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-center">
+            {BOTTOM_FEATURES.map((item, bIdx) => (
+              <div key={bIdx} className="flex items-center gap-3.5 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+                  <item.icon size={20} strokeWidth={1.8} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900 leading-tight">
+                    {item.title}
+                  </h4>
+                  <p className="text-[11px] text-gray-500 leading-tight mt-0.5">
+                    {item.description}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-extrabold text-gray-900 text-sm md:text-base leading-tight">
-                  Your privacy. Your control. Your legacy.
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Bank-level security to keep your story safe, always.
-                </p>
-              </div>
-            </div>
-
-            {/* Right */}
-            <Link
-              id="pricing-security-btn"
-              href="/how-it-works"
-              className="inline-flex items-center gap-1.5 rounded-full border font-bold text-sm px-5 py-2.5 whitespace-nowrap transition-all duration-200 hover:bg-gray-50 hover:-translate-y-0.5 flex-shrink-0"
-              style={{
-                borderColor: "rgba(79,55,255,0.3)",
-                color: "#1a0a2e",
-              }}
-            >
-              See all features
-              <ArrowUpRight size={13} />
-            </Link>
+            ))}
           </div>
         </motion.div>
-      </section>
+
+      </div>
     </div>
   );
 }
