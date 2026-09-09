@@ -22,7 +22,7 @@ export default function MyArchive() {
   const [viewMode, setViewMode] = useState("grid"); // "grid" or "list"
   const [sortOrder, setSortOrder] = useState("newest"); // "newest" or "oldest"
 
-  const types = ["All", "Voice", "Photos", "Written"];
+  const types = ["All", "Voice", "Photos", "Written", "Glasses"];
   const years = ["All", "2026", "2025", "2024", "2023", "2022"];
   
   const { isAuthenticated, firebaseUser, getToken } = useAuth();
@@ -280,6 +280,9 @@ export default function MyArchive() {
       result = result.filter((m) => {
         if (!m) return false;
         const t = (m.type || "").toLowerCase();
+        if (activeType === "Glasses") {
+          return m.deviceSource === "AI_GLASSES" || (Array.isArray(m.tags) && (m.tags.includes("ai-glasses") || m.tags.includes("glasses")));
+        }
         if (activeType === "Voice") {
           const sources = getMemoryMediaSources(m);
           return !sources.video && (t === "voice" || t === "audio" || !!m.audioUrl || !!m.audio);
@@ -530,6 +533,11 @@ export default function MyArchive() {
                           <div className="flex items-center gap-2 min-w-0">
                             {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={14} className="text-stone-400 shrink-0" />}
                             <h3 className="text-[16px] font-bold text-stone-900 group-hover:text-[#4A3AFF] transition-colors truncate">{memory.title}</h3>
+                            {memory.deviceSource === "AI_GLASSES" && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                                👓 Glasses POV
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             {(memory.unlockAt || memory.isVaultLocked) && (
@@ -573,7 +581,12 @@ export default function MyArchive() {
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {memory.deviceSource === "AI_GLASSES" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs">
+                                👓 Glasses POV
+                              </span>
+                            )}
                             {isVideo ? (
                               <>
                                 <Film size={16} strokeWidth={2.5} className="text-[#ec4899]" />
@@ -615,9 +628,16 @@ export default function MyArchive() {
                   >
                     <div>
                       <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-2 text-[#f59e0b]">
-                          <Mic size={16} strokeWidth={2.5} />
-                          <span className="text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]">VOICE</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {memory.deviceSource === "AI_GLASSES" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs">
+                              👓 Glasses POV
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1.5 text-[#f59e0b]">
+                            <Mic size={16} strokeWidth={2.5} />
+                            <span className="text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]">VOICE</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1.5">
                           {(memory.privacy === "Private" || memory.visibility === "Private") && <Lock size={12} className="text-stone-500" />}
@@ -682,7 +702,12 @@ export default function MyArchive() {
                   <div className="p-6 md:p-7 flex flex-col justify-between flex-1">
                     <div>
                       <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {memory.deviceSource === "AI_GLASSES" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs">
+                              👓 Glasses POV
+                            </span>
+                          )}
                           {getIconForType(memory.type)}
                           <span className={clsx("text-[12px] font-bold tracking-wide", getTypeColorClass(memory.type))}>
                             {getTypeLabel(memory.type)}

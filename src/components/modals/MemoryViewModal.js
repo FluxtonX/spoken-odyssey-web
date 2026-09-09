@@ -1345,11 +1345,16 @@ function MemoryViewModalContent() {
                 <X size={20} strokeWidth={2.5} />
               </button>
 
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
                   <Mic size={16} strokeWidth={2.5} />
                 </div>
                 <span className="text-xs font-extrabold tracking-widest uppercase opacity-90">VOICE MEMORY</span>
+                {memory?.deviceSource === "AI_GLASSES" && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-extrabold tracking-wider backdrop-blur-md flex items-center gap-1 border border-white/30">
+                    👓 Glasses POV
+                  </span>
+                )}
               </div>
 
               <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
@@ -1537,11 +1542,16 @@ function MemoryViewModalContent() {
 
                 {/* Header Overlay (Title, Date & Badge over covered image) */}
                 <div className="relative z-20 p-4 sm:p-5 pt-0 pointer-events-none">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <div className="px-2.5 py-0.5 rounded-full bg-[#3b82f6] text-white flex items-center gap-1 text-[10px] font-extrabold shadow-sm">
                       {activeMedia?.type === "video" ? <Film size={12} /> : <ImageIcon size={12} />}
                       <span>{activeMedia?.type === "video" ? "VIDEO MEMORY" : "PHOTO MEMORY"}</span>
                     </div>
+                    {memory?.deviceSource === "AI_GLASSES" && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#4A3AFF] text-white text-[10px] font-extrabold shadow-sm flex items-center gap-1">
+                        👓 Glasses POV
+                      </span>
+                    )}
                     {mediaList.length > 1 && activeMedia?.type !== "video" && (
                       <span className="px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-bold backdrop-blur-md">
                         {activeMediaIndex + 1} of {mediaList.length}
@@ -1593,13 +1603,18 @@ function MemoryViewModalContent() {
                 <X size={18} strokeWidth={2.5} />
               </button>
 
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isMilestone ? 'bg-purple-100 text-purple-600' : 'bg-[#10b981]/10 text-[#10b981]'}`}>
                   {isMilestone ? <Award size={16} strokeWidth={2.5} /> : <FileText size={16} strokeWidth={2.5} />}
                 </div>
                 <span className={`text-xs font-extrabold tracking-widest uppercase ${isMilestone ? 'text-purple-600' : 'text-[#10b981]'}`}>
                   {isMilestone ? "MILESTONE MEMORY" : "WRITTEN JOURNAL"}
                 </span>
+                {memory?.deviceSource === "AI_GLASSES" && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-extrabold border border-indigo-200">
+                    👓 Glasses POV
+                  </span>
+                )}
               </div>
 
               <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
@@ -1956,6 +1971,22 @@ function MemoryViewModalContent() {
             <div className="w-full md:w-[320px] p-6 sm:p-8 bg-stone-50/70 flex flex-col justify-between shrink-0 border-t md:border-t-0 md:border-l border-stone-100">
               <div className="space-y-4">
                 <h4 className="text-[11px] font-extrabold tracking-widest text-stone-400 uppercase">MEMORY DETAILS</h4>
+                
+                {memory?.deviceSource === "AI_GLASSES" && (
+                  <div className="p-3.5 bg-indigo-50/90 border border-indigo-200/80 rounded-2xl space-y-1.5 shadow-xs">
+                    <div className="flex items-center gap-1.5 text-indigo-700">
+                      <span className="text-sm">👓</span>
+                      <p className="text-[10px] font-extrabold uppercase tracking-wider">HARDWARE PROVENANCE</p>
+                    </div>
+                    <p className="text-xs font-bold text-stone-900">Spoken Odyssey AI Glasses</p>
+                    {memory.deviceIdentifier && (
+                      <p className="text-[11px] text-stone-500 font-mono truncate">ID: {memory.deviceIdentifier}</p>
+                    )}
+                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold bg-white text-indigo-700 rounded-md border border-indigo-200">
+                      Hands-free POV Capture
+                    </span>
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-3">
                   <Calendar size={18} className="text-stone-400 shrink-0" />
