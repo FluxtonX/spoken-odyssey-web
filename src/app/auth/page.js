@@ -13,7 +13,20 @@ import { verifyMockEmailOnBackend, getBackendBaseUrl } from "@/services/backend"
 
 export default function AuthPage() {
   const router = useRouter();
-  const { login, signup, loginWithGoogle, sendResetEmail, resendVerification, firebaseUser, refreshProfile, getToken } = useAuth();
+  const {
+    login,
+    signup,
+    loginWithGoogle,
+    sendResetEmail,
+    resendVerification,
+    firebaseUser,
+    refreshProfile,
+    getToken,
+    isAuthenticated,
+    loading,
+    mfaPendingState,
+    profile,
+  } = useAuth();
 
   const [view, setView] = useState("login"); // "login" | "signup" | "verify" | "reset"
   const [email, setEmail] = useState("");
@@ -135,6 +148,13 @@ export default function AuthPage() {
     router.replace(safeInternalRoute);
   };
 
+  // If user is already authenticated or completes 2FA, navigate to their destination
+  useEffect(() => {
+    if (!loading && isAuthenticated && !mfaPendingState) {
+      navigatePostAuth(profile);
+    }
+  }, [isAuthenticated, loading, mfaPendingState, profile]);
+
   const handleLoginSubmit = async (event) => {
     event.preventDefault();
     if (!email || !password) return;
@@ -145,6 +165,11 @@ export default function AuthPage() {
 
     try {
       const loginProfile = await login(email, password);
+      if (loginProfile?.mfaRequired) {
+        // Two-factor authentication is required. The MFA modal is now shown.
+        // Do not redirect prematurely or set success message!
+        return;
+      }
       setSuccessMsg("Logged in successfully! Redirecting...");
       setTimeout(() => {
         navigatePostAuth(loginProfile);
@@ -256,6 +281,11 @@ export default function AuthPage() {
 
     try {
       const googleProfile = await loginWithGoogle();
+      if (googleProfile?.mfaRequired) {
+        // Two-factor authentication is required. The MFA modal is now shown.
+        // Do not redirect prematurely or set success message!
+        return;
+      }
       setSuccessMsg("Signed in successfully! Redirecting...");
       setTimeout(() => {
         navigatePostAuth(googleProfile);
