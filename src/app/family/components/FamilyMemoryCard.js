@@ -25,10 +25,17 @@ export default function FamilyMemoryCard({ memory }) {
         <img src={memory.image} alt={memory.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
 
-        <span className={`absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${config.className}`}>
-          <TypeIcon size={12} />
-          {config.label}
-        </span>
+        <div className="absolute left-3 top-3 flex items-center gap-1.5 flex-wrap">
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${config.className}`}>
+            <TypeIcon size={12} />
+            {config.label}
+          </span>
+          {memory.deviceSource === "AI_GLASSES" && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-indigo-700 shadow-xs backdrop-blur-xs">
+              👓 POV
+            </span>
+          )}
+        </div>
 
         {isPlayable && (
           <span className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--brand)] shadow-lg">
