@@ -151,6 +151,8 @@ function RecordMemoryContent() {
   const [capturedVoiceSeconds, setCapturedVoiceSeconds] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
   const [audioMimeType, setAudioMimeType] = useState("");
+  const [uploadedAudioFile, setUploadedAudioFile] = useState(null);
+  const [audioSource, setAudioSource] = useState("recorded");
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [title, setTitle] = useState("");
   const [storyText, setStoryText] = useState("");
@@ -377,6 +379,62 @@ function RecordMemoryContent() {
     setIsAudioPlaying(false);
   }
 
+  async function handleAudioFileUpload(file) {
+    if (!file) return;
+
+    const fileType = file.type?.toLowerCase() || "";
+    const fileName = file.name?.toLowerCase() || "";
+    const isAudio = fileType.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|aac|flac|webm)$/i.test(fileName);
+
+    if (!isAudio) {
+      setNotice("Please select a valid audio file (MP3, M4A, WAV, AAC, etc.).");
+      return;
+    }
+
+    if (file.size > 120 * 1024 * 1024) {
+      setNotice("The audio file exceeds the 120MB maximum limit.");
+      return;
+    }
+
+    if (isRecording) {
+      recorderRef.current?.stop();
+      stopRecordingTracks();
+      setIsRecording(false);
+    }
+
+    if (audioUrl && audioUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(audioUrl);
+    }
+
+    const blobUrl = URL.createObjectURL(file);
+    setUploadedAudioFile(file);
+    setAudioSource("uploaded");
+    setAudioUrl(blobUrl);
+    setAudioMimeType(file.type || "audio/mpeg");
+    setIsAudioPlaying(false);
+
+    // Read audio duration using HTMLAudioElement metadata
+    const tempAudio = new Audio(blobUrl);
+    tempAudio.onloadedmetadata = () => {
+      const duration = Math.round(tempAudio.duration) || 0;
+      setCapturedVoiceSeconds(duration);
+    };
+
+    setNotice(`Audio file "${file.name}" selected. Tap play to preview.`);
+  }
+
+  function handleAudioDelete() {
+    if (audioUrl && audioUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioUrl("");
+    setAudioMimeType("");
+    setCapturedVoiceSeconds(0);
+    setUploadedAudioFile(null);
+    setAudioSource("recorded");
+    setIsAudioPlaying(false);
+  }
+
   async function handleMultipleMediaFiles(files) {
     if (!files || files.length === 0) return;
 
@@ -417,6 +475,8 @@ function RecordMemoryContent() {
     setVideoFiles([]);
     setAudioUrl("");
     setAudioMimeType("");
+    setUploadedAudioFile(null);
+    setAudioSource("recorded");
     setCapturedVoiceSeconds(0);
     setElapsedSeconds(0);
     setIsAudioPlaying(false);
@@ -446,7 +506,7 @@ function RecordMemoryContent() {
     }
 
     if (activeFormat === "Voice" && !audioUrl) {
-      setNotice("Start and stop a voice clip before saving.");
+      setNotice("Start and stop a voice clip or upload an audio file before saving.");
       return;
     }
 
@@ -510,8 +570,12 @@ function RecordMemoryContent() {
         }
 
         if (activeFormat === "Voice" && audioUrl) {
-          const audioFile = dataURLtoFile(audioUrl, `recording-${Date.now()}.webm`);
-          formData.append("media", audioFile);
+          if (uploadedAudioFile) {
+            formData.append("media", uploadedAudioFile);
+          } else {
+            const audioFile = dataURLtoFile(audioUrl, `recording-${Date.now()}.webm`);
+            formData.append("media", audioFile);
+          }
         } else if (activeFormat === "Visual" && photoFiles.length > 0) {
           photoFiles.forEach(file => {
             formData.append("media", file);
@@ -544,7 +608,7 @@ function RecordMemoryContent() {
       albumId: selectedAlbumId || null,
       audiences: [selectedAudience],
       privacy: mappedPrivacy,
-      audio: activeFormat === "Voice" ? { url: audioUrl, mimeType: audioMimeType, seconds: capturedVoiceSeconds } : null,
+      audio: activeFormat === "Voice" ? { url: audioUrl, mimeType: audioMimeType, seconds: capturedVoiceSeconds, fileName: uploadedAudioFile?.name, source: audioSource } : null,
       media: activeFormat === "Visual" ? photoDrafts : null,
       backgroundId: activeFormat === "Text" ? backgroundId : "none",
       fontId: activeFormat === "Text" ? fontId : "default",
@@ -608,15 +672,14 @@ function RecordMemoryContent() {
                   elapsedSeconds={elapsedSeconds}
                   isAudioPlaying={isAudioPlaying}
                   isRecording={isRecording}
-                  statusLabel={isRecording ? "Recording your memory..." : audioUrl ? "Voice clip ready" : "Tap to start recording"}
+                  statusLabel={isRecording ? "Recording your memory..." : audioUrl ? (uploadedAudioFile ? `Audio file ready: ${uploadedAudioFile.name}` : "Voice clip ready") : "Tap to record or upload audio"}
+                  uploadedAudioFile={uploadedAudioFile}
+                  audioSource={audioSource}
                   onAudioEnded={() => setIsAudioPlaying(false)}
-                  onDelete={() => {
-                    setAudioUrl("");
-                    setCapturedVoiceSeconds(0);
-                    setIsAudioPlaying(false);
-                  }}
+                  onDelete={handleAudioDelete}
                   onPreview={toggleAudioPreview}
                   onToggle={toggleRecording}
+                  onFileUpload={handleAudioFileUpload}
                 />
               )}
 
@@ -998,11 +1061,15 @@ function VoiceRecorder({
   isAudioPlaying,
   isRecording,
   statusLabel,
+  uploadedAudioFile,
+  audioSource,
   onAudioEnded,
   onDelete,
   onPreview,
   onToggle,
+  onFileUpload,
 }) {
+  const fileInputRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
 
   const displayTime = isRecording
@@ -1072,8 +1139,11 @@ function VoiceRecorder({
               {isAudioPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
             </button>
             <div className="min-w-0 flex-1 text-left">
-              <p className="truncate text-sm font-black text-[var(--ink)] dark:text-white">Recorded voice clip</p>
+              <p className="truncate text-sm font-black text-[var(--ink)] dark:text-white">
+                {uploadedAudioFile ? uploadedAudioFile.name : "Recorded voice clip"}
+              </p>
               <p className="text-xs font-bold text-stone-550">
+                {audioSource === "uploaded" ? "Uploaded file · " : "Voice recording · "}
                 {isAudioPlaying 
                   ? `${formatDuration(Math.max(0, Math.ceil(capturedVoiceSeconds - currentTime)))} remaining`
                   : formatDuration(capturedVoiceSeconds)}
@@ -1093,17 +1163,54 @@ function VoiceRecorder({
         </div>
       )}
 
-      <button
-        onClick={onToggle}
-        className={`flex h-18 w-18 items-center justify-center rounded-full text-white shadow-xl transition active:scale-95 ${
-          isRecording ? "bg-rose-600 shadow-rose-600/20" : "bg-[var(--brand)] shadow-black/10"
-        }`}
-        aria-label={isRecording ? "Stop recording" : "Start recording"}
-      >
-        {isRecording ? <Square size={24} fill="currentColor" /> : <Mic size={28} />}
-      </button>
+      {/* Main Actions: Record Button & Upload Audio File Button */}
+      <div className="flex items-center justify-center gap-4 flex-wrap">
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`flex h-14 items-center gap-3 px-6 rounded-full text-white font-black shadow-xl transition active:scale-95 ${
+            isRecording ? "bg-rose-600 shadow-rose-600/20" : "bg-[var(--brand)] shadow-black/10"
+          }`}
+          aria-label={isRecording ? "Stop recording" : "Start recording"}
+        >
+          {isRecording ? <Square size={20} fill="currentColor" /> : <Mic size={22} />}
+          <span>{isRecording ? "Stop Recording" : "Record Voice"}</span>
+        </button>
+
+        {!isRecording && (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-14 items-center gap-3 px-6 rounded-full border-2 border-[var(--brand)] bg-[var(--surface)] text-[var(--brand)] font-black hover:bg-[var(--brand-soft)] transition active:scale-95 shadow-sm"
+              aria-label="Upload audio file from device"
+            >
+              <Upload size={22} />
+              <span>Upload Audio</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.webm,.flac"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  onFileUpload(file);
+                }
+                e.target.value = "";
+              }}
+            />
+          </>
+        )}
+      </div>
+
       <p className="mt-4 text-xs font-bold text-stone-500">
-        {isRecording ? "Tap stop when your memory is complete." : audioUrl ? "Play the clip or record again." : "Tap once to start recording."}
+        {isRecording
+          ? "Tap stop when your memory is complete."
+          : audioUrl
+            ? "Play clip, record again, or upload a new audio file."
+            : "Record live or upload an existing audio file (MP3, M4A, WAV, AAC, etc.)."}
       </p>
     </div>
   );

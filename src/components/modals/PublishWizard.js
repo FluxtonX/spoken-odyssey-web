@@ -44,6 +44,32 @@ export default function PublishWizard() {
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   const audioPlayerRef = useRef(null);
+  const audioFileInputRef = useRef(null);
+
+  const handleAudioFileUpload = (e) => {
+    setValidationError("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileType = file.type?.toLowerCase() || "";
+    const fileName = file.name?.toLowerCase() || "";
+    const isAudio = fileType.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|aac|flac|webm)$/i.test(fileName);
+
+    if (!isAudio) {
+      setValidationError("Please select a valid audio file (MP3, M4A, WAV, AAC, etc.).");
+      return;
+    }
+
+    if (file.size > 120 * 1024 * 1024) {
+      setValidationError("Audio file exceeds the 120MB size limit.");
+      return;
+    }
+
+    setAudioBlob(file);
+    const url = URL.createObjectURL(file);
+    setAudioUrl(url);
+    setRecordingState("stopped");
+  };
   
   // Written specific state
   const [writtenContent, setWrittenContent] = useState("");
@@ -399,18 +425,47 @@ export default function PublishWizard() {
             <div className="animate-fade-in flex flex-col items-center justify-center h-full py-8">
               {recordingState === "idle" && (
                 <>
-                  <p className="text-stone-500 font-medium mb-10">
-                    Click the microphone to start recording your story in your voice.
+                  <p className="text-stone-500 font-medium mb-6 text-center max-w-sm">
+                    Record your story live using your microphone, or upload an existing audio file from your device.
                   </p>
-                  <div className="w-full max-w-[300px] border-t-2 border-dashed border-stone-200 mb-12"></div>
-                  <h1 className="text-5xl font-black tracking-tight mb-8 text-stone-900">00:00</h1>
-                  <button 
-                    onClick={startRecording}
-                    className="w-20 h-20 rounded-full bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white shadow-[0_8px_20px_-4px_rgba(74,58,255,0.4)] flex items-center justify-center transition-all mb-4 active:scale-95 cursor-pointer"
-                  >
-                    <Mic size={32} strokeWidth={2.5} />
-                  </button>
-                  <p className="text-stone-400 font-medium text-sm">Tap to start recording</p>
+                  
+                  <div className="flex items-center justify-center gap-6 mb-8">
+                    <div className="flex flex-col items-center">
+                      <button 
+                        onClick={startRecording}
+                        className="w-20 h-20 rounded-full bg-[#4A3AFF] hover:bg-[#3b2dd1] text-white shadow-[0_8px_20px_-4px_rgba(74,58,255,0.4)] flex items-center justify-center transition-all mb-3 active:scale-95 cursor-pointer"
+                        title="Start Recording"
+                      >
+                        <Mic size={32} strokeWidth={2.5} />
+                      </button>
+                      <span className="text-xs font-bold text-stone-700">Record Voice</span>
+                    </div>
+
+                    <div className="text-stone-300 font-bold text-xs uppercase tracking-wider">OR</div>
+
+                    <div className="flex flex-col items-center">
+                      <button
+                        onClick={() => audioFileInputRef.current?.click()}
+                        className="w-20 h-20 rounded-full border-2 border-[#4A3AFF] bg-indigo-50/60 hover:bg-indigo-100/80 text-[#4A3AFF] shadow-sm flex items-center justify-center transition-all mb-3 active:scale-95 cursor-pointer"
+                        title="Upload Audio File"
+                      >
+                        <Upload size={28} strokeWidth={2.5} />
+                      </button>
+                      <span className="text-xs font-bold text-[#4A3AFF]">Upload Audio</span>
+                    </div>
+
+                    <input
+                      ref={audioFileInputRef}
+                      type="file"
+                      accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.webm,.flac"
+                      className="hidden"
+                      onChange={handleAudioFileUpload}
+                    />
+                  </div>
+
+                  <p className="text-stone-400 font-medium text-xs text-center">
+                    Supports MP3, M4A, WAV, AAC, WebM, FLAC (up to 120MB)
+                  </p>
                 </>
               )}
 
@@ -485,7 +540,7 @@ export default function PublishWizard() {
                   />
 
                   <div className="flex items-center gap-2 text-[#10b981] font-bold text-xs uppercase tracking-widest mb-4">
-                    <Check size={14} strokeWidth={3} /> Recording Ready
+                    <Check size={14} strokeWidth={3} /> {audioBlob?.name ? `Audio File: ${audioBlob.name}` : "Recording Ready"}
                   </div>
 
                   <h2 className="text-3xl font-black text-stone-900 mb-6">
