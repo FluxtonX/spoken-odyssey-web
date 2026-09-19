@@ -6,21 +6,63 @@ import { ArrowUpRight } from "lucide-react";
 
 const ease = [0.22, 1, 0.36, 1];
 
-const PROFILE_IMAGES = [
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=85",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=85",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&q=85",
-  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&q=85",
+const STORIES = [
+  {
+    id: "adventure",
+    badge: "ADVENTURE",
+    title: "Breaking limits,\nfinding freedom.",
+    author: "By Alex H.",
+    image: "/explore/card-adventure.jpg",
+    alt: "Mountaineer standing on mountain peak",
+  },
+  {
+    id: "innovation",
+    badge: "INNOVATION",
+    title: "Building the future\nfrom the ground up.",
+    author: "By Sarah K.",
+    image: "/explore/card-innovation.jpg",
+    alt: "Rocket launch with fiery exhaust",
+  },
+  {
+    id: "arts-culture",
+    badge: "ARTS & CULTURE",
+    title: "Creating beauty\nthat lasts.",
+    author: "By Marcus L.",
+    image: "/explore/card-arts.jpg",
+    alt: "Musician playing guitar on stage with warm bokeh lights",
+  },
+  {
+    id: "humanity",
+    badge: "HUMANITY",
+    title: "Changing lives,\none act at a time.",
+    author: "By Priya M.",
+    image: "/explore/card-humanity.jpg",
+    alt: "Diverse circle of hands joined together",
+  },
+  {
+    id: "sports",
+    badge: "SPORTS",
+    title: "Discipline today,\nvictory tomorrow.",
+    author: "By Jordan B.",
+    image: "/explore/card-sports.jpg",
+    alt: "Male runner running on coastal road",
+  },
+  {
+    id: "business",
+    badge: "BUSINESS",
+    title: "From idea to impact.\nThe entrepreneur's journey.",
+    author: "By David T.",
+    image: "/explore/card-business.jpg",
+    alt: "Modern city skyline at sunset",
+  },
 ];
 
 export default function ExploreHeroSection({
   backgroundImage = "/explore.png",
 }) {
   return (
-    <section
-      className="relative overflow-hidden min-h-screen flex flex-col justify-between pt-16 sm:pt-20 pb-8 sm:pb-12"
-    >
-      {/* Background Image - Clean full opacity hero artwork */}
+    <section className="relative overflow-hidden min-h-screen flex flex-col justify-center pt-24 sm:pt-28 pb-12 sm:pb-16">
+      {/* Background Image - Earth from space */}
       <div className="absolute inset-0 z-0">
         <img
           src={backgroundImage}
@@ -29,184 +71,134 @@ export default function ExploreHeroSection({
         />
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full pt-6 sm:pt-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start w-full">
+      {/* Main Content Container */}
+      <div className="relative z-10 max-w-[1360px] mx-auto px-5 sm:px-8 lg:px-12 w-full my-auto">
+        <div className="flex flex-col lg:flex-row items-start justify-between gap-10 lg:gap-12 xl:gap-16 w-full">
 
-          {/* ── LEFT CONTENT ── */}
+          {/* ── LEFT HERO TEXT ── */}
           <motion.div
-            className="space-y-4 sm:space-y-5 max-w-md"
-            initial={{ opacity: 0, x: -40 }}
+            className="space-y-4 sm:space-y-6 lg:w-[320px] xl:w-[360px] flex-shrink-0 pt-2 lg:pt-6 text-left"
+            initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.9, ease }}
+            transition={{ duration: 0.8, ease }}
           >
-
-            {/* 1. Eyebrow — italic blue */}
+            {/* 1. Eyebrow */}
             <motion.div
-              initial={{ opacity: 0, y: 14 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1, ease }}
-              className="space-y-0.5"
             >
-              <p
-                className="italic font-semibold text-xs sm:text-sm"
-                style={{ color: "#4f37ff" }}
-              >
-                Real lives.
-              </p>
-              <p
-                className="italic font-semibold text-xs sm:text-sm flex items-center gap-1.5"
-                style={{ color: "#4f37ff" }}
-              >
-                Real stories.{" "}
-                <span
-                  className="not-italic"
-                  style={{ color: "#4f37ff" }}
-                  aria-hidden="true"
-                >
+              <p className="italic font-medium text-sm sm:text-base text-[#2563eb] flex items-center gap-1.5">
+                It&apos;s your journey{" "}
+                <span className="not-italic text-[#2563eb]" aria-hidden="true">
                   ♡
                 </span>
               </p>
             </motion.div>
 
-            {/* 2. Main Heading (minimized size) */}
+            {/* 2. Main Heading */}
             <motion.div
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2, ease }}
             >
-              <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-extrabold leading-[1.12] tracking-tight">
-                <span style={{ color: "#1a0a2e" }}>Explore</span>
+              <h1 className="text-4xl sm:text-5xl lg:text-[50px] xl:text-[56px] font-extrabold leading-[1.08] tracking-tight text-slate-900">
+                Explore
                 <br />
-                <span style={{ color: "#4f37ff" }}>extraordinary</span>
+                extraordinary
                 <br />
-                <span style={{ color: "#1a0a2e" }}>journeys.</span>
+                <span className="text-[#2563eb]">lives.</span>
               </h1>
             </motion.div>
 
-            {/* 3. Description (minimized size) */}
+            {/* 3. Description */}
             <motion.p
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3, ease }}
-              className="text-xs sm:text-sm leading-relaxed max-w-sm"
-              style={{ color: "#52496d" }}
+              className="text-xs sm:text-sm leading-relaxed text-slate-600 max-w-xs sm:max-w-sm"
             >
-              Be inspired by stories from people who&rsquo;ve lived fully and
-              left a legacy worth remembering.
+              Discover real stories from remarkable people.
+              <br />
+              Be inspired. Learn from their journeys.
             </motion.p>
 
             {/* 4. CTA Button */}
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4, ease }}
-              className="pt-1"
+              className="pt-2"
             >
               <Link
                 id="explore-start-btn"
-                href="/discover"
-                className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_8px_24px_rgba(79,55,255,0.32)]"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
-                }}
+                href="/signup"
+                className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 py-3 transition-all duration-300 bg-[#2563eb] hover:bg-[#1d4ed8] shadow-[0_6px_20px_rgba(37,99,235,0.35)] hover:-translate-y-0.5 active:scale-95"
               >
                 Start exploring
-                <ArrowUpRight size={14} strokeWidth={2.5} />
+                <ArrowUpRight size={15} strokeWidth={2.5} />
               </Link>
             </motion.div>
           </motion.div>
 
-          {/* ── RIGHT CONTENT (empty – background image fills it) ── */}
-          <div className="hidden lg:block" />
-        </div>
-      </div>
-
-      {/* ── DOWNSIDE & CENTERED SOCIAL-PROOF CARD ── */}
-      <div className="relative z-10 max-w-xl mx-auto px-4 sm:px-6 w-full mt-10 sm:mt-12">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.5, ease }}
-          className="flex justify-center"
-        >
-          <div
-            className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-5 rounded-2xl px-5 py-3 w-full"
-            style={{
-              background: "rgba(255, 255, 255, 0.90)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              border: "1px solid rgba(79, 55, 255, 0.15)",
-              boxShadow:
-                "0 8px 30px -6px rgba(79, 55, 255, 0.10), 0 2px 8px rgba(0, 0, 0, 0.04)",
-            }}
-          >
-            {/* Left: Avatars + Text */}
-            <div className="flex items-center gap-3">
-              {/* Overlapping avatars */}
-              <div className="flex items-center -space-x-2.5 flex-shrink-0">
-                {PROFILE_IMAGES.map((src, i) => (
-                  <motion.img
-                    key={i}
-                    src={src}
-                    alt={`Story narrator ${i + 1}`}
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white object-cover shadow-sm"
-                    style={{ zIndex: PROFILE_IMAGES.length - i }}
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{
-                      duration: 0.4,
-                      delay: 0.6 + i * 0.08,
-                      ease,
-                    }}
-                  />
-                ))}
-                {/* +2k bubble */}
-                <div
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white flex items-center justify-center text-[10px] sm:text-xs font-extrabold shadow-sm"
-                  style={{
-                    background: "#eef0ff",
-                    color: "#4f37ff",
-                    zIndex: 0,
+          {/* ── RIGHT CARDS GRID ── */}
+          <div className="flex-1 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
+              {STORIES.map((story, i) => (
+                <motion.div
+                  key={story.id}
+                  initial={{ opacity: 0, y: 22 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.55,
+                    delay: 0.15 + i * 0.08,
+                    ease,
                   }}
+                  className="group relative aspect-[3/4] rounded-[22px] overflow-hidden border border-white/30 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-300 hover:shadow-[0_16px_40px_rgba(0,0,0,0.22)] bg-slate-900"
                 >
-                  +2k
-                </div>
-              </div>
+                  {/* Top-Left Category Badge */}
+                  <div className="absolute top-3.5 left-3.5 z-20">
+                    <span className="inline-block px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase text-white bg-[#2563eb] shadow-sm">
+                      {story.badge}
+                    </span>
+                  </div>
 
-              {/* Text */}
-              <div className="leading-snug text-left">
-                <p
-                  className="text-[11px] sm:text-xs font-semibold"
-                  style={{ color: "#1a0a2e" }}
-                >
-                  Thousands of stories. Countless lessons.
-                </p>
-                <p
-                  className="text-[11px] sm:text-xs font-bold"
-                  style={{ color: "#4f37ff" }}
-                >
-                  One shared humanity.
-                </p>
-              </div>
+                  {/* Card Image with Hover Subtle Zoom */}
+                  <img
+                    src={story.image}
+                    alt={story.alt}
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+                  />
+
+                  {/* Frosted Glass Bottom Overlay */}
+                  <div className="absolute bottom-0 inset-x-0 z-10 p-3.5 sm:p-4 backdrop-blur-md bg-black/40 border-t border-white/20 text-left">
+                    <h3 className="text-xs sm:text-[13.5px] font-semibold text-white leading-snug drop-shadow-sm whitespace-pre-line">
+                      {story.title}
+                    </h3>
+                    <p className="text-[11px] text-white/80 font-normal mt-1">
+                      {story.author}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
 
-            {/* Right: See all stories button */}
-            <Link
-              id="explore-see-all-btn"
-              href="/discover"
-              className="inline-flex items-center gap-1.5 rounded-full border font-bold text-[11px] sm:text-xs px-3.5 py-1.5 whitespace-nowrap transition-all duration-200 hover:bg-[#f5f3ff] hover:-translate-y-0.5 active:scale-95 shadow-sm flex-shrink-0"
-              style={{
-                borderColor: "rgba(79, 55, 255, 0.3)",
-                color: "#1a0a2e",
-              }}
+            {/* Bottom Centered Caption */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.7, ease }}
+              className="mt-6 sm:mt-8 text-center"
             >
-              See all stories
-              <ArrowUpRight size={12} strokeWidth={2.5} />
-            </Link>
+              <p className="text-xs sm:text-sm font-semibold text-[#1e40af]/85 tracking-wide flex items-center justify-center gap-2">
+                <span>+</span>
+                <span>More stories coming soon.</span>
+                <span>+</span>
+              </p>
+            </motion.div>
           </div>
-        </motion.div>
+
+        </div>
       </div>
     </section>
   );
