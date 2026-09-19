@@ -29,7 +29,7 @@ export default function LandingNav() {
     { label: "How it Works", href: "/how-it-works" },
     { label: "Explore", href: "/explore" },
     { label: "For Families", href: "/for-families" },
-    { label: "Pricing", href: "/pricing" },
+    { label: "Store", href: "/store" },
   ];
 
   return (
@@ -65,14 +65,6 @@ export default function LandingNav() {
               </Link>
             );
           })}
-          <a
-            href="https://odyssey-store-ten.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-bold text-[#52496d] hover:text-[#4f37ff] transition-all"
-          >
-            Store
-          </a>
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -108,15 +100,6 @@ export default function LandingNav() {
                 {link.label}
               </Link>
             ))}
-            <a
-              href="https://odyssey-store-ten.vercel.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 text-sm font-bold text-[#4f37ff]"
-            >
-              Store
-            </a>
             <Link href="/auth" className="text-sm font-extrabold text-[#1a0a2e] hover:text-[#4f37ff]">
               Sign in
             </Link>
