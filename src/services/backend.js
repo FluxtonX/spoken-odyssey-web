@@ -149,6 +149,20 @@ export async function updateProfileOnBackend(token, formData) {
   return response.data;
 }
 
+/**
+ * Get aggregated home dashboard data in a single network roundtrip.
+ * Combines stats, family space, recent moments, prompts, timeline, and activities.
+ */
+export async function getDashboardHomeData(token) {
+  const cacheKey = `dashboard_home_${token ? token.slice(-16) : "public"}`;
+  const cached = getCachedData(cacheKey, 2 * 60 * 1000);
+  if (cached) return cached;
+
+  const response = await backendFetch("/api/dashboard/home", { token });
+  if (response?.data) setCachedData(cacheKey, response.data);
+  return response?.data !== undefined ? response.data : response;
+}
+
 /** Get user's albums from MongoDB */
 export async function getAlbumsFromBackend(token) {
   const cacheKey = `albums_${token ? token.slice(-16) : "public"}`;
