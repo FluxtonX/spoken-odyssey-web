@@ -108,13 +108,13 @@ export default function HowItWorksHeroSection({
           </motion.div>
         </div>
 
-        {/* ── MIDDLE: 5 STEPS (MINIMIZED GAPS, CENTER ALIGNED, HIGH CONTRAST) ── */}
-        <div className="w-full flex justify-center items-center mt-1 sm:mt-2">
-          {/* Constrained container so gaps are compact and centered */}
-          <div className="relative w-full max-w-3xl lg:max-w-[820px] mx-auto px-2 sm:px-4">
+        {/* ── MIDDLE: 5 STEPS (MINIMAL BLUR, NO BORDERS, SNUG MARGINS) ── */}
+        <div className="w-full flex justify-center items-center mt-1">
+          {/* Seamless low blur without borders or heavy shadows */}
+          <div className="relative w-full max-w-3xl lg:max-w-[780px] mx-auto px-1 sm:px-2 py-3 rounded-2xl backdrop-blur-[4px] bg-white/10">
 
             {/* Glowing SVG Connecting Line */}
-            <div className="hidden sm:block absolute top-[28px] sm:top-[32px] left-2 sm:left-4 right-2 sm:right-4 z-0 pointer-events-none">
+            <div className="hidden sm:block absolute top-[40px] sm:top-[44px] left-1 sm:left-2 right-1 sm:right-2 z-0 pointer-events-none">
               <svg
                 className="w-full h-6 overflow-visible"
                 xmlns="http://www.w3.org/2000/svg"
@@ -153,8 +153,8 @@ export default function HowItWorksHeroSection({
               </svg>
             </div>
 
-            {/* Steps Row - Compact Gaps, Center-Aligned */}
-            <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4 relative z-10 items-start">
+            {/* Steps Row - Snug Gaps, Center-Aligned */}
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5 md:gap-3 relative z-10 items-start">
               {STEPS.map((item, idx) => {
                 const Icon = item.icon;
                 return (
