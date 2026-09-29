@@ -37,7 +37,7 @@ export default function LandingNav() {
       <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
         <Link href="/" className="flex items-center gap-3">
           <img
-            src="/odyssey.png"
+            src="/odysseyLogo.png"
             alt="Spoken Odyssey"
             className="h-8 sm:h-9 w-auto object-contain"
           />

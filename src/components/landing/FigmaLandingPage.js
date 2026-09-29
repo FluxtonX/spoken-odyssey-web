@@ -4,16 +4,20 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
+  ArrowUpRight,
   BarChart3,
   BookOpen,
   BookmarkCheck,
+  Camera,
   Check,
   ChevronRight,
   Clock3,
   Database,
+  Gem,
   Globe,
   Heart,
   Image,
+  Infinity as InfinityIcon,
   Lock,
   Menu,
   Mic2,
@@ -28,6 +32,7 @@ import {
 import { useState, useEffect } from "react";
 import LandingFooter from "./LandingFooter";
 import LandingNav from "./LandingNav";
+import HeroSignInCard from "./HeroSignInCard";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -328,204 +333,143 @@ function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 
 }
 
 function HeroSection() {
-  const FEATURE_CARDS = [
-    { icon: Mic2, title: "Record", description: "Voice, video or text." },
-    { icon: Image, title: "Capture", description: "Photos & videos from your journey." },
-    { icon: BookOpen, title: "Reflect", description: "Add thoughts, feelings & lessons." },
-    { icon: Heart, title: "Relive", description: "Rediscover moments anytime, anywhere." },
-    { icon: Lock, title: "Keep Safe", description: "Private, secure & always yours." },
-  ];
-
-  const AVATARS = [
-    "https://i.pravatar.cc/100?img=1",
-    "https://i.pravatar.cc/100?img=2",
-    "https://i.pravatar.cc/100?img=3",
-    "https://i.pravatar.cc/100?img=4",
-    "https://i.pravatar.cc/100?img=5",
+  const HIGHLIGHTS = [
+    {
+      icon: Camera,
+      title: "Your moments, your way",
+      description: "Capture voice, video, photos and written memories.",
+    },
+    {
+      icon: Lock,
+      title: "Private and secure",
+      description: "Your stories stay in your control. Only you choose who can see them.",
+    },
+    {
+      icon: Users,
+      title: "More than social media",
+      description: "Not likes or followers. A meaningful space for real memories and life experiences.",
+    },
+    {
+      icon: InfinityIcon,
+      title: "For today and generations",
+      description: "Keep your story alive for family, friends and future generations.",
+    },
+    {
+      icon: Gem,
+      title: "A more connected world",
+      description: "Discover inspiring stories from extraordinary people around the world.",
+    },
   ];
 
   return (
-    <section className="relative min-h-screen overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+    <section className="relative overflow-hidden flex flex-col justify-between pt-16 sm:pt-20 pb-1 sm:pb-2 min-h-[640px] lg:min-h-[88vh] lg:max-h-[900px]">
+      {/* Background Image: Original heroo.png without overlay */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <img 
           src="/heroo.png" 
           alt="Background" 
           className="w-full h-full object-cover object-center"
         />
-        {/* Subtle transparent mask matching other hero sections for high clarity & readability */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(105deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.70) 30%, rgba(255,255,255,0.20) 55%, transparent 75%)",
-          }}
-        />
       </div>
 
-      {/* Main Hero Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 pt-16 md:pt-24 pb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+      {/* Main Grid: Left content + Right Floating Sign-In Card */}
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 w-full pt-2 sm:pt-4 pb-3 sm:pb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
           
-          {/* Left Content */}
+          {/* Left Hero Content */}
           <motion.div 
-            className="space-y-4 sm:space-y-5 max-w-md"
-            initial={{ opacity: 0, y: 30 }}
+            className="lg:col-span-7 space-y-4 max-w-2xl -translate-y-3 sm:-translate-y-6 lg:-translate-y-8"
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.7, ease }}
           >
-            <p
-              className="italic font-semibold text-xs sm:text-sm flex items-center gap-1.5"
-              style={{ color: "#4f37ff" }}
-            >
-              It's your journey.{" "}
-              <span className="not-italic text-sm" aria-hidden="true">♡</span>
-            </p>
-            
-            <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-extrabold leading-[1.12] tracking-tight">
-              <span style={{ color: "#1a0a2e" }}>Your life.</span>
-              <br />
-              <span style={{ color: "#1a0a2e" }}>Your story.</span>
-              <br />
-              <span style={{ color: "#4f37ff" }}>Your Odyssey.</span>
-            </h1>
-            
-            <p className="text-xs sm:text-sm leading-relaxed max-w-md font-medium" style={{ color: "#52496d" }}>
-              Capture the moments. Tell the stories. Relive them forever.
+            {/* Eyebrow: It's your journey ♡ */}
+            <p className="italic font-medium text-xs sm:text-sm text-[#1E293B] flex items-center gap-1.5 font-serif tracking-tight">
+              <span>It&apos;s your journey</span>
+              <span className="not-italic text-sm text-[#2563EB]" aria-hidden="true">♡</span>
             </p>
 
+            {/* Main Headline */}
+            <h1 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[50px] font-black leading-[1.08] tracking-tight text-[#0B0E23]">
+              <span className="block">Collect life</span>
+              <span className="block bg-gradient-to-r from-[#0066FF] via-[#0099FF] to-[#00D2FF] bg-clip-text text-transparent">
+                experiences.
+              </span>
+              <span className="block">Cherish forever.</span>
+            </h1>
+
+            {/* Paragraph Description */}
+            <p className="text-xs sm:text-sm leading-relaxed text-[#475569] max-w-md font-normal">
+              A <strong className="font-bold text-[#0B0E23]">private</strong> space to capture, organise and share the moments, people and stories that make your life unique.
+            </p>
+
+            {/* Action Buttons Row */}
             <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Link 
-                href="/signup" 
-                className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_8px_24px_rgba(79,55,255,0.3)]"
+              <Link
+                href="/signup"
+                className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 py-2.5 sm:py-3 transition-all duration-200 hover:shadow-lg hover:opacity-95 active:scale-95 shadow-[0_8px_20px_rgba(0,102,255,0.3)]"
                 style={{
-                  background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
+                  background: "linear-gradient(135deg, #0066FF 0%, #8A2BE2 100%)",
                 }}
               >
-                Start your Odyssey <ArrowRight size={15} />
+                <span>Start your Odyssey</span>
+                <ArrowUpRight size={15} strokeWidth={2.4} />
               </Link>
-              <Link 
-                href="#how-it-works" 
-                className="inline-flex items-center gap-2 rounded-full font-bold text-xs sm:text-sm px-5 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
+
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center gap-2.5 rounded-full font-bold text-xs sm:text-sm text-[#0B0E23] transition-all duration-200 hover:text-[#0066FF] group py-1.5 px-1"
               >
-                <div className="w-5 h-5 rounded-full bg-[#4f37ff]/10 flex items-center justify-center text-[#4f37ff]">
-                  <Play size={10} className="fill-[#4f37ff] ml-0.5" />
+                <div className="w-8 h-8 rounded-full bg-white border-2 border-[#2563EB] flex items-center justify-center text-[#2563EB] shadow-2xs group-hover:scale-105 transition-transform">
+                  <Play size={11} className="fill-[#2563EB] ml-0.5" />
                 </div>
-                See how it works
-              </Link>
-            </div>
-
-            {/* Social Proof */}
-            <div className="pt-2">
-              <p className="text-xs text-gray-600 font-medium mb-2.5">
-                Join thousands of users capturing moments that matter
-              </p>
-              <div className="flex items-center">
-                {AVATARS.map((avatar, index) => (
-                  <img
-                    key={index}
-                    src={avatar}
-                    alt={`User ${index + 1}`}
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white -ml-2.5 first:ml-0 object-cover"
-                  />
-                ))}
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white bg-gradient-to-r from-blue-500 to-purple-600 -ml-2.5 flex items-center justify-center text-white text-[10px] sm:text-xs font-bold shadow-sm">
-                  +2k
-                </div>
-              </div>
+                <span>See how it works</span>
+              </a>
             </div>
           </motion.div>
 
-          {/* Right Content - Empty as requested */}
+          {/* Right Floating Sign-In Card */}
           <motion.div 
-            className="relative h-[400px] hidden lg:block"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            {/* No floating images or globe as requested */}
-          </motion.div>
-        </div>
-
-        {/* Feature Cards Section */}
-        <div className="mt-20 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* 5 Feature Cards - Horizontal Strip */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {FEATURE_CARDS.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  className="text-center"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.6 + index * 0.1 }}
-                >
-                  <div className="w-10 h-10 mx-auto mb-2 rounded-full border-2 border-blue-300 flex items-center justify-center">
-                    <feature.icon className="text-blue-500" size={20} />
-                  </div>
-                  <h3 className="font-bold text-gray-900 mb-1 text-xs uppercase tracking-wide">{feature.title}</h3>
-                  <p className="text-xs text-gray-600 leading-tight">{feature.description}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* AI Glasses Card */}
-          <motion.div
-            className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg relative overflow-hidden flex flex-col justify-between"
+            className="lg:col-span-5 flex justify-center lg:justify-end"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 1 }}
+            transition={{ duration: 0.7, delay: 0.1, ease }}
           >
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="bg-gray-900 text-white text-[11px] font-bold px-2 py-0.5 rounded tracking-wide">NEW</span>
-                <span className="text-sm font-bold text-gray-900 tracking-wide">
-                  <span className="text-purple-600">AI</span> GLASSES
-                </span>
-              </div>
-              
-              <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-3">
-                Capture life as it naturally happens.
-              </h3>
-              
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <ul className="space-y-1.5 flex-1">
-                  {[
-                    "Hands-free recording",
-                    "AI highlights what matters",
-                    "Privacy first, always in control",
-                    "Seamless sync across devices"
-                  ].map((item, index) => (
-                    <li key={index} className="flex items-center gap-2 text-xs sm:text-[13px] text-gray-600 font-medium">
-                      <span className="text-purple-500 font-bold">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="relative w-40 sm:w-48 md:w-52 lg:w-44 xl:w-52 flex-shrink-0 flex items-center justify-center">
-                  <img 
-                    src="/blackglass.png" 
-                    alt="AI Glasses" 
-                    className="w-full h-auto object-contain drop-shadow-md transition-transform duration-300 hover:scale-105"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <a 
-              href="https://odyssey-store-ten.vercel.app" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-2.5 rounded-full font-bold transition-all hover:scale-[1.01] inline-flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md"
-            >
-              <span>Visit Store</span>
-              <ChevronRight size={15} />
-            </a>
+            <HeroSignInCard />
           </motion.div>
         </div>
+      </div>
+
+      {/* Bottom Narrow Wide Card (5 Segmented Feature Highlights - Minimized height & lowered) */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-auto translate-y-1 sm:translate-y-2">
+        <motion.div 
+          className="rounded-[18px] sm:rounded-[22px] bg-white/95 backdrop-blur-md shadow-[0_8px_25px_rgba(15,23,42,0.06)] border border-slate-100/90 py-2 sm:py-2.5 px-3 sm:px-5"
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15, ease }}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-0 lg:divide-x divide-slate-100">
+            {HIGHLIGHTS.map((item, index) => {
+              const IconComp = item.icon;
+              return (
+                <div 
+                  key={index} 
+                  className="flex flex-col items-center text-center px-2 sm:px-2.5 py-0.5"
+                >
+                  <div className="w-7 h-7 rounded-full bg-[#EFF6FF] border border-[#BFDBFE]/40 text-[#2563EB] flex items-center justify-center mb-0.5 shadow-2xs">
+                    <IconComp size={14} strokeWidth={2.1} />
+                  </div>
+                  <h3 className="text-[11px] sm:text-xs font-extrabold text-[#0B0E23] mb-0.5 tracking-tight leading-tight">
+                    {item.title}
+                  </h3>
+                  <p className="text-[9.5px] sm:text-[10px] text-slate-500 leading-tight font-medium max-w-[195px] mx-auto">
+                    {item.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
       </div>
     </section>
   );

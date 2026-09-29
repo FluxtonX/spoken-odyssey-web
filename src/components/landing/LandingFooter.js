@@ -12,7 +12,7 @@ export default function LandingFooter() {
     <footer className="bg-[#111111] py-14 text-white">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 lg:grid-cols-[1.2fr_2fr] lg:px-8">
         <div>
-          <img src="/odyssey.png" alt="Spoken Odyssey" className="h-9 w-auto brightness-0 invert" />
+          <img src="/odysseyLogo.png" alt="Spoken Odyssey" className="h-9 w-auto brightness-0 invert" />
           <p className="mt-5 max-w-xs text-sm font-semibold leading-6 text-[#aaa6b5]">
             Your life story. Preserved for the people who matter most.
           </p>
