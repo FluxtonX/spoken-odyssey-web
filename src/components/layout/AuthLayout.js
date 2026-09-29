@@ -14,7 +14,7 @@ export default function AuthLayout({ children, view = "login" }) {
         {/* Brand Header */}
         <div className="absolute top-12 left-12 z-20 flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-            <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-8 w-auto object-contain brightness-0 invert" />
+            <img src="/odysseyLogo.png" alt="Spoken Odyssey Logo" className="h-8 w-auto object-contain brightness-0 invert" />
           </Link>
         </div>
 

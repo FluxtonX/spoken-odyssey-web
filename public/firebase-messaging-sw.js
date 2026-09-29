@@ -26,8 +26,8 @@ messaging.onBackgroundMessage((payload) => {
 
   const notificationOptions = {
     body,
-    icon: '/odyssey.png',
-    badge: '/odyssey.png',
+    icon: '/odysseyIcon.png',
+    badge: '/odysseyIcon.png',
     image: image,
     vibrate: [100, 50, 100],
     data: {
