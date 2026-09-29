@@ -9,7 +9,7 @@ export const metadata = {
   title: "Spoken Odyssey — Preserve Your Family's Voice Forever",
   description: "A private, generational oral history vault to capture, organize, and preserve your family's most precious stories, voices, and memories.",
   icons: {
-    icon: "/spoken.png",
+    icon: "/odysseyIcon.png",
   },
 };
 
@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <meta name="color-scheme" content="light" />
-        <link rel="icon" href="/spoken.png" />
+        <link rel="icon" href="/odysseyIcon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />

@@ -60,8 +60,8 @@ export async function initializePushNotifications(authToken) {
 
         const options = {
           body,
-          icon: "/odyssey.png",
-          badge: "/odyssey.png",
+          icon: "/odysseyIcon.png",
+          badge: "/odysseyIcon.png",
           data: payload?.data || {},
         };
 

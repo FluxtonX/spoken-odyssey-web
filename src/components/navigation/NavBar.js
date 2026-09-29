@@ -142,10 +142,10 @@ export default function NavBar() {
       )}>
         {/* Logo */}
         <div className="mb-8 hidden items-center gap-3 p-6 pb-2 lg:flex">
-          <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-7 w-auto object-contain" />
+          <img src="/odysseyLogo.png" alt="Spoken Odyssey Logo" className="h-8 w-auto object-contain" />
         </div>
         <div className="mb-6 mt-2 flex justify-center p-4 lg:hidden">
-          <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="h-9 w-auto object-contain" />
+          <img src="/odysseyIcon.png" alt="Spoken Odyssey Logo" className="h-9 w-9 object-contain" />
         </div>
 
         {/* Publish Memory Button */}

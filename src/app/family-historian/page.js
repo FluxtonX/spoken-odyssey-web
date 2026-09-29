@@ -252,7 +252,7 @@ export default function AiFamilyHistorianPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#4A3AFF] to-[#6366F1] flex items-center justify-center p-1.5 shadow-md shadow-[#4A3AFF]/20">
-                        <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="w-full h-full object-contain brightness-0 invert" />
+                        <img src="/odysseyIcon.png" alt="Spoken Odyssey Logo" className="w-full h-full object-contain brightness-0 invert" />
                       </div>
                       <div>
                         <h2 className="text-sm font-extrabold text-stone-900 dark:text-white leading-tight">AI Historian</h2>
@@ -391,7 +391,7 @@ export default function AiFamilyHistorianPage() {
                   </button>
 
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#4A3AFF] to-[#6366F1] flex items-center justify-center p-1.5 shadow-md shadow-[#4A3AFF]/20">
-                    <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="w-full h-full object-contain brightness-0 invert" />
+                    <img src="/odysseyIcon.png" alt="Spoken Odyssey Logo" className="w-full h-full object-contain brightness-0 invert" />
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-stone-900 dark:text-white flex items-center gap-2">
@@ -419,7 +419,7 @@ export default function AiFamilyHistorianPage() {
                 {conversation.length === 0 ? (
                   <div className="text-center py-16 sm:py-24 space-y-4">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#4A3AFF] to-[#6366F1] flex items-center justify-center p-3 mx-auto shadow-xl shadow-[#4A3AFF]/20">
-                      <img src="/odyssey.png" alt="Spoken Odyssey Logo" className="w-full h-full object-contain brightness-0 invert" />
+                      <img src="/odysseyIcon.png" alt="Spoken Odyssey Logo" className="w-full h-full object-contain brightness-0 invert" />
                     </div>
                     <h3 className="text-xl font-extrabold text-stone-900 dark:text-white">
                       Ask your AI Family Historian
@@ -435,7 +435,7 @@ export default function AiFamilyHistorianPage() {
                       {/* Assistant Brand Avatar (Spoken Odyssey Logo) */}
                       {msg.role === "assistant" && (
                         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#4A3AFF] to-[#6366F1] flex items-center justify-center p-1.5 shrink-0 shadow-md shadow-[#4A3AFF]/20 mt-1">
-                          <img src="/odyssey.png" alt="SO Logo" className="w-full h-full object-contain brightness-0 invert" />
+                          <img src="/odysseyIcon.png" alt="SO Logo" className="w-full h-full object-contain brightness-0 invert" />
                         </div>
                       )}
 
@@ -506,7 +506,7 @@ export default function AiFamilyHistorianPage() {
                 {loading && (
                   <div className="flex items-center gap-3 text-[#4A3AFF] dark:text-indigo-400 text-xs font-bold bg-[#EEF2FF]/80 dark:bg-indigo-950/40 p-4 rounded-2xl border border-[#C7D2FE]/80 dark:border-indigo-900/40 animate-pulse">
                     <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#4A3AFF] to-[#6366F1] p-1 flex items-center justify-center shadow-xs">
-                      <img src="/odyssey.png" alt="SO" className="w-full h-full object-contain brightness-0 invert animate-spin" />
+                      <img src="/odysseyIcon.png" alt="SO" className="w-full h-full object-contain brightness-0 invert animate-spin" />
                     </div>
                     <span>Retrieving authorized family memories & synthesizing response...</span>
                   </div>
