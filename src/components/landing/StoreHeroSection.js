@@ -88,7 +88,7 @@ export default function StoreHeroSection() {
 
   return (
     <section
-      className="relative min-h-screen flex flex-col justify-between pt-24 sm:pt-28 pb-6 sm:pb-8 bg-no-repeat bg-cover bg-[center_top]"
+      className="relative min-h-screen lg:min-h-[1024px] flex flex-col justify-between pt-24 sm:pt-28 pb-12 sm:pb-16 bg-no-repeat bg-cover bg-[position:center_bottom]"
       style={{ backgroundImage: "url('/store.png')" }}
     >
       <div className="relative z-10 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex flex-col justify-between">
@@ -142,10 +142,10 @@ export default function StoreHeroSection() {
           </div>
         </motion.div>
 
-        {/* ── BOTTOM AREA: 4 CARDS + TIGHT FEATURE BAR ── */}
-        <div className="w-full flex flex-col gap-3 sm:gap-3.5 mt-auto">
+        {/* ── BOTTOM AREA: 4 CARDS + TIGHT FEATURE BAR (BROUGHT LOWER DOWN & MINIMIZED SIZES) ── */}
+        <div className="w-full flex flex-col gap-2.5 sm:gap-3 mt-auto pt-6 sm:pt-10 lg:pt-14">
           {/* 4 Cards Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 items-stretch">
             {/* Product Cards 1, 2, 3 */}
             {products.map((item, idx) => (
               <motion.div
@@ -153,35 +153,35 @@ export default function StoreHeroSection() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 * (idx + 1), ease }}
-                className="rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/90 p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)] flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:-translate-y-1"
+                className="rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/90 p-3 sm:p-3.5 shadow-[0_6px_24px_rgba(0,0,0,0.04)] flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
               >
                 <div>
-                  {/* Glasses Image */}
-                  <div className="w-full h-24 sm:h-28 flex items-center justify-center mb-2">
+                  {/* Glasses Image (Minimized) */}
+                  <div className="w-full h-18 sm:h-20 flex items-center justify-center mb-1.5">
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="max-h-full max-w-[92%] object-contain transition-transform duration-300 hover:scale-105"
+                      className="max-h-full max-w-[85%] object-contain transition-transform duration-300 hover:scale-105"
                     />
                   </div>
 
                   {/* Title & Subtitles */}
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                  <h3 className="text-xs sm:text-[13.5px] font-bold text-slate-900 leading-snug">
                     {item.name}
                   </h3>
-                  <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-relaxed mt-0.5">
+                  <p className="text-[9.5px] sm:text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
                     {item.tagline}
                     <br />
                     {item.subtext}
                   </p>
 
                   {/* Color Swatches */}
-                  <div className="flex items-center gap-2 mt-2.5">
+                  <div className="flex items-center gap-1.5 mt-2">
                     {item.colors.map((color, cIdx) => (
                       <span
                         key={cIdx}
                         title={color.name}
-                        className={`w-3.5 h-3.5 rounded-full ${color.border} shadow-inner cursor-pointer transition-transform hover:scale-125`}
+                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${color.border} shadow-inner cursor-pointer transition-transform hover:scale-125`}
                         style={{ backgroundColor: color.bg }}
                       />
                     ))}
@@ -189,29 +189,29 @@ export default function StoreHeroSection() {
                 </div>
 
                 {/* Price & CTA */}
-                <div className="flex items-center justify-between mt-4 pt-1">
-                  <span className="text-sm sm:text-base font-extrabold text-slate-950">
+                <div className="flex items-center justify-between mt-3 pt-1 border-t border-slate-100">
+                  <span className="text-xs sm:text-[13px] font-extrabold text-slate-950">
                     {item.price}
                   </span>
                   <a
                     href={item.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 bg-[#0a0f29] hover:bg-[#1a234e] text-white text-[11px] sm:text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all duration-200 hover:-translate-y-0.5"
+                    className="inline-flex items-center gap-1 bg-[#0a0f29] hover:bg-[#1a234e] text-white text-[10px] sm:text-[10.5px] font-semibold px-2.5 sm:px-3 py-1 rounded-full transition-all duration-200 hover:-translate-y-0.5"
                   >
                     View details
-                    <ArrowRight size={13} strokeWidth={2.5} />
+                    <ArrowRight size={11} strokeWidth={2.5} />
                   </a>
                 </div>
               </motion.div>
             ))}
 
-            {/* Card 4: Lifestyle Hiker Card */}
+            {/* Card 4: Lifestyle Hiker Card (Minimized) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4, ease }}
-              className="relative rounded-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-slate-200/90 group cursor-pointer min-h-[220px] flex flex-col justify-end"
+              className="relative rounded-2xl overflow-hidden shadow-[0_6px_24px_rgba(0,0,0,0.06)] border border-slate-200/90 group cursor-pointer min-h-[175px] sm:min-h-[190px] flex flex-col justify-end"
             >
               <img
                 src="/store/card_lifestyle_hiker_hd.jpg"
@@ -226,7 +226,7 @@ export default function StoreHeroSection() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5, ease }}
-            className="rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200/80 px-4 sm:px-6 py-3 sm:py-3.5 shadow-sm"
+            className="rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200/80 px-3 sm:px-5 py-2 sm:py-2.5 shadow-xs"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-slate-200/80">
               {features.map((feature, fIdx) => {
@@ -234,22 +234,22 @@ export default function StoreHeroSection() {
                 return (
                   <div
                     key={fIdx}
-                    className={`flex items-center gap-3.5 py-2 sm:py-1 ${
+                    className={`flex items-center gap-2.5 sm:gap-3 py-1.5 sm:py-1 ${
                       fIdx === 0
-                        ? "lg:pr-4"
+                        ? "lg:pr-3"
                         : fIdx === 3
-                        ? "lg:pl-4"
-                        : "lg:px-4"
+                        ? "lg:pl-3"
+                        : "lg:px-3"
                     }`}
                   >
                     <div className="flex-shrink-0 text-[#2563eb]">
-                      <IconComponent size={26} strokeWidth={2} />
+                      <IconComponent size={22} strokeWidth={2} />
                     </div>
                     <div className="text-left">
-                      <p className="text-xs sm:text-[13px] font-bold text-slate-900 leading-tight">
+                      <p className="text-[11px] sm:text-xs font-bold text-slate-900 leading-tight">
                         {feature.title}
                       </p>
-                      <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-normal mt-0.5">
+                      <p className="text-[9.5px] sm:text-[10px] text-slate-500 font-medium leading-normal mt-0.5">
                         {feature.description}
                       </p>
                     </div>
