@@ -33,6 +33,8 @@ import { useState, useEffect } from "react";
 import LandingFooter from "./LandingFooter";
 import LandingNav from "./LandingNav";
 import HeroSignInCard from "./HeroSignInCard";
+import RicherLifeSection from "./RicherLifeSection";
+import EverydayExtraordinarySlider from "./EverydayExtraordinarySlider";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -1118,16 +1120,18 @@ export default function FigmaLandingPage() {
     <main className="min-h-screen overflow-hidden bg-white text-[#211934]">
       <LandingNav />
       <HeroSection />
-      <BeliefSection />
-      <StepsSection />
-      <FeatureCards />
-      <ComparisonSection />
-      <HardwareSection />
-      <LegacySection />
-      <LivesSection />
-      <IntelligenceSection />
-      <SecuritySection />
-      <CTASection />
+      <RicherLifeSection />
+      <EverydayExtraordinarySlider />
+      {/* <BeliefSection /> */}
+      {/* <StepsSection /> */}
+      {/* <FeatureCards /> */}
+      {/* <ComparisonSection /> */}
+      {/* <HardwareSection /> */}
+      {/* <LegacySection /> */}
+      {/* <LivesSection /> */}
+      {/* <IntelligenceSection /> */}
+      {/* <SecuritySection /> */}
+      {/* <CTASection /> */}
       <LandingFooter />
     </main>
   );
