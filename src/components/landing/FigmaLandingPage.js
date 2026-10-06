@@ -364,23 +364,23 @@ function HeroSection() {
   ];
 
   return (
-    <section className="relative overflow-hidden flex flex-col justify-between pt-16 sm:pt-20 pb-1 sm:pb-2 min-h-[640px] lg:min-h-[88vh] lg:max-h-[900px]">
-      {/* Background Image: Original heroo.png without overlay */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+    <section className="relative overflow-hidden flex flex-col justify-between pt-18 sm:pt-22 lg:pt-24 pb-4 sm:pb-6 min-h-[740px] sm:min-h-[800px] lg:min-h-[95vh] xl:min-h-screen 2xl:min-h-[1020px]">
+      {/* Background Image: Original heroo.png with expanded height & responsive positioning */}
+      <div className="absolute inset-0 z-0 pointer-events-none select-none">
         <img 
           src="/heroo.png" 
-          alt="Background" 
-          className="w-full h-full object-cover object-center"
+          alt="Spoken Odyssey Hero" 
+          className="w-full h-full object-cover object-[center_bottom] xl:object-center"
         />
       </div>
 
       {/* Main Grid: Left content + Right Floating Sign-In Card */}
-      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 w-full pt-2 sm:pt-4 pb-3 sm:pb-5">
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 w-full my-auto py-4 sm:py-6 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
           
           {/* Left Hero Content */}
           <motion.div 
-            className="lg:col-span-7 space-y-4 max-w-2xl -translate-y-3 sm:-translate-y-6 lg:-translate-y-8"
+            className="lg:col-span-7 space-y-4 max-w-2xl"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease }}
@@ -442,29 +442,29 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Bottom Narrow Wide Card (5 Segmented Feature Highlights - Minimized height & lowered) */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-auto translate-y-1 sm:translate-y-2">
+      {/* Bottom Compact Highlight Card (5 Segmented Feature Highlights - Minimized) */}
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-auto pb-3 sm:pb-5">
         <motion.div 
-          className="rounded-[18px] sm:rounded-[22px] bg-white/95 backdrop-blur-md shadow-[0_8px_25px_rgba(15,23,42,0.06)] border border-slate-100/90 py-2 sm:py-2.5 px-3 sm:px-5"
+          className="rounded-xl sm:rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_18px_rgba(15,23,42,0.06)] border border-slate-100/90 py-1.5 sm:py-2 px-2 sm:px-4"
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15, ease }}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-0 lg:divide-x divide-slate-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-1.5 lg:gap-0 lg:divide-x divide-slate-100">
             {HIGHLIGHTS.map((item, index) => {
               const IconComp = item.icon;
               return (
                 <div 
                   key={index} 
-                  className="flex flex-col items-center text-center px-2 sm:px-2.5 py-0.5"
+                  className="flex flex-col items-center text-center px-1.5 sm:px-2 py-0.5"
                 >
-                  <div className="w-7 h-7 rounded-full bg-[#EFF6FF] border border-[#BFDBFE]/40 text-[#2563EB] flex items-center justify-center mb-0.5 shadow-2xs">
-                    <IconComp size={14} strokeWidth={2.1} />
+                  <div className="w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full bg-[#EFF6FF] border border-[#BFDBFE]/40 text-[#2563EB] flex items-center justify-center mb-0.5 shadow-2xs">
+                    <IconComp size={11} strokeWidth={2.2} />
                   </div>
-                  <h3 className="text-[11px] sm:text-xs font-extrabold text-[#0B0E23] mb-0.5 tracking-tight leading-tight">
+                  <h3 className="text-[10px] sm:text-[11px] font-bold text-[#0B0E23] mb-0.5 tracking-tight leading-tight">
                     {item.title}
                   </h3>
-                  <p className="text-[9.5px] sm:text-[10px] text-slate-500 leading-tight font-medium max-w-[195px] mx-auto">
+                  <p className="text-[8.5px] sm:text-[9px] text-slate-500 leading-tight font-medium max-w-[155px] mx-auto">
                     {item.description}
                   </p>
                 </div>

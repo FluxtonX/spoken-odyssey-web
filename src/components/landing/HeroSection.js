@@ -39,19 +39,19 @@ export default function HeroSection({
   const profiles = profileImages.length > 0 ? profileImages : defaultProfiles;
 
   return (
-    <section className="relative overflow-hidden pt-16" style={{ minHeight: '80vh' }}>
+    <section className="relative overflow-hidden pt-16 sm:pt-20 flex flex-col justify-center min-h-[720px] sm:min-h-[780px] lg:min-h-[94vh] xl:min-h-[98vh] 2xl:min-h-[1020px]">
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 pointer-events-none select-none">
         <img
           src={backgroundImage}
           alt="Hero background"
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-cover object-[center_bottom] lg:object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-white/70 via-white/30 to-transparent" />
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 py-16 md:py-24">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-18 my-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           
           {/* Left Content */}
