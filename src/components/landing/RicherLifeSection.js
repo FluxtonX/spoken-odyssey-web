@@ -8,74 +8,64 @@ export default function RicherLifeSection() {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   return (
-    <section className="relative overflow-hidden bg-white py-16 sm:py-20 lg:py-24">
-      <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-12">
-          
-          {/* Left Column: Text & CTA */}
-          <motion.div 
-            className="lg:col-span-5 space-y-6"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {/* Eyebrow */}
-            <p className="text-[11px] sm:text-xs font-black uppercase tracking-[0.24em] text-[#0066FF]">
-              MORE THAN MEMORIES
-            </p>
+    <section className="relative w-full overflow-hidden flex items-center min-h-[440px] sm:min-h-[480px] md:min-h-0 md:aspect-[2170/725] mt-12 sm:mt-16 lg:mt-24 xl:mt-28">
+      {/* ── Full Panoramic Background Artwork: rich life.png (Zero Zoom - Fits Natural Proportions) ── */}
+      <div className="absolute inset-0 z-0 pointer-events-none select-none">
+        <img
+          src="/rich life.png"
+          alt="A richer life with Spoken Odyssey"
+          className="w-full h-full object-cover object-[70%_center] md:object-center"
+          loading="eager"
+        />
+        {/* Soft readability wash on small screens so text never clashes with cards on mobile */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/50 to-transparent sm:from-white/65 sm:via-white/25 sm:to-transparent lg:hidden pointer-events-none" />
+      </div>
 
-            {/* Heading */}
-            <h2 className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.08] tracking-tight text-[#0B0E23]">
-              A richer{" "}
-              <span className="text-[#0066FF]">
-                life.
+      {/* ── Foreground Content: Left-aligned Text & Video CTA ── */}
+      <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8 lg:px-12 w-full py-8 md:py-0">
+        <motion.div 
+          className="max-w-xs sm:max-w-sm md:max-w-md lg:max-w-[430px] xl:max-w-[470px] space-y-3 sm:space-y-4 lg:space-y-5"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* Eyebrow */}
+          <p className="text-[10px] sm:text-[11px] lg:text-xs font-black uppercase tracking-[0.22em] text-[#1E3A8A]">
+            MORE THAN MEMORIES
+          </p>
+
+          {/* Heading */}
+          <h2 className="text-2xl sm:text-3xl md:text-3xl lg:text-[44px] xl:text-[52px] font-black leading-[1.06] tracking-tight text-[#0B0E23]">
+            A richer{" "}
+            <span className="text-[#0055FF]">
+              life.
+            </span>
+          </h2>
+
+          {/* Description */}
+          <p className="text-xs sm:text-sm lg:text-[15px] leading-relaxed text-[#334155] font-normal max-w-xs sm:max-w-sm md:max-w-md">
+            Spoken Odyssey helps you capture everyday moments and life&apos;s biggest milestones, understand your story, and keep it alive for the people who matter most.
+          </p>
+
+          {/* Video CTA Link */}
+          <div className="pt-1 sm:pt-2">
+            <button
+              type="button"
+              onClick={() => setIsVideoModalOpen(true)}
+              className="group inline-flex items-center gap-3 text-left transition-all duration-200 active:scale-95"
+              aria-label="Watch 1 minute video"
+            >
+              {/* Vibrant Blue Play Button */}
+              <span className="flex h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 items-center justify-center rounded-full bg-[#0055FF] text-white shadow-[0_6px_18px_rgba(0,85,255,0.4)] transition-transform duration-300 group-hover:scale-108 group-hover:bg-[#0047db]">
+                <Play size={16} className="fill-white ml-0.5 text-white" />
               </span>
-            </h2>
-
-            {/* Description */}
-            <p className="text-sm sm:text-base leading-relaxed text-[#475569] max-w-lg font-normal">
-              Spoken Odyssey helps you capture everyday moments and life&apos;s biggest milestones, understand your story, and keep it alive for the people who matter most.
-            </p>
-
-            {/* Video CTA Link */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setIsVideoModalOpen(true)}
-                className="group inline-flex items-center gap-3.5 text-left transition-all duration-200 active:scale-95"
-                aria-label="Watch 1 minute video"
-              >
-                {/* Vibrant Blue Play Button */}
-                <span className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-[#0066FF] text-white shadow-[0_10px_25px_rgba(0,102,255,0.35)] transition-transform duration-300 group-hover:scale-110 group-hover:bg-[#0052CC]">
-                  <Play size={18} className="fill-white ml-0.5" />
-                </span>
-                <span className="text-sm sm:text-base font-bold text-[#0B0E23] transition-colors group-hover:text-[#0066FF]">
-                  Watch 1 min video
-                </span>
-              </button>
-            </div>
-          </motion.div>
-
-          {/* Right Column: rich life.png artwork */}
-          <motion.div 
-            className="lg:col-span-7 flex justify-center lg:justify-end"
-            initial={{ opacity: 0, x: 28 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-          >
-            <div className="relative w-full max-w-[660px]">
-              <img
-                src="/rich life.png"
-                alt="A richer life with Spoken Odyssey"
-                className="w-full h-auto object-contain select-none transition-transform duration-500 hover:scale-[1.01]"
-                loading="eager"
-              />
-            </div>
-          </motion.div>
-
-        </div>
+              <span className="text-xs sm:text-sm lg:text-base font-bold text-[#0055FF] transition-colors group-hover:text-[#0047db]">
+                Watch 1 min video
+              </span>
+            </button>
+          </div>
+        </motion.div>
       </div>
 
       {/* Video Modal Popup */}
