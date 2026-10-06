@@ -1,298 +1,389 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   ArrowRight,
+  ArrowLeft,
   Heart,
   MessageCircle,
-  Eye,
+  Play,
+  X,
+  MoreHorizontal,
 } from "lucide-react";
 
-const ease = [0.22, 1, 0.36, 1];
-
-const CATEGORIES = [
-  "All",
-  "Adventure",
-  "Innovation",
-  "Arts & Culture",
-  "Humanity",
-  "Business",
-];
-
-const STORIES = [
+const VIDEO_STORIES = [
   {
-    id: "adventure",
-    category: "Adventure",
-    badge: "ADVENTURE",
-    title: "Breaking limits, finding freedom.",
-    excerpt:
-      "From corporate life to the world's highest peaks — a journey of courage, resilience and self-discovery.",
-    image: "/explore/card-adventure.jpg",
+    id: "solo-trip",
+    title: "A new perspective",
+    subtitle: "How a solo trip helped me find confidence and clarity in life.",
+    duration: "3 min",
+    image: "/explore/card-boat.jpg",
+    likes: "1.2K",
+    comments: "86",
     author: "By Alex H.",
     avatar: "/explore/avatars/avatar_alex.jpg",
-    likes: "124",
-    comments: "32",
-    views: "4.2K",
+    videoUrl: "https://www.youtube.com/embed/1la44YsMCb8?autoplay=1",
   },
   {
-    id: "innovation",
-    category: "Innovation",
-    badge: "INNOVATION",
-    title: "Building the future from the ground up.",
-    excerpt:
-      "Inside the mind of an entrepreneur turning bold ideas into real-world impact.",
-    image: "/explore/card-innovation.jpg",
+    id: "fatherhood",
+    title: "Lessons from fatherhood",
+    subtitle: "The moments that changed how I see the world.",
+    duration: "4 min",
+    image: "/explore/card-fatherhood.jpg",
+    likes: "980",
+    comments: "64",
     author: "By Sarah K.",
     avatar: "/explore/avatars/avatar_sarah.jpg",
-    likes: "86",
-    comments: "21",
-    views: "3.1K",
+    videoUrl: "https://www.youtube.com/embed/y6Sxv-sUYtM?autoplay=1",
   },
   {
-    id: "arts-culture",
-    category: "Arts & Culture",
-    badge: "ARTS & CULTURE",
-    title: "Creating beauty that lasts.",
-    excerpt:
-      "How music, culture and community can bring people closer together.",
-    image: "/explore/card-arts.jpg",
+    id: "music",
+    title: "Music that brings us together",
+    subtitle: "How music created friendships across borders.",
+    duration: "4 min",
+    image: "/explore/card-concert.jpg",
+    likes: "2.4K",
+    comments: "112",
     author: "By Marcus L.",
     avatar: "/explore/avatars/avatar_marcus.jpg",
-    likes: "98",
-    comments: "18",
-    views: "2.7K",
+    videoUrl: "https://www.youtube.com/embed/fJ9rUzIMcZQ?autoplay=1",
   },
   {
-    id: "humanity",
-    category: "Humanity",
-    badge: "HUMANITY",
-    title: "Changing lives, one act at a time.",
-    excerpt:
-      "Stories of people making a difference in their communities around the world.",
-    image: "/explore/card-humanity.jpg",
-    author: "By Priya M.",
+    id: "mountains",
+    title: "Finding freedom in the mountains",
+    subtitle: "How nature helped me reset and focus on what really matters.",
+    duration: "5 min",
+    image: "/explore/card-mountains.jpg",
+    likes: "1.8K",
+    comments: "95",
+    author: "By Elena R.",
     avatar: "/explore/avatars/avatar_priya.jpg",
-    likes: "210",
-    comments: "45",
-    views: "5.8K",
-  },
-  {
-    id: "sports",
-    category: "Sports",
-    badge: "SPORTS",
-    title: "Discipline today, victory tomorrow.",
-    excerpt:
-      "The mindset, routines and sacrifices behind a life in elite sport.",
-    image: "/explore/card-sports.jpg",
-    author: "By Jordan B.",
-    avatar: "/explore/avatars/avatar_jordan.jpg",
-    likes: "176",
-    comments: "28",
-    views: "4.9K",
-  },
-  {
-    id: "business",
-    category: "Business",
-    badge: "BUSINESS",
-    title: "From idea to impact.",
-    excerpt:
-      "How vision, people and perseverance can build something meaningful.",
-    image: "/explore/card-business.jpg",
-    author: "By David T.",
-    avatar: "/explore/avatars/avatar_david.jpg",
-    likes: "132",
-    comments: "26",
-    views: "3.6K",
+    videoUrl: "https://www.youtube.com/embed/Bey4XXJAqS8?autoplay=1",
   },
 ];
+
+const FEATURED_STORY = {
+  titlePrimary: "From real, moments",
+  titleHighlight: "to lasting inspiration.",
+  description:
+    "Discover how everyday people are capturing their biggest moments, different perspectives and creating a richer, more connected life.",
+  duration: "5 min",
+  image: "/explore/featured-wedding.jpg",
+  videoUrl: "https://www.youtube.com/embed/ysz5S6PUM-U?autoplay=1",
+};
 
 export default function ExploreHeroSection({
   backgroundImage = "/explore.png",
 }) {
-  const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredStories = STORIES.filter((story) => {
-    const matchesCategory =
-      activeCategory === "All" ||
-      story.category.toLowerCase() === activeCategory.toLowerCase();
-    const matchesSearch =
-      searchQuery.trim() === "" ||
-      story.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      story.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      story.author.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const [activeVideo, setActiveVideo] = useState(null);
 
   return (
-    <section
-      className="relative overflow-hidden min-h-screen lg:min-h-[1024px] flex flex-col justify-between pt-24 sm:pt-28 pb-12 sm:pb-16 bg-no-repeat bg-cover bg-[position:center_bottom]"
-      style={{ backgroundImage: `url('${backgroundImage}')` }}
-    >
-      <div className="relative z-10 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 w-full pt-1 sm:pt-4">
-        <div className="flex flex-col lg:flex-row items-start justify-between gap-6 lg:gap-8 w-full">
-          
-          {/* ── LEFT HERO CONTENT (ANCHORED AT TOP, NOT BROUGHT DOWN) ── */}
+    <div className="w-full bg-white text-[#0B0E23]">
+      {/* ══════════════════════════════════════════════════════════════
+          1. HERO SECTION
+          - Minimized height for all laptop screens (no heavy zoom)
+          - Solid white background over the left content so text is 100% visible
+          - Earth and astronaut artwork cleanly displayed on the right
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden w-full bg-white flex items-center min-h-[420px] sm:min-h-[460px] lg:min-h-[500px] pt-24 sm:pt-28 pb-10 sm:pb-14">
+        {/* Artwork layer: explore.png placed on the right side */}
+        <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
+          <img
+            src={backgroundImage}
+            alt="Explore Spoken Odyssey"
+            className="w-full h-full object-cover object-[82%_center] lg:object-[86%_center]"
+            loading="eager"
+          />
+          {/* 
+            White gradient overlay:
+            Ensures left side is pure white where text sits, blending smoothly into space/earth
+          */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white via-[48%] sm:via-[44%] lg:via-[42%] to-transparent pointer-events-none" />
+        </div>
+
+        {/* Hero Left Content sitting on crisp white */}
+        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full">
           <motion.div
-            className="space-y-2 lg:w-[280px] xl:w-[310px] flex-shrink-0 pt-0 text-left"
-            initial={{ opacity: 0, x: -25 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease }}
+            className="max-w-xl space-y-3.5 sm:space-y-4 text-left"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
             {/* Eyebrow */}
-            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold italic text-[#2563eb] tracking-wide">
-              <span>It&apos;s your journey</span>
-              <span className="not-italic text-xs sm:text-sm text-[#2563eb]">
-                ♡
-              </span>
-            </div>
+            <p className="text-xs sm:text-[13px] font-bold uppercase tracking-[0.24em] text-[#0066FF]">
+              EXPLORE
+            </p>
 
             {/* Headline */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-extrabold leading-[1.08] tracking-tight">
-              <span className="text-slate-950 block">Explore</span>
-              <span className="bg-gradient-to-r from-[#0062ff] via-[#3b82f6] to-[#8b5cf6] bg-clip-text text-transparent block">
-                extraordinary
+            <h1 className="text-4xl sm:text-5xl lg:text-[58px] font-black leading-[1.06] tracking-tight text-[#0B0E23]">
+              Extraordinary{" "}
+              <span className="text-[#0066FF]">
+                lives.
               </span>
-              <span className="text-slate-950 block">lives.</span>
             </h1>
 
             {/* Subtitle */}
-            <p className="text-[11px] sm:text-xs leading-relaxed text-slate-600 font-medium pt-0.5">
-              Real stories. Different perspectives.
-              <br />
-              A more connected world.
-            </p>
+            <div className="text-sm sm:text-base text-[#475569] font-normal leading-relaxed max-w-md">
+              <p>Real stories. Different perspectives.</p>
+              <p>A more connected world.</p>
+            </div>
 
-            {/* Search Bar */}
-            <div className="pt-1.5">
-              <div className="flex items-center bg-white/95 rounded-full border border-slate-200/90 shadow-sm py-1.5 sm:py-2 pl-3.5 pr-1 max-w-[270px] sm:max-w-[290px] transition-all focus-within:border-[#2563eb] focus-within:ring-2 focus-within:ring-blue-100">
-                <Search
-                  size={14}
-                  className="text-[#2563eb] mr-1.5 flex-shrink-0"
-                />
+            {/* Search Pill Input */}
+            <div className="pt-2 max-w-md">
+              <div className="flex items-center bg-white rounded-full border border-slate-200/90 shadow-[0_4px_20px_rgba(0,0,0,0.06)] py-1.5 pl-4 pr-1.5 transition-all focus-within:border-[#0066FF] focus-within:ring-2 focus-within:ring-blue-100">
+                <Search size={18} className="text-[#0066FF] mr-2.5 shrink-0" />
                 <input
                   type="text"
                   placeholder="Search stories, people or topics..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-[11px] sm:text-xs text-slate-800 placeholder-slate-400 outline-none"
+                  className="w-full bg-transparent text-xs sm:text-sm text-[#0B0E23] placeholder-slate-400 outline-none"
                 />
                 <button
                   type="button"
                   aria-label="Search"
-                  className="w-6 h-6 rounded-full bg-[#0062ff] hover:bg-[#0052d9] flex items-center justify-center text-white flex-shrink-0 transition-transform active:scale-95 shadow-xs"
+                  className="w-8 h-8 rounded-full bg-[#0066FF] hover:bg-[#0052CC] flex items-center justify-center text-white shrink-0 transition-transform active:scale-95 shadow-xs"
                 >
-                  <ArrowRight size={11} strokeWidth={2.5} />
+                  <ArrowRight size={14} strokeWidth={2.4} />
                 </button>
-              </div>
-
-              {/* Category Filter Pills (ONE ROW, NO SCROLLBAR) */}
-              <div className="flex items-center gap-1 sm:gap-1.5 mt-2 w-full">
-                {CATEGORIES.map((category) => {
-                  const isActive = activeCategory === category;
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setActiveCategory(category)}
-                      className={`text-[9.5px] sm:text-[10px] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                        isActive
-                          ? "bg-[#0062ff] text-white shadow-xs"
-                          : "bg-white/90 hover:bg-white text-slate-700 border border-slate-200/80 shadow-2xs hover:border-slate-300"
-                      }`}
-                    >
-                      {category}
-                    </button>
-                  );
-                })}
               </div>
             </div>
           </motion.div>
+        </div>
+      </section>
 
-          {/* ── RIGHT 6-CARDS GRID (BROUGHT DOWN & MINIMIZED SIZES) ── */}
-          <div className="flex-1 w-full max-w-[680px] lg:max-w-[720px] ml-auto pt-6 sm:pt-10 lg:pt-28 xl:pt-32">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
-              {filteredStories.map((story, idx) => (
-                <motion.div
-                  key={story.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.45,
-                    delay: 0.05 * (idx + 1),
-                    ease,
-                  }}
-                  className="rounded-xl bg-white border border-slate-100 shadow-[0_4px_14px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group"
-                >
-                  {/* Minimized Image */}
-                  <div className="relative h-20 sm:h-22 w-full overflow-hidden bg-slate-100">
-                    <img
-                      src={story.image}
-                      alt={story.title}
-                      className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                    />
-                    <div className="absolute top-1.5 left-1.5">
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[8px] sm:text-[8.5px] font-extrabold tracking-wider uppercase text-white bg-[#0062ff] shadow-xs">
-                        {story.badge}
-                      </span>
-                    </div>
-                  </div>
+      {/* ══════════════════════════════════════════════════════════════
+          2. BE INSPIRED SECTION (REAL PEOPLE. REAL STORIES.)
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="relative w-full py-12 sm:py-16 bg-[#FBFCFE] border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full">
+          
+          {/* Section Header */}
+          <div className="flex items-end justify-between mb-8 sm:mb-10">
+            <div className="space-y-1.5 max-w-2xl">
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.24em] text-[#0066FF]">
+                REAL PEOPLE. REAL STORIES.
+              </p>
+              <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-black leading-tight tracking-tight text-[#0B0E23]">
+                Be <span className="text-[#0066FF]">inspired.</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-[#64748B] font-normal leading-relaxed pt-1">
+                Discover stories from around the world. Different journeys, experiences and perspectives that make life unique.
+              </p>
+            </div>
 
-                  {/* Minimized Content & Footer Stats */}
-                  <div className="p-2 sm:p-2.5 flex flex-col justify-between flex-1 text-left">
-                    <div>
-                      <h3 className="text-[11px] sm:text-[11.5px] font-bold text-slate-900 leading-snug line-clamp-1 group-hover:text-[#0062ff] transition-colors">
-                        {story.title}
-                      </h3>
-                      <p className="text-[9px] sm:text-[9.5px] text-slate-500 font-normal leading-tight line-clamp-2 mt-0.5">
-                        {story.excerpt}
-                      </p>
-                    </div>
-
-                    {/* Author & Stats Row */}
-                    <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-100">
-                      {/* Author */}
-                      <div className="flex items-center gap-1">
-                        <img
-                          src={story.avatar}
-                          alt={story.author}
-                          className="w-3.5 h-3.5 rounded-full object-cover border border-slate-200"
-                        />
-                        <span className="text-[9px] font-semibold text-slate-700">
-                          {story.author}
-                        </span>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-medium">
-                        <span className="flex items-center gap-0.5">
-                          <Heart
-                            size={9}
-                            className="fill-red-500 text-red-500"
-                          />
-                          {story.likes}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <MessageCircle size={9} className="text-slate-400" />
-                          {story.comments}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <Eye size={9} className="text-slate-400" />
-                          {story.views}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+            {/* Navigation Arrows */}
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                className="w-9 h-9 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-700 hover:border-[#0066FF] hover:text-[#0066FF] transition shadow-2xs cursor-pointer"
+                aria-label="Previous"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <button
+                type="button"
+                className="w-9 h-9 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-700 hover:border-[#0066FF] hover:text-[#0066FF] transition shadow-2xs cursor-pointer"
+                aria-label="Next"
+              >
+                <ArrowRight size={16} />
+              </button>
             </div>
           </div>
 
+          {/* 4 Video Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+            {VIDEO_STORIES.map((story) => (
+              <div
+                key={story.id}
+                onClick={() => setActiveVideo(story)}
+                className="group cursor-pointer rounded-2xl bg-white border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+              >
+                {/* Thumbnail Image Container */}
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
+                  <img
+                    src={story.image}
+                    alt={story.title}
+                    className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                  />
+
+                  {/* 3 dots icon at top-right */}
+                  <div className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white">
+                    <MoreHorizontal size={14} />
+                  </div>
+
+                  {/* Duration Pill at bottom-left */}
+                  <div className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-bold">
+                    <span className="w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center text-black">
+                      <Play size={8} className="fill-black ml-0.5" />
+                    </span>
+                    <span>{story.duration}</span>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 space-y-3">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-[#0B0E23] leading-snug group-hover:text-[#0066FF] transition-colors line-clamp-1">
+                      {story.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-[#64748B] font-normal leading-relaxed line-clamp-2">
+                      {story.subtitle}
+                    </p>
+                  </div>
+
+                  {/* Footer: Stats + Author */}
+                  <div className="pt-2 border-t border-slate-100/80 space-y-2">
+                    <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <Heart size={14} className="fill-[#EF4444] text-[#EF4444]" />
+                        {story.likes}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle size={14} className="text-slate-400" />
+                        {story.comments}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={story.avatar}
+                        alt={story.author}
+                        className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                      />
+                      <span className="text-[11px] font-semibold text-slate-700">
+                        {story.author}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
-      </div>
-    </section>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════
+          3. FEATURED STORY SECTION ("From real, moments to lasting inspiration.")
+      ══════════════════════════════════════════════════════════════ */}
+      <section className="relative w-full py-16 sm:py-20 lg:py-24 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            
+            {/* Left Content */}
+            <div className="lg:col-span-6 space-y-5 text-left">
+              <p className="text-xs sm:text-[13px] font-bold uppercase tracking-[0.24em] text-[#0066FF]">
+                FEATURED STORY
+              </p>
+
+              <h2 className="text-3xl sm:text-4xl lg:text-[48px] font-black leading-[1.1] tracking-tight text-[#0B0E23]">
+                {FEATURED_STORY.titlePrimary}{" "}
+                <span className="text-[#0066FF] block">
+                  {FEATURED_STORY.titleHighlight}
+                </span>
+              </h2>
+
+              <p className="text-sm sm:text-base leading-relaxed text-[#64748B] font-normal max-w-lg">
+                {FEATURED_STORY.description}
+              </p>
+
+              {/* Watch Story CTA Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveVideo({
+                      title: "Featured Story",
+                      videoUrl: FEATURED_STORY.videoUrl,
+                    })
+                  }
+                  className="inline-flex items-center gap-3 rounded-full bg-[#0066FF] hover:bg-[#0052CC] text-white px-6 py-3 text-xs sm:text-sm font-bold shadow-[0_8px_25px_rgba(0,102,255,0.3)] transition-all active:scale-95 cursor-pointer group"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#0066FF] shadow-xs group-hover:scale-105 transition-transform">
+                    <Play size={12} className="fill-[#0066FF] ml-0.5" />
+                  </span>
+                  <span>Watch a Real Story ({FEATURED_STORY.duration})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Right Card with perspective/tilt */}
+            <div className="lg:col-span-6 flex justify-center lg:justify-end">
+              <div
+                onClick={() =>
+                  setActiveVideo({
+                    title: "Featured Story",
+                    videoUrl: FEATURED_STORY.videoUrl,
+                  })
+                }
+                className="cursor-pointer relative w-full max-w-[540px] transform lg:rotate-[2.5deg] hover:rotate-0 transition-transform duration-500 rounded-[28px] p-2 bg-gradient-to-tr from-white to-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.12)] border-[5px] border-white group"
+              >
+                <div className="relative aspect-[16/10] w-full rounded-[22px] overflow-hidden">
+                  <img
+                    src={FEATURED_STORY.image}
+                    alt="Featured Story"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  {/* Subtle hover play overlay */}
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="w-14 h-14 rounded-full bg-[#0066FF] text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                      <Play size={22} className="fill-white ml-0.5" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════
+          4. VIDEO POPUP MODAL (Plays YouTube / Google Video in iframe)
+      ══════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {activeVideo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+            onClick={() => setActiveVideo(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-black shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setActiveVideo(null)}
+                className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition hover:bg-white/40 cursor-pointer"
+                aria-label="Close video"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="aspect-video w-full">
+                <iframe
+                  className="h-full w-full"
+                  src={activeVideo.videoUrl}
+                  title={activeVideo.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
