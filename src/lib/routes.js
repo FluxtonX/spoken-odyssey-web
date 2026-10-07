@@ -32,7 +32,8 @@ export function isPublicRoute(pathname) {
     pathname?.startsWith("/explore") ||
     pathname?.startsWith("/for-families") ||
     pathname?.startsWith("/store") ||
-    pathname?.startsWith("/pricing")
+    pathname?.startsWith("/pricing") ||
+    pathname?.startsWith("/about")
   );
 }
 
