@@ -186,12 +186,12 @@ export default function LandingFooter() {
             <a
               href="#"
               aria-label="Get Spoken Odyssey on Google Play"
-              className="inline-flex h-8 transition-transform hover:scale-105 active:scale-95"
+              className="inline-flex h-9 transition-transform hover:scale-105 active:scale-95"
             >
               <img
                 src="/play-store-badge.svg"
                 alt="Google Play"
-                className="h-full w-auto object-contain rounded-md border border-slate-700/80"
+                className="h-full w-auto object-contain"
               />
             </a>
 
@@ -199,12 +199,12 @@ export default function LandingFooter() {
             <a
               href="#"
               aria-label="Download Spoken Odyssey on the App Store"
-              className="inline-flex h-8 transition-transform hover:scale-105 active:scale-95"
+              className="inline-flex h-9 transition-transform hover:scale-105 active:scale-95"
             >
               <img
                 src="/app-store-badge.svg"
                 alt="App Store"
-                className="h-full w-auto object-contain rounded-md border border-slate-700/80"
+                className="h-full w-auto object-contain"
               />
             </a>
 
