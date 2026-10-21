@@ -49,22 +49,7 @@ export default function RicherLifeSection() {
           </p>
 
           {/* Video CTA Link */}
-          <div className="pt-1 sm:pt-2">
-            <button
-              type="button"
-              onClick={() => setIsVideoModalOpen(true)}
-              className="group inline-flex items-center gap-3 text-left transition-all duration-200 active:scale-95"
-              aria-label="Watch 1 minute video"
-            >
-              {/* Vibrant Blue Play Button */}
-              <span className="flex h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 items-center justify-center rounded-full bg-[#0055FF] text-white shadow-[0_6px_18px_rgba(0,85,255,0.4)] transition-transform duration-300 group-hover:scale-108 group-hover:bg-[#0047db]">
-                <Play size={16} className="fill-white ml-0.5 text-white" />
-              </span>
-              <span className="text-xs sm:text-sm lg:text-base font-bold text-[#0055FF] transition-colors group-hover:text-[#0047db]">
-                Watch 1 min video
-              </span>
-            </button>
-          </div>
+          
         </motion.div>
       </div>
 
