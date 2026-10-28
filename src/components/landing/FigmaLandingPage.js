@@ -21,15 +21,20 @@ import {
   Lock,
   Menu,
   Mic2,
+  Maximize2,
+  Pause,
   Play,
+  SkipBack,
+  SkipForward,
   Search,
   Shield,
   Sparkles,
+  Square,
   Star,
   Users,
   X,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import LandingFooter from "./LandingFooter";
 import LandingNav from "./LandingNav";
 import HeroSignInCard from "./HeroSignInCard";
@@ -335,6 +340,90 @@ function AnimatedCountUpStat({ targetValue, label, suffix = "", decimalPlaces = 
 }
 
 function HeroSection() {
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [videoTime, setVideoTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const videoRef = useRef(null);
+  const playerRef = useRef(null);
+
+  useEffect(() => {
+    if (!isVideoOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setIsVideoOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+
+    const video = videoRef.current;
+    if (video) {
+      video.play().catch(() => setIsVideoPlaying(false));
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isVideoOpen]);
+
+  const closeVideo = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+    setVideoTime(0);
+    setIsVideoPlaying(false);
+    setIsVideoOpen(false);
+  };
+
+  const seekVideo = (offset) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const nextTime = Math.min(video.duration || 0, Math.max(0, video.currentTime + offset));
+    video.currentTime = nextTime;
+    setVideoTime(nextTime);
+  };
+
+  const togglePlayback = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => setIsVideoPlaying(false));
+    } else {
+      video.pause();
+    }
+  };
+
+  const stopVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.pause();
+    video.currentTime = 0;
+    setVideoTime(0);
+  };
+
+  const toggleFullscreen = async () => {
+    const player = playerRef.current;
+    const video = videoRef.current;
+    if (document.fullscreenElement) {
+      await document.exitFullscreen?.();
+    } else if (video?.webkitEnterFullscreen) {
+      video.webkitEnterFullscreen();
+    } else {
+      await player?.requestFullscreen?.();
+    }
+  };
+
+  const formatTime = (seconds) => {
+    if (!Number.isFinite(seconds)) return "0:00";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${remainingSeconds}`;
+  };
+
   const HIGHLIGHTS = [
     {
       icon: Camera,
@@ -364,6 +453,7 @@ function HeroSection() {
   ];
 
   return (
+    <>
     <section className="relative overflow-hidden flex flex-col justify-between pt-18 sm:pt-22 lg:pt-24 pb-4 sm:pb-6 min-h-[740px] sm:min-h-[800px] lg:min-h-[95vh] xl:min-h-screen 2xl:min-h-[1020px]">
       {/* Background Image: Original heroo.png with expanded height & responsive positioning */}
       <div className="absolute inset-0 z-0 pointer-events-none select-none">
@@ -418,15 +508,16 @@ function HeroSection() {
                 <ArrowUpRight size={15} strokeWidth={2.4} />
               </Link>
 
-              <a
-                href="#how-it-works"
+              <button
+                type="button"
+                onClick={() => setIsVideoOpen(true)}
                 className="inline-flex items-center gap-2.5 rounded-full font-bold text-xs sm:text-sm text-[#0B0E23] transition-all duration-200 hover:text-[#0066FF] group py-1.5 px-1"
               >
                 <div className="w-8 h-8 rounded-full bg-white border-2 border-[#2563EB] flex items-center justify-center text-[#2563EB] shadow-2xs group-hover:scale-105 transition-transform">
                   <Play size={11} className="fill-[#2563EB] ml-0.5" />
                 </div>
                 <span>See how it works</span>
-              </a>
+              </button>
             </div>
           </motion.div>
 
@@ -474,6 +565,120 @@ function HeroSection() {
         </motion.div>
       </div>
     </section>
+    {isVideoOpen && (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/95 p-3 backdrop-blur-sm sm:p-6"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeVideo();
+        }}
+      >
+        <div
+          ref={playerRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="How Spoken Odyssey works video player"
+          className="w-full max-w-6xl overflow-hidden rounded-2xl border border-white/15 bg-[#080b14] shadow-2xl sm:rounded-3xl"
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3 text-white sm:px-6 sm:py-4">
+            <div>
+              <p className="text-sm font-bold sm:text-base">How Spoken Odyssey works</p>
+              <p className="mt-0.5 text-xs text-white/60">Play, pause, or jump through the video</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeVideo}
+              aria-label="Close video"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          <video
+            ref={videoRef}
+            src="/howitworks/spoken-odyssey-platform.mp4"
+            playsInline
+            preload="metadata"
+            onPlay={() => setIsVideoPlaying(true)}
+            onPause={() => setIsVideoPlaying(false)}
+            onTimeUpdate={(event) => setVideoTime(event.currentTarget.currentTime)}
+            onLoadedMetadata={(event) => setVideoDuration(event.currentTarget.duration)}
+            onEnded={() => setIsVideoPlaying(false)}
+            className="mx-auto block max-h-[calc(100dvh-190px)] w-full bg-black object-contain sm:max-h-[calc(100dvh-230px)]"
+          >
+            Your browser does not support video playback.
+          </video>
+
+          <div className="px-3 pb-3 pt-2 text-white sm:px-6 sm:pb-5">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="w-10 shrink-0 text-right text-[11px] tabular-nums text-white/75 sm:w-12 sm:text-xs">{formatTime(videoTime)}</span>
+              <input
+                type="range"
+                min="0"
+                max={videoDuration || 0}
+                step="0.1"
+                value={Math.min(videoTime, videoDuration || 0)}
+                onChange={(event) => {
+                  const nextTime = Number(event.target.value);
+                  if (videoRef.current) videoRef.current.currentTime = nextTime;
+                  setVideoTime(nextTime);
+                }}
+                aria-label="Video position"
+                className="h-2 min-w-0 flex-1 cursor-pointer accent-[#60a5fa]"
+              />
+              <span className="w-10 shrink-0 text-[11px] tabular-nums text-white/75 sm:w-12 sm:text-xs">{formatTime(videoDuration)}</span>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:mt-3 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => seekVideo(-10)}
+                aria-label="Go back 10 seconds"
+                className="flex h-12 min-w-12 items-center justify-center gap-1 rounded-xl px-2 text-white/90 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:min-w-16"
+              >
+                <SkipBack size={20} />
+                <span className="text-xs font-semibold">10</span>
+              </button>
+              <button
+                type="button"
+                onClick={togglePlayback}
+                aria-label={isVideoPlaying ? "Pause video" : "Play or resume video"}
+                className="flex h-12 min-w-14 items-center justify-center gap-2 rounded-xl bg-white px-4 text-slate-950 transition hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+              >
+                {isVideoPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                <span className="text-sm font-bold">{isVideoPlaying ? "Pause" : "Play"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={stopVideo}
+                aria-label="Stop and return to the beginning"
+                className="flex h-12 min-w-12 items-center justify-center rounded-xl px-3 text-white/90 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+              >
+                <Square size={18} fill="currentColor" />
+              </button>
+              <button
+                type="button"
+                onClick={() => seekVideo(10)}
+                aria-label="Go forward 10 seconds"
+                className="flex h-12 min-w-12 items-center justify-center gap-1 rounded-xl px-2 text-white/90 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:min-w-16"
+              >
+                <span className="text-xs font-semibold">10</span>
+                <SkipForward size={20} />
+              </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                aria-label="View video fullscreen"
+                className="flex h-12 min-w-12 items-center justify-center rounded-xl px-3 text-white/90 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+              >
+                <Maximize2 size={19} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

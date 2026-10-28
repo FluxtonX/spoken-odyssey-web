@@ -11,7 +11,7 @@ export default function LandingNav() {
 
   const links = [
     { label: "Home", href: "/" },
-    { label: "How it Works", href: "/how-it-works" },
+    // { label: "How it Works", href: "/how-it-works" },
     { label: "Explore", href: "/explore" },
     { label: "For Families", href: "/for-families" },
     { label: "Store", href: "/store" },
