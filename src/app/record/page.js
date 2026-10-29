@@ -173,6 +173,7 @@ function RecordMemoryContent() {
   const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
   const [tags, setTags] = useState("");
   const [taggedUsers, setTaggedUsers] = useState([]);
+  const [places, setPlaces] = useState("");
   
   const handleClose = (e) => {
     e.preventDefault();
@@ -489,6 +490,7 @@ function RecordMemoryContent() {
     setMood("Joyful");
     setTags("");
     setTaggedUsers([]);
+    setPlaces("");
     setIsSaving(false);
   }
 
@@ -557,9 +559,11 @@ function RecordMemoryContent() {
         if (lifeChapter) {
           formData.append("chapter", lifeChapter);
         }
-        if (tags) {
-          formData.append("tags", tags);
-        }
+        const memoryTags = tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+        if (activeFormat === "Milestone" && !memoryTags.some((tag) => tag.toLowerCase() === "milestone")) memoryTags.push("milestone");
+        if (memoryTags.length) formData.append("tags", JSON.stringify(memoryTags));
+        const normalizedPlaces = Array.from(new Set(places.split(",").map((place) => place.trim()).filter(Boolean)));
+        if (normalizedPlaces.length) formData.append("places", JSON.stringify(normalizedPlaces));
         if (taggedUsers.length > 0) {
           formData.append("taggedUserIds", JSON.stringify(taggedUsers.map(u => u.id)));
         }
@@ -603,7 +607,8 @@ function RecordMemoryContent() {
       occurredAt: date,
       mood: mood,
       chapter: lifeChapter,
-      tags: tags,
+      tags: activeFormat === "Milestone" ? `${tags}${tags.trim() ? ", " : ""}milestone` : tags,
+      places: places.split(",").map((place) => place.trim()).filter(Boolean),
       albums: selectedAlbumId ? [selectedAlbumId] : [],
       albumId: selectedAlbumId || null,
       audiences: [selectedAudience],
@@ -748,6 +753,22 @@ function RecordMemoryContent() {
                   className="w-full bg-transparent text-sm font-bold text-stone-800 dark:text-white outline-none cursor-pointer"
                 />
               </div>
+            </div>
+
+            {/* Places for Then & Now comparisons */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wide text-stone-500">Places</label>
+              <div className="glass-input p-4">
+                <input
+                  value={places}
+                  onChange={(event) => setPlaces(event.target.value)}
+                  type="text"
+                  placeholder="Add places, separated by commas"
+                  className="w-full bg-transparent text-sm font-bold text-stone-850 dark:text-white outline-none placeholder:text-stone-400"
+                  aria-label="Places connected to this memory"
+                />
+              </div>
+              <p className="text-xs text-stone-400">Add places you remember from this moment.</p>
             </div>
 
             {/* Life Chapter Dropdown */}

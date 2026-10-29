@@ -383,6 +383,12 @@ export async function getUserInsightsFromBackend(token) {
   return response.data;
 }
 
+export async function getThenNowComparisonFromBackend(token, ranges) {
+  const params = new URLSearchParams(ranges);
+  const response = await backendFetch(`/api/then-now/compare?${params.toString()}`, { token });
+  return response?.data ?? response;
+}
+
 /** Get discovery filter memories */
 export async function getDiscoveryMemories(token, filter, theme, searchQuery = "", page = 1, limit = 20) {
   const query = `filter=${encodeURIComponent(filter || "")}&theme=${encodeURIComponent(theme || "")}&q=${encodeURIComponent(searchQuery || "")}&page=${page}&limit=${limit}`;
