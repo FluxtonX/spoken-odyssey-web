@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   Settings,
   Plus,
+  Award,
   Lock,
   Flag,
   Users,
@@ -77,6 +78,38 @@ function getMemoryCover(memory) {
         ? memory.media[0]
         : memory.media[0]?.mediaUrl || memory.media[0]?.url));
   return normalizeMediaUrl(rawUrl);
+}
+
+function isVoiceMemory(memory) {
+  const type = String(memory?.type || memory?.mediaType || "").toLowerCase();
+  return (
+    type === "voice" ||
+    type === "audio" ||
+    Boolean(memory?.audioUrl || memory?.audioKey)
+  );
+}
+
+function isWrittenMemory(memory) {
+  const type = String(memory?.type || memory?.mediaType || "").toLowerCase();
+  return type === "text" || type === "written";
+}
+
+function isMilestoneMemory(memory) {
+  const type = String(memory?.type || memory?.mediaType || "").toLowerCase();
+  return (
+    type === "milestone" ||
+    Boolean(memory?.isMilestone) ||
+    String(memory?.category || "").toLowerCase() === "milestone" ||
+    (Array.isArray(memory?.tags) && memory.tags.some((tag) => String(tag).toLowerCase() === "milestone"))
+  );
+}
+
+function getMilestoneDisplayDate(memory) {
+  const scheduledDate =
+    memory?.upcomingAt || memory?.milestoneDate || memory?.eventDate || memory?.scheduledFor;
+  if (scheduledDate) return scheduledDate;
+  if (memory?.isVaultLocked && memory?.unlockAt) return memory.unlockAt;
+  return memory?.occurredAt || memory?.date || memory?.createdAt || memory?.unlockAt || null;
 }
 
 function getMemberAvatar(member) {
@@ -172,7 +205,32 @@ export default function Home() {
               setQaQuestions(dashboardData.familyPrompts);
             }
             if (Array.isArray(dashboardData.timelineMilestones)) {
-              setTimelineMilestones(dashboardData.timelineMilestones);
+              const recentMilestones = (dashboardData.recentMoments || [])
+                .filter(isMilestoneMemory)
+                .map((memory) => {
+                  const date = getMilestoneDisplayDate(memory);
+                  const parsedDate = date ? new Date(date) : null;
+                  return {
+                    id: memory._id || memory.id,
+                    year: parsedDate && !Number.isNaN(parsedDate.getTime())
+                      ? String(parsedDate.getFullYear())
+                      : "Milestone",
+                    isUpcoming: parsedDate && parsedDate.getTime() > Date.now(),
+                    label: memory.title || "Family milestone",
+                    image: getMemoryCover(memory),
+                    raw: memory,
+                  };
+                });
+              const combinedMilestones = [
+                ...recentMilestones,
+                ...dashboardData.timelineMilestones,
+              ];
+              setTimelineMilestones(
+                combinedMilestones.filter(
+                  (milestone, index, list) =>
+                    list.findIndex((candidate) => candidate.id === milestone.id) === index
+                )
+              );
             }
             if (Array.isArray(dashboardData.recentActivities)) {
               setRecentActivities(dashboardData.recentActivities);
@@ -297,13 +355,22 @@ export default function Home() {
 
         // 3. Extract Timeline Milestones
         let milestones = [];
-        if (timelineData.length > 0) {
-          milestones = timelineData.map((item) => {
-            const dateStr = item.date || item.occurredAt || item.createdAt;
-            const yearVal = item.year || (dateStr ? new Date(dateStr).getFullYear() : "") || "Milestone";
+        const timelineEntries = timelineData.map((entry) => entry.memory || entry);
+        const milestoneEntries = allMemories.filter(isMilestoneMemory);
+        const timelineCandidates = [...timelineEntries, ...milestoneEntries];
+        milestones = timelineCandidates
+          .filter((item, index, list) => {
+            const id = item._id || item.id;
+            return id && list.findIndex((candidate) => (candidate._id || candidate.id) === id) === index;
+          })
+          .map((item) => {
+            const dateStr = getMilestoneDisplayDate(item);
+            const date = dateStr ? new Date(dateStr) : null;
+            const yearVal = item.year || (date && !Number.isNaN(date.getTime()) ? date.getFullYear() : "Milestone");
             return {
               id: item._id || item.id,
               year: String(yearVal),
+              isUpcoming: date && !Number.isNaN(date.getTime()) && date.getTime() > Date.now(),
               label: item.title || item.label || "Family milestone",
               image:
                 getMemoryCover(item) ||
@@ -311,26 +378,6 @@ export default function Home() {
               raw: item,
             };
           });
-        } else {
-          // Extract from memories that are marked as milestones
-          const milestoneMemories = allMemories.filter(
-            (m) => m.isMilestone || m.type === "milestone" || m.category === "Milestone"
-          );
-          if (milestoneMemories.length > 0) {
-            milestones = milestoneMemories.slice(0, 6).map((m) => {
-              const d = new Date(m.occurredAt || m.createdAt || Date.now());
-              return {
-                id: m._id || m.id,
-                year: isNaN(d.getTime()) ? "Milestone" : String(d.getFullYear()),
-                label: m.title || "Family milestone",
-                image:
-                  getMemoryCover(m) ||
-                  "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=300&q=80",
-                raw: m,
-              };
-            });
-          }
-        }
 
         // Helper to resolve real user profile for any author or actor ID
         const resolveRealProfile = async (targetId) => {
@@ -550,8 +597,6 @@ export default function Home() {
     );
   };
 
-  if (loading || !isAuthenticated) return null;
-
   const familyName =
     familyCircle?.name ||
     profile?.familyName ||
@@ -559,6 +604,24 @@ export default function Home() {
     (firebaseUser?.displayName
       ? `${firebaseUser.displayName.split(" ")[0]}'s Family`
       : "Our Family");
+
+  const latestTimelineMilestones = useMemo(
+    () =>
+      [...timelineMilestones]
+        .sort((a, b) => {
+          const getTime = (milestone) => {
+            const raw = milestone.raw?.memory || milestone.raw || milestone;
+            const value = getMilestoneDisplayDate(raw) || milestone.year;
+            const timestamp = new Date(value).getTime();
+            return Number.isFinite(timestamp) ? timestamp : 0;
+          };
+          return getTime(b) - getTime(a);
+        })
+        .slice(0, 5),
+    [timelineMilestones]
+  );
+
+  if (loading || !isAuthenticated) return null;
 
   return (
     <div className="w-full space-y-5 pb-16">
@@ -861,13 +924,19 @@ export default function Home() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {memoriesList.length > 0 ? (
                   memoriesList.slice(0, 4).map((item) => {
-                    const cover = getMemoryCover(item);
-                    const duration =
-                      item.duration ||
-                      item.mediaDuration ||
-                      (item.type === "voice" || item.type === "audio" || item.audioUrl
-                        ? "Voice"
-                        : null);
+                    const isVoice = isVoiceMemory(item);
+                    const isWritten = isWrittenMemory(item);
+                    const isMilestone = isMilestoneMemory(item);
+                    const cover = isVoice || isMilestone ? null : getMemoryCover(item);
+                    const voiceUrl = normalizeMediaUrl(
+                      item.audioUrl || item.mediaUrl || item.mediaList?.[0]?.mediaUrl || item.mediaList?.[0]?.url
+                    );
+                    const writtenText = String(
+                      item.description || item.content || item.text || item.transcriptText || ""
+                    ).trim();
+                    const duration = isVoice
+                      ? null
+                      : item.duration || item.mediaDuration || null;
 
                     return (
                       <div
@@ -882,6 +951,34 @@ export default function Home() {
                               alt={item.title || "Memory"}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
+                          ) : isVoice ? (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-50 via-blue-50 to-indigo-100 p-1.5">
+                              <div className="w-full min-w-0 rounded-xl rounded-bl-sm bg-white/95 border border-violet-100 px-1.5 py-1 shadow-sm" onClick={(event) => event.stopPropagation()}>
+                                <audio
+                                  controls
+                                  preload="none"
+                                  src={voiceUrl || undefined}
+                                  aria-label={`Play voice memory: ${item.title || "Untitled Moment"}`}
+                                  className="block w-full min-w-0 h-7"
+                                />
+                              </div>
+                            </div>
+                          ) : isWritten ? (
+                            <div className="w-full h-full flex items-start bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-3 text-left">
+                              <p className="text-[10px] sm:text-[11px] leading-relaxed text-slate-700 line-clamp-5 whitespace-pre-wrap break-words">
+                                {writtenText || item.title || "Written memory"}
+                              </p>
+                            </div>
+                          ) : isMilestone ? (
+                            <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-100 p-3 text-center">
+                              <div className="absolute inset-x-5 top-1/2 h-px bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
+                              <div className="relative w-11 h-11 rounded-full bg-white border border-amber-200 shadow-[0_4px_12px_rgba(180,83,9,0.12)] flex items-center justify-center text-amber-600">
+                                <Award size={22} strokeWidth={1.9} aria-hidden="true" />
+                              </div>
+                              <span className="mt-2 px-2 py-0.5 rounded-full bg-white/80 border border-amber-200/80 text-[8px] font-extrabold uppercase tracking-[0.12em] text-amber-700">
+                                Life milestone
+                              </span>
+                            </div>
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-500 p-2 text-center">
                               <Camera size={18} className="mb-1 opacity-70" />
@@ -1091,15 +1188,15 @@ export default function Home() {
               <div className="absolute top-[26px] left-6 right-6 h-0.5 bg-blue-100 border-dashed border-b border-blue-300" />
 
               <div className="flex items-start justify-between gap-4 min-w-[540px] relative z-10 px-2">
-                {timelineMilestones.length > 0 ? (
-                  timelineMilestones.map((mile) => (
+                {latestTimelineMilestones.length > 0 ? (
+                  latestTimelineMilestones.map((mile) => (
                     <div
                       key={mile.id || mile.year}
                       onClick={() => mile.raw && handleOpenMemory(mile.raw)}
                       className="flex flex-col items-center text-center cursor-pointer group"
                     >
                       <span className="text-[10.5px] font-extrabold text-slate-500 mb-1 group-hover:text-[#2563eb] transition-colors">
-                        {mile.year}
+                        {mile.isUpcoming ? `Upcoming · ${mile.year}` : mile.year}
                       </span>
                       <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm ring-2 ring-blue-100 bg-slate-100 group-hover:scale-105 group-hover:ring-[#2563eb] transition-all">
                         <img

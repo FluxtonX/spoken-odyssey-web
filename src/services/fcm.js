@@ -2,11 +2,22 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { registerDevicePushToken } from "./backend";
 
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BJXNS_q1D0HCkwg0NuYEFENXd6J1X1Ig3v_aWKemxQ2sB1qcoiBl89jeG1k8gsxH-jw-90cLPejLtIPz_qyl0OQ";
+let pushInitializationPromise = null;
+let unsubscribeForegroundMessages = null;
 
 /**
  * Initialize Web Push Notifications & register device token with backend
  */
-export async function initializePushNotifications(authToken) {
+export function initializePushNotifications(authToken) {
+  if (pushInitializationPromise) return pushInitializationPromise;
+
+  pushInitializationPromise = initializePushNotificationsOnce(authToken).finally(() => {
+    pushInitializationPromise = null;
+  });
+  return pushInitializationPromise;
+}
+
+async function initializePushNotificationsOnce(authToken) {
   if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
     return null;
   }
@@ -51,7 +62,8 @@ export async function initializePushNotifications(authToken) {
       }
 
       // Listen for foreground push messages when app tab is active
-      onMessage(messaging, (payload) => {
+      unsubscribeForegroundMessages?.();
+      unsubscribeForegroundMessages = onMessage(messaging, (payload) => {
         console.log("[FCM] Foreground Push Message received:", payload);
         const rawTitle = payload?.notification?.title || payload?.data?.title || "Spoken Odyssey";
         const title = rawTitle.startsWith("Spoken Odyssey") ? rawTitle : `Spoken Odyssey • ${rawTitle}`;
@@ -65,7 +77,9 @@ export async function initializePushNotifications(authToken) {
           data: payload?.data || {},
         };
 
-        if (Notification.permission === "granted") {
+        // The app already shows socket notifications while its tab is visible.
+        // Use a system notification only when the page is in the background.
+        if (Notification.permission === "granted" && document.visibilityState !== "visible") {
           const notif = new Notification(title, options);
           notif.onclick = (e) => {
             e.preventDefault();

@@ -74,6 +74,7 @@ export default function DashboardHeader({ onSearchChange }) {
   const searchRef = useRef(null);
   const notifRef = useRef(null);
   const profileRef = useRef(null);
+  const seenSocketNotificationIdsRef = useRef(new Set());
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -104,7 +105,12 @@ export default function DashboardHeader({ onSearchChange }) {
         getNotifications(token, { limit: 5 }),
         getUnreadNotificationCount(token)
       ]);
-      setNotifications(Array.isArray(notifData) ? notifData : []);
+      const fetchedNotifications = Array.isArray(notifData) ? notifData : [];
+      fetchedNotifications.forEach((notification) => {
+        const id = notification?.id || notification?._id;
+        if (id) seenSocketNotificationIdsRef.current.add(id);
+      });
+      setNotifications(fetchedNotifications);
       setUnreadCount(countData?.count || 0);
     } catch (err) {
       console.warn("Failed to fetch dashboard header notifications:", err.message);
@@ -132,8 +138,23 @@ export default function DashboardHeader({ onSearchChange }) {
     });
 
     socket.on("notification:new", (newNotif) => {
+      const notificationId = newNotif?.id || newNotif?._id;
+      if (notificationId && seenSocketNotificationIdsRef.current.has(notificationId)) return;
+      if (notificationId) {
+        seenSocketNotificationIdsRef.current.add(notificationId);
+        if (seenSocketNotificationIdsRef.current.size > 100) {
+          const oldestId = seenSocketNotificationIdsRef.current.values().next().value;
+          seenSocketNotificationIdsRef.current.delete(oldestId);
+        }
+      }
+
       // Instantly prepend new notification to state
-      setNotifications((prev) => [newNotif, ...prev.slice(0, 4)]);
+      setNotifications((prev) => {
+        if (notificationId && prev.some((notification) => (notification.id || notification._id) === notificationId)) {
+          return prev;
+        }
+        return [newNotif, ...prev.slice(0, 4)];
+      });
       setUnreadCount((prev) => prev + 1);
 
       // Trigger floating live toast banner
