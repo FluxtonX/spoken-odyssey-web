@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { resolveGlass3DIcon } from "@/components/ui/Glass3DIcons";
 import { useAuth } from "@/context/AuthProvider";
 import { isPublicRoute } from "@/lib/routes";
-import { Plus, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings, CreditCard, User, ChevronRight } from "lucide-react";
+import { Plus, Home, Archive, Clock, Image as ImageIcon, Users, Sparkles, Globe, Settings, CreditCard, User, ChevronRight, Repeat2 } from "lucide-react";
 
 import { getFamilyInvitations, getFamilySharedMemories, getFamilyBadgeCount, markFamilySeen, normalizeMediaUrl } from "@/services/backend";
 
@@ -85,6 +85,7 @@ export default function NavBar() {
     { name: "Family", href: "/family", icon: Users, badge: pendingFamilyCount > 0 ? pendingFamilyCount : undefined },
     { name: "Timeline", href: "/timeline", icon: Clock },
     { name: "Insights", href: "/insights", icon: Sparkles },
+    { name: "Then & Now", href: "/then-now", icon: Repeat2 },
   ];
 
   const accountItems = [

@@ -17,6 +17,10 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message:', payload);
 
+  // FCM automatically displays messages that include a notification payload.
+  // Calling showNotification for those messages creates a second identical alert.
+  if (payload?.notification) return;
+
   const rawTitle = payload?.notification?.title || payload?.data?.title || "Spoken Odyssey";
   const notificationTitle = rawTitle.startsWith("Spoken Odyssey") ? rawTitle : `Spoken Odyssey • ${rawTitle}`;
 

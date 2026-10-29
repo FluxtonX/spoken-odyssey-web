@@ -217,10 +217,12 @@ export default function PublishWizard() {
     const handleOpen = (e) => {
       const albumIdFromEvent = e?.detail?.albumId || "";
       const visibilityFromEvent = e?.detail?.visibility || "Private";
+      const initialType = e?.detail?.initialType || "";
+      const opensMilestoneForm = initialType === "milestone";
       
       setPreselectedAlbumId(albumIdFromEvent);
-      setStep(1);
-      setMemoryType("");
+      setStep(opensMilestoneForm ? 2 : 1);
+      setMemoryType(opensMilestoneForm ? "milestone" : "");
       setTitle("");
       setWrittenContent("");
       setMood("Reflective");
@@ -1275,7 +1277,7 @@ export default function PublishWizard() {
 
                           try {
                             const { invalidateCachePattern } = await import("@/lib/cache");
-                            invalidateCachePattern("memories_|family_shared_|album_|user_albums_|discovery_|profile_");
+                            invalidateCachePattern("dashboard_home_|memories_|family_shared_|album_|user_albums_|discovery_|profile_");
                           } catch (_) {}
                         } else {
                           console.error("[PUBLISH DEBUG] ❌ Step 7 - NO realDbId! Memory was NOT saved to database.");
