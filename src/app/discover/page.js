@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { Search, Loader2, Headphones, Heart, UserPlus, UserCheck, Inbox, Mic, FileText, Image as ImageIcon, Film, Play, Lock, Grid, List, ChevronRight } from "lucide-react";
+import { Search, Loader2, Heart, UserPlus, UserCheck, Inbox, Mic, FileText, Image as ImageIcon, Film, Globe2, SlidersHorizontal, ChevronDown, ArrowUpRight, Check } from "lucide-react";
 import { getDiscoveryMemories, getFeaturedPeople, followUser, unfollowUser, reactToMemory, normalizeMediaUrl } from "@/services/backend";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
@@ -104,24 +104,24 @@ export default function DiscoverPage() {
   const highlightMemoryId = searchParams?.get('memoryId');
   const { firebaseUser, isAuthenticated, getToken, profile } = useAuth();
   
-  // Tab state: "latest-stories" vs "featured-people"
-  const [activeTab, setActiveTab] = useState("latest-stories");
+  const activeTab = "latest-stories";
   const [activeFilter, setActiveFilter] = useState("All Stories");
-  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
+  const filterDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const closeOutside = (event) => {
+      const dropdown = filterDropdownRef.current;
+      if (dropdown && !dropdown.contains(event.target)) dropdown.open = false;
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, []);
+
   
   // Search state & Debounce state
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  const handleTabChange = (newTab) => {
-    setActiveTab(newTab);
-    if (newTab === "latest-stories") {
-      setActiveFilter("All Stories");
-    } else {
-      setActiveFilter("All People");
-    }
-  };
-  
   const [isLoading, setIsLoading] = useState(true);
   
   // Real Database Records (100% PostgreSQL Hydration)
@@ -436,12 +436,6 @@ export default function DiscoverPage() {
     );
   };
 
-  // Dynamic Featured Story Hero Banner from Database Top Record
-  const heroStory = dbMemoriesList.length > 0 ? dbMemoriesList[0] : null;
-
-  // Grid Stories from Database
-  const gridStoriesList = dbMemoriesList.length > 1 ? dbMemoriesList.slice(1) : dbMemoriesList;
-
   const currentFilters = activeTab === "latest-stories" ? STORY_FILTERS : PEOPLE_FILTERS;
 
   return (
@@ -465,7 +459,7 @@ export default function DiscoverPage() {
             </p>
             
             {/* Search Input */}
-            <div className="relative w-full mb-8">
+            <div className="relative w-full mb-5">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search size={18} className="text-stone-400" />
               </div>
@@ -478,78 +472,69 @@ export default function DiscoverPage() {
               />
             </div>
 
-            {/* Dual-Tab Selector */}
-            <div className="w-full mb-8">
-              <div className="w-full bg-white/70 backdrop-blur-md border border-white/80 rounded-full p-1.5 flex items-center shadow-sm">
-                <button
-                  onClick={() => handleTabChange("latest-stories")}
-                  className={`flex-1 py-3.5 px-6 rounded-full text-[15px] font-bold transition-all text-center ${
-                    activeTab === "latest-stories"
-                      ? "bg-[#4A3AFF] text-white shadow-md"
-                      : "bg-transparent text-[#4A3AFF] hover:text-stone-900 font-semibold"
-                  }`}
-                >
-                  Latest Stories
-                </button>
-                <button
-                  onClick={() => handleTabChange("featured-people")}
-                  className={`flex-1 py-3.5 px-6 rounded-full text-[15px] font-bold transition-all text-center ${
-                    activeTab === "featured-people"
-                      ? "bg-[#4A3AFF] text-white shadow-md"
-                      : "bg-transparent text-[#4A3AFF] hover:text-stone-900 font-semibold"
-                  }`}
-                >
-                  Featured People
-                </button>
-              </div>
-            </div>
           </motion.div>
 
-          {/* Filter Pills Bar & View Mode Toggle Switcher */}
-          <motion.div variants={fadeInUp} className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-2">
-            <div className="flex-1 overflow-x-auto hide-scrollbar flex gap-3 pb-1">
-              {currentFilters.map(filter => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter)}
-                  className={`shrink-0 px-5 py-2.5 rounded-full text-[14px] font-bold transition-all ${
-                    activeFilter === filter
-                      ? "bg-transparent border-2 border-[#4A3AFF] text-[#4A3AFF]"
-                      : "bg-white/70 backdrop-blur-md border border-transparent text-stone-500 hover:text-stone-800 shadow-sm"
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
+          {/* Keep all existing filter choices in one accessible dropdown. */}
+          <motion.div variants={fadeInUp} className="relative z-20 flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div>
+              <h2 className="text-base font-semibold text-stone-900">
+                {activeTab === "latest-stories" ? "Stories from the community" : "Meet the community"}
+              </h2>
+              <p className="mt-0.5 text-xs text-stone-500">
+                {activeFilter === currentFilters[0] ? "A little discovery, every day" : activeFilter}
+              </p>
             </div>
-
-            {/* Grid / List View Toggle Switcher */}
-            {activeTab === "latest-stories" && (
-              <div className="bg-white/80 dark:bg-slate-900/80 border border-[#C7D2FE]/70 dark:border-slate-800 p-1.5 rounded-full inline-flex items-center gap-1 shadow-xs shrink-0 self-end sm:self-auto">
-                <button 
-                  type="button"
-                  onClick={() => setViewMode("grid")}
-                  aria-label="Grid View"
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    viewMode === "grid" ? "bg-[#4A3AFF] text-white shadow-md" : "text-stone-600 dark:text-stone-300 hover:bg-[#EEF2FF]"
-                  }`}
-                >
-                  <Grid size={14} />
-                  <span>Grid</span>
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setViewMode("list")}
-                  aria-label="List View"
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    viewMode === "list" ? "bg-[#4A3AFF] text-white shadow-md" : "text-stone-600 dark:text-stone-300 hover:bg-[#EEF2FF]"
-                  }`}
-                >
-                  <List size={14} />
-                  <span>List</span>
-                </button>
+            <details
+              ref={filterDropdownRef}
+              className="relative shrink-0 ml-auto group/filter"
+              onKeyDown={(event) => {
+                const dropdown = filterDropdownRef.current;
+                if (event.key === "Escape") {
+                  dropdown.open = false;
+                  dropdown.querySelector("summary").focus();
+                } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+                  event.preventDefault();
+                  dropdown.open = true;
+                  const options = [...dropdown.querySelectorAll('[role="menuitemradio"]')];
+                  const index = options.indexOf(document.activeElement);
+                  const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : event.key === "ArrowDown" ? (index + 1) % options.length : (index - 1 + options.length) % options.length;
+                  options[next]?.focus();
+                }
+              }}
+            >
+              <summary
+                aria-label="Filter stories"
+                aria-haspopup="menu"
+                className="flex items-center gap-2.5 list-none [&::-webkit-details-marker]:hidden rounded-xl border border-[#C7D2FE]/80 bg-white/30 backdrop-blur-xl px-3.5 py-2.5 text-sm font-medium text-[#4A3AFF] shadow-sm cursor-pointer hover:bg-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4A3AFF]/30"
+              >
+                <SlidersHorizontal size={15} aria-hidden="true" />
+                <span className="min-w-28">{activeFilter}</span>
+                <ChevronDown size={14} aria-hidden="true" className="transition-transform group-open/filter:rotate-180" />
+              </summary>
+              <div
+                role="menu"
+                aria-label="Story filters"
+                className="absolute right-0 top-full mt-2 w-60 max-w-[calc(100vw-3rem)] rounded-2xl border border-[#C7D2FE]/80 bg-gradient-to-b from-white/65 to-[#E5E8FF]/60 backdrop-blur-2xl p-1.5 shadow-[0_12px_32px_rgba(74,58,255,0.16),inset_0_1px_0_rgba(255,255,255,0.8)]"
+              >
+                {currentFilters.map(filter => (
+                  <button
+                    key={filter}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={activeFilter === filter}
+                    onClick={() => {
+                      setActiveFilter(filter);
+                      filterDropdownRef.current.open = false;
+                      filterDropdownRef.current.querySelector("summary").focus();
+                    }}
+                    className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:bg-[#4A3AFF]/10 ${activeFilter === filter ? "bg-[#4A3AFF]/10 text-[#4A3AFF] font-semibold" : "text-stone-700 hover:bg-white/50"}`}
+                  >
+                    <Check size={15} aria-hidden="true" className={activeFilter === filter ? "opacity-100" : "opacity-0"} />
+                    {filter}
+                  </button>
+                ))}
               </div>
-            )}
+            </details>
           </motion.div>
 
           {isLoading ? (
@@ -701,468 +686,119 @@ export default function DiscoverPage() {
                     : "No public stories have been published to the database yet."}
                 </p>
               </div>
-            ) : viewMode === "list" ? (
-              /* ==========================================
-                 LIST VIEW MODE FOR LATEST STORIES
-                 ========================================== */
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3.5 w-full">
-                {dbMemoriesList.map((story) => {
+            ) : (
+              <motion.div variants={staggerContainer} className="flex flex-col gap-6 w-full max-w-[720px] self-center">
+                {dbMemoriesList.map(story => {
                   const normType = (story.type || "").toLowerCase();
                   const mediaSources = getMemoryMediaSources(story);
                   const isVoice = normType === "voice" || normType === "audio" || (!!story.audioUrl && !mediaSources.video && !mediaSources.image);
                   const isVideo = !isVoice && (normType === "video" || !!mediaSources.video);
                   const isPhoto = !isVoice && !isVideo && (normType === "photo" || normType === "visual" || normType === "image" || !!mediaSources.image);
-                  const isWritten = !isVoice && !isVideo && !isPhoto;
                   const dateStr = formatDateSafely(story.date || story.createdAt || story.occurredAt);
+                  const displayHashtags = Array.isArray(story.tags) ? story.tags.filter(Boolean).slice(0, 3) : [];
                   const reactionCount = reactionsCountMap[story.id] ?? story.totalReactions ?? story.likes ?? 0;
                   const userReactType = userReactionMap[story.id] || (story.userReaction ? "heart" : null);
                   const isLiked = !!userReactType;
+                  const TypeIcon = isVoice ? Mic : isVideo ? Film : isPhoto ? ImageIcon : FileText;
+                  const typeLabel = isVoice ? "Voice" : isVideo ? "Video" : isPhoto ? "Photo" : "Written";
 
                   return (
-                    <motion.div
-                      key={story.id}
+                    <motion.article
                       variants={fadeInUp}
+                      key={story.id}
                       id={`memory-${story.id}`}
+                      aria-label={story.title || "Community story"}
                       onClick={(e) => handleOpenMemoryModal(e, story)}
-                      className="figma-card p-4 sm:p-5 flex items-center justify-between gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer group w-full"
+                      className="figma-card overflow-hidden cursor-pointer"
                     >
-                      <div className="flex items-center gap-4 min-w-0 flex-1">
-                        <div className={`w-11 h-11 rounded-2xl ${
-                          isVoice ? "bg-[#FFF7ED] text-[#F59E0B]" :
-                          isVideo ? "bg-[#FDF2F8] text-[#EC4899]" :
-                          isWritten ? "bg-[#ECFDF5] text-[#10B981]" :
-                          "bg-[#EFF6FF] text-[#3B82F6]"
-                        } font-bold text-sm flex items-center justify-center shrink-0 shadow-xs`}>
-                          {isVoice ? <Mic size={20} /> :
-                           isVideo ? <Film size={20} /> :
-                           isWritten ? <FileText size={20} /> :
-                           <ImageIcon size={20} />}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <h3 className="font-bold text-base text-stone-900 leading-tight truncate group-hover:text-[#4A3AFF] transition-colors">
-                                {story.title}
-                              </h3>
-                              <span className="text-xs text-stone-400 font-semibold shrink-0">• {dateStr}</span>
-                            </div>
-                            <TaggedMembersBadge memory={story} />
-                          </div>
-                          
-                          <div className="flex items-center gap-2 mt-1">
-                            <img 
-                              src={story.ownerAvatarUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop"} 
-                              alt={story.ownerDisplayName || "Author"} 
-                              className="w-4 h-4 rounded-full object-cover shrink-0 border border-stone-200"
+                      <div className="p-5 sm:p-6 pb-4 sm:pb-4">
+                        <div className="flex items-start justify-between gap-3 mb-5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <img
+                              src={normalizeMediaUrl(story.ownerAvatarUrl) || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop"}
+                              alt=""
+                              className="w-11 h-11 rounded-full object-cover border border-stone-100 shrink-0"
                             />
-                            <span className="text-xs font-semibold text-stone-500 truncate">
-                              {story.ownerDisplayName || "Author"}
-                            </span>
-                            {story.description && (
-                              <span className="text-xs font-medium text-stone-400 truncate hidden md:inline">
-                                — {story.description}
-                              </span>
-                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-stone-900 truncate">
+                                <HighlightText text={story.ownerDisplayName || "Author"} query={debouncedQuery} />
+                              </p>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-stone-500">
+                                <span>{dateStr}</span>
+                                <span aria-hidden="true">·</span>
+                                <Globe2 size={12} aria-label="Public story" />
+                              </div>
+                            </div>
                           </div>
+                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#F5F4FF] px-2.5 py-1.5 text-[11px] font-medium text-[#4A3AFF]">
+                            <TypeIcon size={13} />{typeLabel}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                          <h3 className="text-xl sm:text-[23px] font-semibold leading-snug tracking-tight text-stone-900 break-words min-w-0">
+                            <button type="button" onClick={(e) => handleOpenMemoryModal(e, story)} className="text-left cursor-pointer hover:text-[#4A3AFF] focus-visible:outline-2 focus-visible:outline-[#4A3AFF] rounded">
+                              <HighlightText text={story.title || "Untitled memory"} query={debouncedQuery} />
+                            </button>
+                          </h3>
+                          <TaggedMembersBadge memory={story} />
+                        </div>
+                        {story.description && (
+                          <p className="text-[15px] leading-7 text-stone-600 whitespace-pre-line break-words line-clamp-5">
+                            <HighlightText text={story.description} query={debouncedQuery} />
+                          </p>
+                        )}
+                        {displayHashtags.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+                            {displayHashtags.map(tag => (
+                              <span key={tag} className="text-sm font-medium text-[#4A3AFF]">#{String(tag).replace(/^#/, "")}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {isVoice ? (
+                        <div className="px-5 sm:px-6 pb-5" onClick={(e) => e.stopPropagation()}>
+                          <VoicePlayer memory={story} />
+                        </div>
+                      ) : mediaSources.items.length > 0 ? (
+                        <div className="bg-stone-100 border-y border-stone-100 [&>div]:rounded-none [&>div]:h-[300px] sm:[&>div]:h-[420px] [&_img]:object-contain [&_video]:object-contain">
+                          <CardMediaSlider mediaItems={mediaSources.items} title={story.title} />
+                        </div>
+                      ) : null}
+
+                      <div className="px-5 sm:px-6">
+                        <div className="flex items-center gap-2 py-3 text-xs text-stone-500 border-b border-stone-100">
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 text-rose-500"><Heart size={11} fill="currentColor" /></span>
+                          <span>{reactionCount} {reactionCount === 1 ? "reaction" : "reactions"}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 py-2">
+                          <button
+                            type="button"
+                            aria-pressed={isLiked}
+                            aria-label={isLiked ? "Unlike story" : "Like story"}
+                            onClick={(e) => handleReactionToggle(e, story)}
+                            className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#4A3AFF] ${isLiked ? "text-rose-500 bg-rose-50" : "text-stone-500 hover:bg-stone-50 hover:text-rose-500"}`}
+                          >
+                            <Heart size={18} fill={isLiked ? "currentColor" : "none"} />{isLiked ? "Liked" : "Like"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenMemoryModal(e, story)}
+                            className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-500 hover:bg-[#F5F4FF] hover:text-[#4A3AFF] transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#4A3AFF]"
+                          >
+                            View memory<ArrowUpRight size={16} />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3 shrink-0">
-                        {Array.isArray(story.tags) && story.tags.filter(Boolean).slice(0, 2).map(tag => (
-                          <span key={tag} className="hidden lg:inline-block px-2.5 py-1 bg-[#EEF2FF] text-[#4A3AFF] rounded-full text-[10px] font-bold">
-                            #{String(tag).replace(/^#/, "")}
-                          </span>
-                        ))}
-
-                        <button 
-                          onClick={(e) => handleReactionToggle(e, story)}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-bold transition-colors cursor-pointer ${
-                            isLiked ? "bg-red-50 text-[#ef4444]" : "bg-stone-100 text-stone-500 hover:text-[#ef4444]"
-                          }`}
-                        >
-                          <Heart size={14} fill={isLiked ? "currentColor" : "none"} strokeWidth={2.5} />
-                          <span>{reactionCount}</span>
-                        </button>
-
-                        <ChevronRight size={16} className="text-stone-400 group-hover:text-[#4A3AFF] transition shrink-0" />
-                      </div>
-                    </motion.div>
+                    </motion.article>
                   );
                 })}
                 {isFetchingMore && (
-                  <div className="w-full flex items-center justify-center py-8">
-                    <Loader2 size={24} className="animate-spin text-[#4A3AFF] mr-2" />
-                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading more public stories...</span>
+                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-stone-500">
+                    <Loader2 size={20} className="animate-spin text-[#4A3AFF]" />Loading more stories...
                   </div>
                 )}
-              </motion.div>
-            ) : (
-              <motion.div variants={staggerContainer} className="flex flex-col gap-8 w-full">
-                
-                {/* 100% Dynamic Featured Hero Story Banner Card */}
-                {heroStory && (
-                  <motion.div 
-                    variants={fadeInUp} 
-                    onClick={(e) => handleOpenMemoryModal(e, heroStory)}
-                    className="w-full flex flex-col md:flex-row rounded-[24px] overflow-hidden shadow-lg border border-white/40 bg-[#4A3AFF] min-h-[360px] cursor-pointer hover:shadow-xl transition-all duration-300 group"
-                  >
-                    {/* Left Side: Content */}
-                    <div className="w-full md:w-[55%] p-8 md:p-10 lg:p-12 flex flex-col justify-center text-white relative z-10">
-                      <div className="text-[11px] font-bold tracking-widest text-white/80 uppercase mb-8 flex items-center gap-2">
-                        <span>Featured Story</span>
-                        {heroStory.type === "Voice" && <Mic size={14} />}
-                        {heroStory.type === "Video" && <Film size={14} />}
-                        {heroStory.type === "Written" && <FileText size={14} />}
-                      </div>
-                      
-                      <div className="flex items-center gap-3 mb-6">
-                        <img 
-                          src={heroStory.ownerAvatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop"} 
-                          alt={heroStory.ownerDisplayName || "Author"} 
-                          className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-bold text-[14px] leading-tight">{heroStory.ownerDisplayName || "Spoken Odyssey Author"}</span>
-                          <span className="text-[12px] text-white/70">{formatDateSafely(heroStory.date || heroStory.createdAt)}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
-                        <h2 className="text-[28px] md:text-[36px] font-semibold leading-tight text-white tracking-tight group-hover:text-white/95 transition-colors">
-                          {heroStory.title}
-                        </h2>
-                        <TaggedMembersBadge memory={heroStory} />
-                      </div>
-                      <p className="text-[15px] text-white/90 font-medium mb-8 max-w-md leading-relaxed line-clamp-3">
-                        {heroStory.description || "Public memory published on Spoken Odyssey."}
-                      </p>
-
-                      {/* Render Maximum 3 Hashtags ONLY */}
-                      {Array.isArray(heroStory.tags) && heroStory.tags.filter(Boolean).length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 mb-6">
-                          {heroStory.tags.filter(Boolean).slice(0, 3).map(tag => (
-                            <span key={tag} className="px-3 py-1 bg-white/20 rounded-md text-[12px] font-bold tracking-wide">
-                              #{tag.replace(/^#/, "")}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="mt-4 flex items-center gap-4">
-                        <button 
-                          onClick={(e) => handleOpenMemoryModal(e, heroStory)}
-                          className="flex items-center gap-2 bg-white text-[#4A3AFF] px-6 py-2.5 rounded-xl font-bold text-[14px] hover:bg-stone-50 transition-colors shadow-sm cursor-pointer"
-                        >
-                          {heroStory.type === "Voice" ? <Headphones size={16} /> : <FileText size={16} />}
-                          View Memory
-                        </button>
-                        <span className="text-[13px] font-medium text-white/80">
-                          {reactionsCountMap[heroStory.id] ?? heroStory.totalReactions ?? heroStory.likes ?? 0} reactions
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Right Side: Media Banner */}
-                    <div className="w-full md:w-[45%] h-[250px] md:h-auto relative bg-stone-900">
-                      <img 
-                        src={heroStory.mediaUrl || "https://images.unsplash.com/photo-1502481851512-e9e2529bfbf9?q=80&w=1200&auto=format&fit=crop"} 
-                        alt="Featured" 
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#4A3AFF] to-transparent md:hidden" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#4A3AFF] via-[#4A3AFF]/20 to-transparent hidden md:block" />
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Grid Stories: Type-Specific Figma Glass Cards */}
-                {gridStoriesList.length > 0 && (
-                  <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                    {gridStoriesList.map(story => {
-                      const normType = (story.type || "").toLowerCase();
-                      const mediaSources = getMemoryMediaSources(story);
-                      const isVoice = normType === "voice" || normType === "audio" || (!!story.audioUrl && !mediaSources.video && !mediaSources.image);
-                      const isVideo = !isVoice && (normType === "video" || !!mediaSources.video);
-                      const isPhoto = !isVoice && !isVideo && (normType === "photo" || normType === "visual" || normType === "image" || !!mediaSources.image);
-                      const isWritten = !isVoice && !isVideo && !isPhoto;
-                      const dateStr = formatDateSafely(story.date || story.createdAt || story.occurredAt);
-
-                      const displayHashtags = Array.isArray(story.tags) ? story.tags.filter(Boolean).slice(0, 3) : [];
-                      const reactionCount = reactionsCountMap[story.id] ?? story.totalReactions ?? story.likes ?? 0;
-                      const userReactType = userReactionMap[story.id] || (story.userReaction ? "heart" : null);
-                      const isLiked = !!userReactType;
-
-                      /* Reusable Author Profile Header */
-                      const AuthorHeader = () => (
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <img 
-                              src={story.ownerAvatarUrl || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop"} 
-                              alt={story.ownerDisplayName || "Author"} 
-                              className="w-9 h-9 rounded-full object-cover border border-white shadow-sm"
-                            />
-                            <div className="flex flex-col">
-                              <span className="font-bold text-[13px] text-stone-900 leading-tight">
-                                {story.ownerDisplayName || "Author"}
-                              </span>
-                              <span className="text-[11px] text-stone-500 font-medium">{dateStr}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EAEBFF]/60 border border-[#C7D2FE]/60">
-                            {isVoice ? <Mic size={13} className="text-[#f59e0b]" /> :
-                             isVideo ? <Film size={13} className="text-[#ec4899]" /> :
-                             isWritten ? <FileText size={13} className="text-[#10b981]" /> :
-                             <ImageIcon size={13} className="text-[#3b82f6]" />}
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-700">
-                              {isVoice ? "VOICE" : isVideo ? "VIDEO" : isWritten ? "WRITTEN" : "PHOTO"}
-                            </span>
-                          </div>
-                        </div>
-                      );
-
-                      /* ----------------------------------
-                         1. VOICE MEMORY CARD LAYOUT
-                         ---------------------------------- */
-                      if (isVoice) {
-                        return (
-                          <motion.div
-                            variants={fadeInUp}
-                            key={story.id}
-                            id={`memory-${story.id}`}
-                            onClick={(e) => handleOpenMemoryModal(e, story)}
-                            className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full p-6"
-                          >
-                            <AuthorHeader />
-
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                                {story.title}
-                              </h3>
-                              <TaggedMembersBadge memory={story} />
-                            </div>
-                            <p className="text-[14px] text-stone-600 font-medium leading-relaxed mb-4 line-clamp-2">
-                              {story.description || "Voice recording memory."}
-                            </p>
-
-                            <div className="mb-4 w-full" onClick={(e) => e.stopPropagation()}>
-                              <VoicePlayer memory={story} />
-                            </div>
-
-                            <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#C7D2FE]/40">
-                              {displayHashtags.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {displayHashtags.map(tag => (
-                                    <span key={tag} className="px-2.5 py-1 bg-[#4A3AFF] text-white rounded-md text-[11px] font-bold tracking-wide">
-                                      #{tag.replace(/^#/, "")}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : <div />}
-
-                              <button 
-                                onClick={(e) => handleReactionToggle(e, story)}
-                                className={`flex items-center gap-1.5 text-[12px] font-bold transition-colors cursor-pointer ${
-                                  isLiked ? "text-[#ef4444]" : "text-stone-500 hover:text-[#ef4444]"
-                                }`}
-                              >
-                                <Heart size={16} fill={isLiked ? "currentColor" : "none"} strokeWidth={2.5} />
-                                {reactionCount}
-                              </button>
-                            </div>
-                          </motion.div>
-                        );
-                      }
-
-                      /* ----------------------------------
-                         2. VIDEO MEMORY CARD LAYOUT
-                         ---------------------------------- */
-                      if (isVideo) {
-                        return (
-                          <motion.div
-                            variants={fadeInUp}
-                            key={story.id}
-                            id={`memory-${story.id}`}
-                            onClick={(e) => handleOpenMemoryModal(e, story)}
-                            className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full"
-                          >
-                            <div className="w-full h-[180px] overflow-hidden shrink-0 relative border-b border-[#C7D2FE]/50 bg-stone-900">
-                              {mediaSources.items.length > 0 ? (
-                                <CardMediaSlider mediaItems={mediaSources.items} title={story.title} />
-                              ) : (
-                                <div className="relative w-full h-full">
-                                  <img 
-                                    src={story.mediaUrl || "https://images.unsplash.com/photo-1522276498395-f4f68f7f8454?q=80&w=600&auto=format&fit=crop"} 
-                                    alt={story.title} 
-                                    className="w-full h-full object-cover opacity-80" 
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
-                                      <Play size={22} fill="currentColor" className="ml-0.5" />
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="p-6 flex flex-col grow">
-                              <AuthorHeader />
-
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                                  {story.title}
-                                </h3>
-                                <TaggedMembersBadge memory={story} />
-                              </div>
-                              <p className="text-[14px] text-stone-600 font-medium leading-relaxed mb-6 line-clamp-2">
-                                {story.description}
-                              </p>
-
-                              <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#C7D2FE]/40">
-                                {displayHashtags.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {displayHashtags.map(tag => (
-                                      <span key={tag} className="px-2.5 py-1 bg-[#4A3AFF] text-white rounded-md text-[11px] font-bold tracking-wide">
-                                        #{tag.replace(/^#/, "")}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : <div />}
-
-                                <button 
-                                  onClick={(e) => handleReactionToggle(e, story)}
-                                  className={`flex items-center gap-1.5 text-[12px] font-bold transition-colors cursor-pointer ${
-                                    isLiked ? "text-[#ef4444]" : "text-stone-500 hover:text-[#ef4444]"
-                                  }`}
-                                >
-                                  <Heart size={16} fill={isLiked ? "currentColor" : "none"} strokeWidth={2.5} />
-                                  {reactionCount}
-                                </button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      }
-
-                      /* ----------------------------------
-                         3. WRITTEN MEMORY CARD LAYOUT
-                         ---------------------------------- */
-                      if (isWritten) {
-                        return (
-                          <motion.div
-                            variants={fadeInUp}
-                            key={story.id}
-                            id={`memory-${story.id}`}
-                            onClick={(e) => handleOpenMemoryModal(e, story)}
-                            className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full p-6 justify-between"
-                          >
-                            <div>
-                              <AuthorHeader />
-
-                              <div className="flex items-start justify-between gap-2 mb-3">
-                                <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                                  {story.title}
-                                </h3>
-                                <TaggedMembersBadge memory={story} />
-                              </div>
-                              <p className="text-[14px] text-stone-700 font-medium leading-relaxed mb-6 italic border-l-2 border-[#10b981] pl-3 py-0.5 line-clamp-4">
-                                "{story.description || "Written story entry."}"
-                              </p>
-                            </div>
-
-                            <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#C7D2FE]/40">
-                              {displayHashtags.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {displayHashtags.map(tag => (
-                                    <span key={tag} className="px-2.5 py-1 bg-[#4A3AFF] text-white rounded-md text-[11px] font-bold tracking-wide">
-                                      #{tag.replace(/^#/, "")}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : <div />}
-
-                              <button 
-                                onClick={(e) => handleReactionToggle(e, story)}
-                                className={`flex items-center gap-1.5 text-[12px] font-bold transition-colors cursor-pointer ${
-                                  isLiked ? "text-[#ef4444]" : "text-stone-500 hover:text-[#ef4444]"
-                                }`}
-                              >
-                                <Heart size={16} fill={isLiked ? "currentColor" : "none"} strokeWidth={2.5} />
-                                {reactionCount}
-                              </button>
-                            </div>
-                          </motion.div>
-                        );
-                      }
-
-                      /* ----------------------------------
-                         4. PHOTO MEMORY CARD LAYOUT
-                         ---------------------------------- */
-                      return (
-                        <motion.div
-                          variants={fadeInUp}
-                          key={story.id}
-                          id={`memory-${story.id}`}
-                          onClick={(e) => handleOpenMemoryModal(e, story)}
-                          className="figma-card flex flex-col overflow-hidden group cursor-pointer h-full"
-                        >
-                          <div className="w-full h-[180px] overflow-hidden shrink-0 relative border-b border-[#C7D2FE]/50 bg-stone-200">
-                            <img 
-                              src={story.mediaUrl || "https://images.unsplash.com/photo-1449247666642-264389f5f5b1?q=80&w=600&auto=format&fit=crop"} 
-                              alt={story.title} 
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                          </div>
-
-                          <div className="p-6 flex flex-col grow">
-                            <AuthorHeader />
-
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <h3 className="text-[18px] font-semibold text-stone-900 leading-tight tracking-tight group-hover:text-[#4A3AFF] transition-colors">
-                                {story.title}
-                              </h3>
-                              <TaggedMembersBadge memory={story} />
-                            </div>
-                            <p className="text-[14px] text-stone-600 font-medium leading-relaxed mb-6 line-clamp-3">
-                              {story.description}
-                            </p>
-
-                            <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#C7D2FE]/40">
-                              {displayHashtags.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {displayHashtags.map(tag => (
-                                    <span key={tag} className="px-2.5 py-1 bg-[#4A3AFF] text-white rounded-md text-[11px] font-bold tracking-wide">
-                                      #{tag.replace(/^#/, "")}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : <div />}
-
-                              <button 
-                                onClick={(e) => handleReactionToggle(e, story)}
-                                className={`flex items-center gap-1.5 text-[12px] font-bold transition-colors cursor-pointer ${
-                                  isLiked ? "text-[#ef4444]" : "text-stone-500 hover:text-[#ef4444]"
-                                }`}
-                              >
-                                <Heart size={16} fill={isLiked ? "currentColor" : "none"} strokeWidth={2.5} />
-                                {reactionCount}
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </motion.div>
-                )}
-
-                {isFetchingMore && (
-                  <div className="w-full flex items-center justify-center py-8">
-                    <Loader2 size={24} className="animate-spin text-[#4A3AFF] mr-2" />
-                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Loading more public stories...</span>
-                  </div>
-                )}
-
               </motion.div>
             )
           )}
