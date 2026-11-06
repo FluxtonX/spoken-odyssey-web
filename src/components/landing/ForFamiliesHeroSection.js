@@ -1,329 +1,97 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import {
-  ArrowUpRight,
-  Play,
-  ShieldCheck,
-  Users,
-  Heart,
-  Trees,
-  Cloud,
-  BookOpen,
-  Mic,
-  Mail,
-  Share2,
-  Layers,
-} from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Camera, Users, Shield, Brain, PanelsTopLeft, Heart, Sparkles, Mic, Lightbulb, FileText, ChartNoAxesCombined, ChevronLeft, ChevronRight, LayoutGrid, Paintbrush, Flower } from "lucide-react";
+import styles from "./ForFamiliesHeroSection.module.css";
 
-const ease = [0.22, 1, 0.36, 1];
-
-/* ── 5 Feature items below hero ── */
-const FEATURES = [
-  {
-    Icon: Users,
-    title: "Private & Secure",
-    line1: "Your family, your stories.",
-    line2: "Only invite who you trust.",
-  },
-  {
-    Icon: Heart,
-    title: "Build Together",
-    line1: "Everyone can add, share",
-    line2: "and celebrate memories.",
-  },
-  {
-    Icon: Trees,
-    title: "Organized for Generations",
-    line1: "Timelines, collections and",
-    line2: "memories that grow with you.",
-  },
-  {
-    Icon: ShieldCheck,
-    title: "Always Yours",
-    line1: "You control your legacy.",
-    line2: "We keep it safe.",
-  },
-  {
-    Icon: Cloud,
-    title: "Access Anywhere",
-    line1: "Anytime, anywhere,",
-    line2: "on any device.",
-  },
+const benefits = [
+  [Camera, "Capture", <>Photos, videos<br/>and voice.</>],
+  [Users, "Connect", <>Family and<br/>friends.</>],
+  [Shield, "Secure", <>Private and<br/>encrypted.</>],
+  [Brain, "AI Integrated", <>Turn moments<br/>into insights.</>],
+  [PanelsTopLeft, "Accessible", <>On any device.</>],
+  [Heart, "For Everyone", <>Built for families.</>],
 ];
-
-/* ── "What families are creating" 5 Cards using local images ── */
-const CREATING_CARDS = [
-  {
-    image: "/family_timelines.jpg",
-    Icon: BookOpen,
-    title: "Family Timelines",
-    desc: "Capture life moments in beautiful chronological timelines.",
-  },
-  {
-    image: "/story_collections.jpg",
-    Icon: Layers,
-    title: "Story Collections",
-    desc: "Organize memories by themes, events or special people.",
-  },
-  {
-    image: "/legacy_letters.jpg",
-    Icon: Mail,
-    title: "Legacy Letters",
-    desc: "Write letters for your loved ones. For today or for the future.",
-  },
-  {
-    image: "/voice_video.jpg",
-    Icon: Mic,
-    title: "Voice & Video Stories",
-    desc: "Hear the voices. See the moments. Keep the memories alive.",
-  },
-  {
-    image: "/pass_it_on.jpg",
-    Icon: Share2,
-    title: "Pass it On",
-    desc: "Choose what's shared and when. Your legacy, their future.",
-  },
+const tools = [
+  { title: "AI Historian", icon: Sparkles, image: "historian", color: "purple", description: "Turn your photos, videos and voice notes into beautiful stories." },
+  { title: "AI Interviewer", icon: Mic, image: "interviewer", color: "blue", description: "Get guided questions to capture memories, values and life lessons." },
+  { title: "Smart Suggestions", icon: Lightbulb, image: "suggestions", color: "pink", description: "Receive personalised questions and prompts to uncover new stories." },
+  { title: "Auto Transcription", icon: FileText, image: "transcription", color: "blue", description: "Automatically transcribe voice notes and videos into searchable text." },
+  { title: "Memory Insights", icon: ChartNoAxesCombined, image: "insights", color: "teal", description: "Discover themes, milestones and trends across your family’s journey." },
 ];
+const featureTiles = [["Recent Moments", "recent-moments"], ["AI Historian", "historian"], ["Family Map", "family-map"], ["Family Q&A", "family-qa"]];
+const tabs = ["My Features", "Layout", "Theme"];
 
-export default function ForFamiliesHeroSection({
-  backgroundImage = "/family.png",
-}) {
-  return (
-    <div className="bg-[#fcfbfe] text-slate-900 font-sans selection:bg-[#4f37ff]/10">
-      {/* ════════════════════════════════════════════════════════
-          HERO SECTION (EXACT 3:2 ASPECT RATIO - SHOWS FULL FAMILY.PNG FULLY)
-      ════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden pt-12 sm:pt-16 lg:pt-20 pb-8 min-h-[480px] sm:min-h-[540px] lg:min-h-0 lg:aspect-[1535/1024] flex items-start">
-        {/* Full background image - 100% complete without top or bottom hiding */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={backgroundImage}
-            alt="For Families background"
-            className="w-full h-full object-cover object-center"
-          />
-          {/* Subtle minimal tint on left edge for crisp text readability without hiding sky */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(252,251,254,0.55) 0%, rgba(252,251,254,0.25) 35%, transparent 70%)",
-            }}
-          />
-        </div>
+export default function ForFamiliesHeroSection() {
+  const [slide, setSlide] = useState(0);
+  const [tab, setTab] = useState("My Features");
+  const [enabled, setEnabled] = useState([true, true, true, true]);
+  const [layout, setLayout] = useState("Grid");
+  const [theme, setTheme] = useState("Ocean");
+  const rotate = (step) => setSlide(current => (current + step + tools.length) % tools.length);
+  const visibleTools = [...tools.slice(slide), ...tools.slice(0, slide)];
+  const moveTab = (step) => setTab(current => tabs[(tabs.indexOf(current) + step + tabs.length) % tabs.length]);
 
-        {/* Hero content container */}
-        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 w-full pt-2 sm:pt-4">
-          <div className="max-w-xl py-0 sm:py-2">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, ease }}
-              className="space-y-5"
-            >
-              {/* Eyebrow */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1, ease }}
-                className="space-y-0.5"
-              >
-                <p className="italic font-semibold text-xs sm:text-sm text-[#4f37ff]">
-                  Every family has a story.
-                </p>
-                <p className="italic font-semibold text-xs sm:text-sm text-[#4f37ff]">
-                  Leave a legacy of love.{" "}
-                  <span className="not-italic text-sm" aria-hidden="true">
-                    ♡
-                  </span>
-                </p>
-              </motion.div>
+  return <div className={styles.familyPage}>
 
-              {/* Main Minimized Heading */}
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2, ease }}
-              >
-                <h1 className="font-extrabold text-3xl sm:text-4xl lg:text-[44px] leading-[1.12] tracking-tight">
-                  <span className="text-[#1a0a2e] block">For families.</span>
-                  <span className="text-[#4f37ff] block">For generations.</span>
-                </h1>
-              </motion.div>
 
-              {/* Description */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3, ease }}
-                className="space-y-0.5 text-xs sm:text-sm font-medium text-[#52496d]"
-              >
-                <p>Capture the moments that matter.</p>
-                <p>Cherish your memories together.</p>
-                <p>Pass them on forever.</p>
-              </motion.div>
+    <section className={styles.hero} aria-labelledby="family-heading">
+      <div className={styles.heroPhoto}/>
+      <div className={styles.heroCopy}>
+        <p className={styles.eyebrow}>FAMILY SPACE</p>
+        <h1 id="family-heading">Because these<br/>moments matter<br/><span className={styles.gradientText}>for a lifetime.</span></h1>
+        <p className={styles.heroDescription}>Create a private space to capture, celebrate and keep<br className={styles.desktopBreak}/> your family’s story together — for today and for<br className={styles.desktopBreak}/> generations to come.</p>
+        <Link href="/signup" id="families-create-btn" className={`${styles.primaryButton} ${styles.heroButton}`}>Create your Family Space <ArrowRight/></Link>
+      </div>
+    </section>
 
-              {/* Action Buttons */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4, ease }}
-                className="flex flex-wrap items-center gap-3 pt-14 sm:pt-24 lg:pt-36"
-              >
-                {/* Primary Pill Button */}
-                <Link
-                  id="families-create-btn"
-                  href="/signup"
-                  className="inline-flex items-center gap-2 rounded-full font-bold text-white text-xs sm:text-sm px-6 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 shadow-[0_8px_24px_rgba(79,55,255,0.32)]"
-                  style={{
-                    background: "linear-gradient(135deg, #3521dc 0%, #4f37ff 100%)",
-                  }}
-                >
-                  Create your family space
-                  <ArrowUpRight size={14} strokeWidth={2.5} />
-                </Link>
+    <section className={styles.familySpace} aria-labelledby="family-space-heading">
+      <div className={styles.spaceCopy}>
+        <p className={styles.eyebrow}>YOUR FAMILY SPACE</p>
+        <h2 id="family-space-heading">All your family’s<br/>moments, stories<br/>and people <span className={styles.gradientText}>together.</span></h2>
+        <ul className={styles.benefits}>{benefits.map(([Icon, title, description]) => <li key={title}><span className={styles.benefitIcon}><Icon strokeWidth={1.45}/></span><h3>{title}</h3><p>{description}</p></li>)}</ul>
+      </div>
+      <img className={styles.dashboard} src="/families/dashboard.webp" alt="Family Space displayed on a laptop, with recent moments, family members, a calendar, milestones and a family map" width="587" height="495"/>
+    </section>
 
-                {/* Secondary Glass Pill Button */}
-                <Link
-                  id="families-howitworks-btn"
-                  href="/how-it-works"
-                  className="inline-flex items-center gap-2 rounded-full font-bold text-xs sm:text-sm px-5 py-2.5 sm:py-3 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 border border-[#4f37ff]/25 text-[#1a0a2e] bg-white/80 backdrop-blur-md hover:bg-white shadow-sm"
-                >
-                  <div className="w-5 h-5 rounded-full bg-[#4f37ff]/10 flex items-center justify-center text-[#4f37ff]">
-                    <Play size={10} className="fill-[#4f37ff] ml-0.5" />
-                  </div>
-                  See how it works
-                </Link>
-              </motion.div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
+    <section className={styles.aiSection} aria-labelledby="ai-heading">
+      <div className={styles.aiIntro}>
+        <p className={styles.eyebrow}>AI BRINGS YOUR FAMILY’S STORY TO LIFE</p>
+        <h2 id="ai-heading">Powerful AI tools for deeper connections.</h2>
+        <p>Transform everyday moments into lasting stories, gain meaningful insights and spark conversations<br className={styles.desktopBreak}/> with AI — designed to bring your family closer.</p>
+      </div>
+      <div className={styles.carousel}>
+        <button type="button" className={`${styles.carouselArrow} ${styles.previous}`} onClick={() => rotate(-1)} aria-label="Previous AI tools"><ChevronLeft/></button>
+        <div className={styles.toolCards}>{visibleTools.map(({ title, icon: Icon, image, color, description }) => <article className={styles.toolCard} key={title}>
+          <div className={styles.toolTitle}><span className={`${styles.toolIcon} ${styles[color]}`}><Icon strokeWidth={1.4}/></span><h3>{title}</h3></div>
+          <img src={`/families/${image}.webp`} alt={title === "Auto Transcription" ? "An audio recording and transcript on a laptop" : title === "Memory Insights" ? "A family enjoying a mountain lake together" : title === "AI Historian" ? "A grandfather sharing memories with his granddaughter" : title === "AI Interviewer" ? "A mother talking with her son" : "Parents and their daughter discovering stories on a tablet"} width="155" height="101" loading="lazy"/>
+          <p>{description}</p>
+        </article>)}</div>
+        <button type="button" className={`${styles.carouselArrow} ${styles.next}`} onClick={() => rotate(1)} aria-label="Next AI tools"><ChevronRight/></button>
+      </div>
+      <div className={styles.dots} aria-label="AI tool slides">{tools.map((tool, index) => <button key={tool.title} type="button" aria-label={`Show ${tool.title} first`} aria-pressed={slide === index} className={slide === index ? styles.activeDot : ""} onClick={() => setSlide(index)}/>)}</div>
+    </section>
 
-      {/* ════════════════════════════════════════════════════════
-          2ND SECTION: 5 FEATURES STRIP (FITTED ON HERO DOWNSIDE)
-      ════════════════════════════════════════════════════════ */}
-      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto relative z-20 -mt-16 sm:-mt-20 lg:-mt-24 mb-4 sm:mb-6">
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.05)] border border-purple-100/80 px-4 sm:px-6 py-2.5 sm:py-3.5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-2.5">
-            {FEATURES.map(({ Icon, title, line1, line2 }, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.06 }}
-                className="flex items-center gap-2.5 p-1 min-w-0"
-              >
-                {/* Left aligned icon badge */}
-                <div className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg bg-[#f0edff] flex items-center justify-center flex-shrink-0 text-[#4f37ff]">
-                  <Icon size={15} strokeWidth={2} />
-                </div>
-                {/* Right aligned text without overlap */}
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <h4 className="text-xs sm:text-[13px] font-extrabold text-[#1a0a2e] leading-snug break-words">
-                    {title}
-                  </h4>
-                  <p className="text-[10px] sm:text-[11px] text-slate-500 leading-tight mt-0.5">
-                    <span className="block">{line1}</span>
-                    <span className="block">{line2}</span>
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════
-          3RD SECTION: WHAT FAMILIES ARE CREATING (MINIMIZED TOP GAP)
-      ════════════════════════════════════════════════════════ */}
-      <section className="py-4 sm:py-6 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto mb-12">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-extrabold text-[#1a0a2e]">
-            What families are creating
-          </h2>
-          <Link
-            href="/discover"
-            className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#4f37ff] hover:underline transition-all"
-          >
-            Explore all features
-            <ArrowUpRight size={14} strokeWidth={2.5} />
-          </Link>
-        </div>
-
-        {/* 5 Cards Row - Compact height with wide landscape aspect ratio and local assets */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
-          {CREATING_CARDS.map(({ image, Icon, title, desc }, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.45, delay: i * 0.07 }}
-              className="bg-white rounded-2xl overflow-hidden border border-slate-100/90 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all duration-300 flex flex-col group"
-            >
-              {/* Exact wide landscape photo cropped from screenshot */}
-              <div className="relative aspect-[1.96/1] w-full overflow-hidden bg-slate-100">
-                <img
-                  src={image}
-                  alt={title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-
-              {/* Bottom Info with Icon on left */}
-              <div className="p-3 sm:p-3.5 flex items-start gap-2.5 bg-white flex-1 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-[#f0edff] flex items-center justify-center flex-shrink-0 text-[#4f37ff] mt-0.5">
-                  <Icon size={14} strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-xs sm:text-[13px] font-extrabold text-[#1a0a2e] leading-snug">
-                    {title}
-                  </h3>
-                  <p className="text-[10px] sm:text-[11px] text-slate-500 leading-tight mt-1">
-                    {desc}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════
-          4TH SECTION: SECURITY CARD BANNER
-      ════════════════════════════════════════════════════════ */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pb-16">
-        <div className="bg-[#f3efff] border border-[#e4daff] rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:px-8 lg:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-          {/* Left badge & text */}
-          <div className="flex items-center gap-3.5 sm:gap-4">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white border border-[#4f37ff]/20 flex items-center justify-center text-[#4f37ff] shadow-sm flex-shrink-0">
-              <ShieldCheck size={20} strokeWidth={2} />
+    <section className={styles.customize} aria-labelledby="customize-heading">
+      <img className={styles.togetherPhoto} src="/families/together.webp" alt="A mother and daughter wearing headphones and smiling over a laptop" width="344" height="382" loading="lazy"/>
+      <div className={styles.customizeContent}>
+        <div className={styles.customizeIntro}><p className={styles.eyebrow}>MAKE IT YOUR OWN</p><h2 id="customize-heading">Make your Family Space your own.</h2><p>Choose the features that matter to your family, arrange them your way and create a space that truly feels like home.</p></div>
+        <div className={styles.customizeControls}>
+          <div className={styles.settingList}>{[[Flower, "My Features", "Add or remove features to show what matters most.", "blue"], [LayoutGrid, "Layout", "Choose a layout that fits your style.", "purple"], [Paintbrush, "Theme", "Pick a look and feel to make it your own.", "teal"]].map(([Icon, title, description, color]) => <button type="button" key={title} onClick={() => setTab(title)} aria-pressed={tab === title}><span className={`${styles.settingIcon} ${styles[color]}`}><Icon strokeWidth={1.3}/></span><span><strong>{title}</strong><small>{description}</small></span><ChevronRight/></button>)}</div>
+          <div className={`${styles.previewPanel} ${theme === "Lavender" ? styles.lavender : theme === "Forest" ? styles.forest : ""}`}>
+            <div role="tablist" aria-label="Family Space customization" className={styles.tabs}>{tabs.map(name => <button type="button" role="tab" id={`family-tab-${name.replaceAll(' ', '-').toLowerCase()}`} aria-controls="family-customization-panel" aria-selected={tab === name} key={name} onClick={() => setTab(name)}>{name}</button>)}</div>
+            <div role="tabpanel" id="family-customization-panel" aria-labelledby={`family-tab-${tab.replaceAll(' ', '-').toLowerCase()}`} className={styles.tabPanel}>
+              <h3>{tab === "My Features" ? "Add or remove features" : tab === "Layout" ? "Arrange your Family Space" : "Find your family’s look"}</h3>
+              <p>{tab === "My Features" ? "Pick the features that matter most to your family." : tab === "Layout" ? "Choose how you see your favourite moments." : "Choose a colour that feels like home."}</p>
+              {tab === "My Features" ? <div className={styles.featureTiles}>{featureTiles.map(([name, image], index) => <div key={name}><img src={`/families/${image}.webp`} alt="" width="73" height="51" loading="lazy"/><h4>{name}</h4><button type="button" role="switch" aria-checked={enabled[index]} aria-label={name} className={styles.toggle} onClick={() => setEnabled(current => current.map((value, i) => i === index ? !value : value))}><span/></button></div>)}</div> : tab === "Layout" ? <div className={styles.layoutChoices}>{["Grid", "Timeline", "Gallery"].map(name => <button type="button" key={name} aria-pressed={layout === name} onClick={() => setLayout(name)}><span className={`${styles.layoutThumbnail} ${styles[name.toLowerCase()]}`}>{Array.from({length:6},(_,i)=><i key={i}/>)}</span>{name}</button>)}</div> : <div className={styles.themeChoices}>{["Ocean", "Lavender", "Forest"].map(name => <button type="button" key={name} aria-pressed={theme === name} onClick={() => setTheme(name)}><span className={styles[name.toLowerCase()]}/>{name}</button>)}</div>}
             </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-extrabold text-[#1a0a2e] leading-snug">
-                Your family. Your legacy. Protected for generations.
-              </h3>
-              <p className="text-xs sm:text-sm text-[#52496d] mt-0.5 leading-relaxed max-w-2xl">
-                Enterprise-grade security to keep your stories safe, private, and always accessible to your loved ones.
-              </p>
-            </div>
+            <button type="button" className={`${styles.carouselArrow} ${styles.panelPrevious}`} aria-label="Previous customization option" onClick={() => moveTab(-1)}><ChevronLeft/></button>
+            <button type="button" className={`${styles.carouselArrow} ${styles.panelNext}`} aria-label="Next customization option" onClick={() => moveTab(1)}><ChevronRight/></button>
+            <div className={styles.dots}>{Array.from({length:5}, (_,index) => <span key={index} className={index === tabs.indexOf(tab) ? styles.activeDot : ""}/>)}</div>
           </div>
-
-          {/* Right button */}
-          <Link
-            id="families-security-btn"
-            href="/how-it-works"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#4f37ff]/40 text-[#4f37ff] bg-white font-semibold text-xs sm:text-sm px-5 sm:px-6 py-2.5 hover:bg-[#4f37ff]/5 transition-all shadow-sm whitespace-nowrap flex-shrink-0"
-          >
-            Learn about security
-            <ArrowUpRight size={14} strokeWidth={2.5} />
-          </Link>
         </div>
-      </section>
-    </div>
-  );
+      </div>
+    </section>
+  </div>;
 }
