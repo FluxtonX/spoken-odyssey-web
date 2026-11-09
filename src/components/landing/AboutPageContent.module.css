@@ -1,6 +1,6 @@
 .aboutPage { --ink:#070543; --gradient:linear-gradient(105deg,#0077ff 7%,#005dff 40%,#8100ff 100%); color:var(--ink); background:#fff; font-family:'Inter',Arial,sans-serif; overflow:hidden; padding-top:0; }
 .aboutPage h1,.aboutPage h2,.aboutPage h3,.aboutPage p,.aboutPage ul { margin:0; }
-.aboutPage h1,.aboutPage h2,.aboutPage h3 { font-family:inherit; }
+.aboutPage h2,.aboutPage h3 { font-family:inherit; }
 .aboutPage ul { padding:0; list-style:none; }
 .aboutPage a { text-decoration:none; }
 .aboutPage button,.aboutPage input { font:inherit; }
@@ -19,9 +19,9 @@
 .heroPhoto { display:none; }
 .heroCopy { padding:calc(96px + 10.1vw) 0 0 5.3%; }
 .eyebrow { color:#0060ff; font-size:clamp(10px,1.03vw,16px); font-weight:600; letter-spacing:.36em; line-height:1.5; }
-.hero h1 { font-size:clamp(36px, 4.4vw, 56px); font-weight:600; line-height:1.1; letter-spacing:-.035em; margin-top:1vw; }
+.hero h1 { font-size:clamp(36px, 4.4vw, 40px); font-weight:600; line-height:1.1; letter-spacing:-.035em; margin-top:1vw; }
 .gradientText { background:var(--gradient); background-clip:text; -webkit-background-clip:text; color:transparent; }
-.heroDescription { font-size:clamp(15px, 1.4vw, 18px); font-weight:400; letter-spacing:-.02em; line-height:1.5; margin-top:2.35vw !important; }
+.heroDescription { font-size:14px; font-weight:400; letter-spacing:-.02em; line-height:1.5; margin-top:2.35vw !important; }
 .values { min-height:18.5vw; display:grid; grid-template-columns:50% 50%; align-items:center; }
 .valueList { display:grid; grid-template-columns:repeat(3,1fr); width:100%; }
 .valueList li { display:flex; align-items:center; flex-direction:column; text-align:center; min-height:10.8vw; border-right:1px solid #dee2eb; }
@@ -85,14 +85,13 @@
 .language { display:flex; align-items:center; gap:.6vw; font-size:clamp(10px,1.1vw,17px); margin-left:1.1vw; }
 .language svg:first-child { width:1.85vw; height:1.85vw; }
 .language svg:last-child { width:12px; height:12px; }
-@media(min-width:1600px) { .aboutPage { max-width:1600px; margin:auto; padding-top:0; } }
 @media(max-width:900px) {.footerBottom { flex-wrap:wrap; gap:20px; }.legal { width:100%; gap:20px; }.badges img { height:31px; }.language svg:first-child { width:20px; height:20px; } }
 @media (max-width: 760px) {
   .aboutPage { padding-top:0; background:#fff; }
   .hero { display:flex; flex-direction:column; height:auto; padding:114px 20px 0; background:linear-gradient(160deg,#e1edfa,#fef3e7 85%); }
   .heroCopy { padding:0; text-align:center; }
   .eyebrow { font-size:9px; font-weight:600; letter-spacing:.2em; line-height:1.6; }
-  .hero h1 { margin-top:16px; font-size:clamp(35px,10vw,47px); font-weight:600; line-height:1.13; letter-spacing:-.045em; }
+  .hero h1 { margin-top:16px; font-size:clamp(35px,10vw,40px); font-weight:600; line-height:1.13; letter-spacing:-.045em; }
   .heroDescription { max-width:340px; margin:18px auto 0 !important; font-size:14px; line-height:1.7; letter-spacing:0; }
   .heroDescription br { display:initial; }
   .heroPhoto { display:block; position:relative; order:1; z-index:0; top:auto; right:auto; bottom:auto; width:calc(100% + 40px); height:auto; aspect-ratio:1.35; margin:26px -20px 0; background:url('/about/team-page/hero.webp') right bottom / cover no-repeat; -webkit-mask-image:linear-gradient(180deg,transparent,#000 15%); mask-image:linear-gradient(180deg,transparent,#000 15%); }
