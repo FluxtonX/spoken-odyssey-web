@@ -39,16 +39,8 @@
 .teamHeading h2 { font-size:clamp(22px, 2.65vw, 34px); letter-spacing:-.03em; line-height:1.18; font-weight:600; margin-top:.6vw; }
 .teamGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1.15vw; margin-top:1.7vw; }
 .teamCard { border:1px solid #e7ebf0; border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 1px 4px #0000000d; }
-.photoUpload { display:block; position:relative; padding:.75vw; width:100%; height:16.1vw; background:linear-gradient(135deg,#f5f7fa,#f0f3f8); color:#5979ad; cursor:pointer; }
-.photoUpload:focus-within { outline:2px solid #0063ff; outline-offset:-3px; }
-.photoUpload input { position:absolute; width:1px; height:1px; opacity:0; }
-.uploadInner { display:flex; height:100%; align-items:center; justify-content:center; flex-direction:column; border:1px dashed #a6b9d6; border-radius:5px; }
-.uploadInner svg { width:4vw; height:4vw; max-width:63px; max-height:63px; margin-bottom:1.1vw; }
-.uploadInner>span { font-size:clamp(11px,1.28vw,20px); line-height:1.4; }
-.uploadInner small { font-size:clamp(9px,.98vw,15px); margin-top:.2vw; }
-.hasPhoto { padding:0; }
+.photoFrame { display:block; width:100%; height:16.1vw; overflow:hidden; background:#f0f3f8; }
 .teamPhoto { display:block; width:100%; height:100%; object-fit:cover; }
-.uploadError { font-size:11px; padding:8px; color:#a32835; }
 .cardBody { text-align:center; padding:1.25vw .65vw 1.5vw; }
 .cardBody h3 { font-size:clamp(12px,1.48vw,23px); font-weight:600; line-height:1.2; letter-spacing:-.035em; white-space:nowrap; }
 .role { font-size:clamp(8px,.92vw,14px); font-weight:600; color:#005dff; text-transform:uppercase; letter-spacing:.15em; margin-top:.55vw !important; }
@@ -108,12 +100,7 @@
   .teamHeading h2 { font-size:27px; line-height:1.24; letter-spacing:-.035em; margin-top:12px; }
   .teamGrid { grid-template-columns:minmax(0,1fr); gap:16px; margin-top:24px; }
   .teamCard { display:grid; grid-template-columns:100px minmax(0,1fr); align-items:stretch; min-height:218px; border:1px solid #e5ecf6; border-radius:17px; box-shadow:0 3px 12px #172d4d05; }
-  .photoUpload { width:100%; height:100%; min-height:218px; padding:8px; background:linear-gradient(155deg,#eef4ff,#f7faff); }
-  .uploadInner { padding:8px 3px; border-radius:10px; text-align:center; }
-  .uploadInner svg { width:30px; height:30px; margin-bottom:12px; }
-  .uploadInner>span { font-size:10px; line-height:1.5; }
-  .uploadInner small { font-size:8px; line-height:1.5; margin-top:6px; }
-  .hasPhoto { padding:0; }
+  .photoFrame { width:100%; height:100%; min-height:218px; }
   .teamPhoto { width:100%; height:100%; object-fit:cover; }
   .cardBody { padding:18px 14px; text-align:left; }
   .cardBody h3 { font-size:15px; font-weight:600; line-height:1.35; letter-spacing:-.025em; white-space:normal; min-height:0; }
@@ -124,7 +111,6 @@
   .strengths li { align-items:center; text-align:center; gap:7px; }
   .strengths svg { width:23px; height:23px; }
   .strengths span { font-size:8px; line-height:1.45; letter-spacing:0; white-space:normal; overflow-wrap:anywhere; }
-  .uploadError { grid-column:1/-1; font-size:11px; }
   .footer { padding:32px 20px 24px; background-image:linear-gradient(#000b16a8,#000b16f5),url('/footer.png'); background-position:center top; background-size:cover; }
   .footerTop { display:flex; flex-direction:column; gap:30px; padding-bottom:28px; }
   .footerBrand { order:0; }

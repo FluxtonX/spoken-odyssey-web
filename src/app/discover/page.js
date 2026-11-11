@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import DashboardHeader from "@/components/layout/DashboardHeader";
 import WavesBackground from "@/components/layout/WavesBackground";
-import { Search, Loader2, Heart, UserPlus, UserCheck, Inbox, Mic, FileText, Image as ImageIcon, Film, Globe2, SlidersHorizontal, ChevronDown, ArrowUpRight, Check } from "lucide-react";
+import { Search, Loader2, Heart, MessageCircle, UserPlus, UserCheck, Inbox, Mic, FileText, Image as ImageIcon, Film, Globe2, SlidersHorizontal, ChevronDown, ArrowUpRight, Check } from "lucide-react";
 import { getDiscoveryMemories, getFeaturedPeople, followUser, unfollowUser, reactToMemory, normalizeMediaUrl } from "@/services/backend";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeInUp } from "@/lib/animations";
@@ -35,6 +35,13 @@ const formatDateSafely = (dateVal, memoryItem) => {
   const d = new Date(dateVal);
   if (isNaN(d.getTime())) return strVal;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const getStoryCommentCount = (story) => {
+  const value = story?.commentsCount ?? story?.commentCount ?? story?.comments ?? 0;
+  if (Array.isArray(value)) return value.length;
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? count : 0;
 };
 
 const isVideoLike = (url, mimeType = "", type = "") => {
@@ -136,6 +143,7 @@ export default function DiscoverPage() {
   // Reactions & Likes Map
   const [reactionsCountMap, setReactionsCountMap] = useState({});
   const [userReactionMap, setUserReactionMap] = useState({});
+  const [commentsCountMap, setCommentsCountMap] = useState({});
 
   // 350ms Search Debounce Timer
   useEffect(() => {
@@ -190,6 +198,24 @@ export default function DiscoverPage() {
     window.addEventListener("memoryReactionUpdated", handleReactionUpdate);
     return () => window.removeEventListener("memoryReactionUpdated", handleReactionUpdate);
   }, []);
+
+  useEffect(() => {
+    const listeners = dbMemoriesList
+      .filter(story => story.id)
+      .map(story => {
+        const eventName = `commentsUpdated_${story.id}`;
+        const handleCommentsUpdate = (event) => {
+          const count = Number(event.detail);
+          if (Number.isFinite(count)) {
+            setCommentsCountMap(prev => ({ ...prev, [story.id]: count }));
+          }
+        };
+        window.addEventListener(eventName, handleCommentsUpdate);
+        return () => window.removeEventListener(eventName, handleCommentsUpdate);
+      });
+
+    return () => listeners.forEach(removeListener => removeListener());
+  }, [dbMemoriesList]);
 
   // Infinite Scroll Pagination State
   const [page, setPage] = useState(1);
@@ -697,6 +723,7 @@ export default function DiscoverPage() {
                   const dateStr = formatDateSafely(story.date || story.createdAt || story.occurredAt);
                   const displayHashtags = Array.isArray(story.tags) ? story.tags.filter(Boolean).slice(0, 3) : [];
                   const reactionCount = reactionsCountMap[story.id] ?? story.totalReactions ?? story.likes ?? 0;
+                  const commentsCount = commentsCountMap[story.id] ?? getStoryCommentCount(story);
                   const userReactType = userReactionMap[story.id] || (story.userReaction ? "heart" : null);
                   const isLiked = !!userReactType;
                   const TypeIcon = isVoice ? Mic : isVideo ? Film : isPhoto ? ImageIcon : FileText;
@@ -772,16 +799,26 @@ export default function DiscoverPage() {
                           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 text-rose-500"><Heart size={11} fill="currentColor" /></span>
                           <span>{reactionCount} {reactionCount === 1 ? "reaction" : "reactions"}</span>
                         </div>
-                        <div className="flex items-center justify-between gap-3 py-2">
-                          <button
-                            type="button"
-                            aria-pressed={isLiked}
-                            aria-label={isLiked ? "Unlike story" : "Like story"}
-                            onClick={(e) => handleReactionToggle(e, story)}
-                            className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#4A3AFF] ${isLiked ? "text-rose-500 bg-rose-50" : "text-stone-500 hover:bg-stone-50 hover:text-rose-500"}`}
-                          >
-                            <Heart size={18} fill={isLiked ? "currentColor" : "none"} />{isLiked ? "Liked" : "Like"}
-                          </button>
+                        <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              aria-pressed={isLiked}
+                              aria-label={isLiked ? "Unlike story" : "Like story"}
+                              onClick={(e) => handleReactionToggle(e, story)}
+                              className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#4A3AFF] ${isLiked ? "text-rose-500 bg-rose-50" : "text-stone-500 hover:bg-stone-50 hover:text-rose-500"}`}
+                            >
+                              <Heart size={18} fill={isLiked ? "currentColor" : "none"} />{isLiked ? "Liked" : "Like"}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Open comments for ${story.title || "story"} (${commentsCount} comments)`}
+                              onClick={(e) => handleOpenMemoryModal(e, story)}
+                              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-500 hover:bg-[#F5F4FF] hover:text-[#4A3AFF] transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#4A3AFF]"
+                            >
+                              <MessageCircle size={18} />Comments {commentsCount}
+                            </button>
+                          </div>
                           <button
                             type="button"
                             onClick={(e) => handleOpenMemoryModal(e, story)}

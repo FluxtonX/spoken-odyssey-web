@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { Lock, Star, Users, Globe, Rocket, Lightbulb, ChartNoAxesColumnIncreasing, Handshake, CodeXml, Settings, ShieldCheck, ShoppingCart, Gift, ImagePlus, ArrowRight, ChevronDown } from "lucide-react";
+import { Lock, Star, Users, Globe, Rocket, Lightbulb, ChartNoAxesColumnIncreasing, Handshake, CodeXml, Settings, ShieldCheck, ShoppingCart, Gift, ArrowRight, ChevronDown } from "lucide-react";
 import styles from "./AboutPageContent.module.css";
 
 const people = [
-  { name: "Nilton Fernandes", role: "Founder & CEO", description: <>A passion for people, technology<br/>and authentic storytelling.</>, strengths: [[Rocket, "Vision"], [Users, "Leadership"], [Lightbulb, "Innovation"]] },
-  { name: "Kevin King", role: "Strategic Director", description: <>Strategic insight and global<br/>commercial experience.</>, strengths: [[ChartNoAxesColumnIncreasing, "Strategy"], [Handshake, "Partnerships"], [Globe, "Growth"]] },
-  { name: "Nasir Muhammad", role: "Chief Technology Officer", description: <>Leading our technology vision<br/>and product development.</>, strengths: [[CodeXml, "Technology"], [Settings, "Product"], [ShieldCheck, "Security"]] },
-  { name: "Shahzeb Muhammad", role: "Ecommerce Director", description: <>Driving our eCommerce strategy<br/>and product offerings.</>, strengths: [[ShoppingCart, "Ecommerce"], [Gift, "Products"], [Users, "Customer Experience"]] },
+  { name: "Nilton Fernandes", role: "Founder & CEO", photo: "/about/team/nilton.webp", photoPosition: "center 48%", description: <>A passion for people, technology<br/>and authentic storytelling.</>, strengths: [[Rocket, "Vision"], [Users, "Leadership"], [Lightbulb, "Innovation"]] },
+  { name: "Kevin King", role: "Strategic Director", photo: "/about/team/kevin.webp", photoPosition: "center 15%", description: <>Strategic insight and global<br/>commercial experience.</>, strengths: [[ChartNoAxesColumnIncreasing, "Strategy"], [Handshake, "Partnerships"], [Globe, "Growth"]] },
+  { name: "Nasir Muhammad", role: "Chief Technology Officer", photo: "/about/team/nasir.webp", photoPosition: "center 18%", description: <>Leading our technology vision<br/>and product development.</>, strengths: [[CodeXml, "Technology"], [Settings, "Product"], [ShieldCheck, "Security"]] },
+  { name: "Shahzeb Muhammad", role: "Ecommerce Director", photo: "/about/team/shahzeb.webp", photoPosition: "center 15%", description: <>Driving our eCommerce strategy<br/>and product offerings.</>, strengths: [[ShoppingCart, "Ecommerce"], [Gift, "Products"], [Users, "Customer Experience"]] },
 ];
 const footerColumns = [
   ["Product", [["How it works", "/how-it-works"], ["Explore", "/explore"], ["For Families", "/for-families"], ["Store", "/store"], ["Pricing", "/pricing"]]],
@@ -25,29 +24,10 @@ function Brand({ light = false }) {
 }
 
 function TeamCard({ person }) {
-  const [photo, setPhoto] = useState("");
-  const [error, setError] = useState("");
-  const photoUrl = useRef("");
-  useEffect(() => () => { if (photoUrl.current) URL.revokeObjectURL(photoUrl.current); }, []);
-  const selectPhoto = event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("Choose a JPG, PNG or WebP image.");
-      event.target.value = "";
-      return;
-    }
-    if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
-    photoUrl.current = URL.createObjectURL(file);
-    setPhoto(photoUrl.current);
-    setError("");
-  };
   return <article className={styles.teamCard}>
-    <label className={`${styles.photoUpload} ${photo ? styles.hasPhoto : ""}`}>
-      <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={`Choose team photo for ${person.name}`} onChange={selectPhoto}/>
-      {photo ? <img src={photo} alt={person.name} className={styles.teamPhoto}/> : <span className={styles.uploadInner}><ImagePlus strokeWidth={1.7}/><span>Upload team photo</span><small>JPG, PNG or WebP</small></span>}
-    </label>
-    {error && <p role="alert" className={styles.uploadError}>{error}</p>}
+    <div className={styles.photoFrame}>
+      <img src={person.photo} alt={person.name} className={styles.teamPhoto} style={{ objectPosition: person.photoPosition }}/>
+    </div>
     <div className={styles.cardBody}>
       <h3>{person.name}</h3>
       <p className={styles.role}>{person.role}</p>
