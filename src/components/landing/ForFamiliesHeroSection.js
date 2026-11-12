@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { ArrowRight, Camera, Users, Shield, Brain, PanelsTopLeft, Heart, Sparkles, Mic, Lightbulb, FileText, ChartNoAxesCombined, ChevronLeft, ChevronRight, LayoutGrid, Paintbrush, Flower } from "lucide-react";
 import styles from "./ForFamiliesHeroSection.module.css";
+
+const heroEase = [0.22, 1, 0.36, 1];
 
 const benefits = [
   [Camera, "Capture", <>Photos, videos<br/>and voice.</>],
@@ -38,12 +41,12 @@ export default function ForFamiliesHeroSection() {
 
     <section className={styles.hero} aria-labelledby="family-heading">
       <div className={styles.heroPhoto}/>
-      <div className={styles.heroCopy}>
+      <motion.div className={styles.heroCopy} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: heroEase }}>
         <p className={styles.eyebrow}>FAMILY SPACE</p>
         <h1 id="family-heading">Because these<br/>moments matter<br/><span className={styles.gradientText}>for a lifetime.</span></h1>
         <p className={styles.heroDescription}>Create a private space to capture, celebrate and keep<br className={styles.desktopBreak}/> your family’s story together — for today and for<br className={styles.desktopBreak}/> generations to come.</p>
         <Link href="/signup" id="families-create-btn" className={`${styles.primaryButton} ${styles.heroButton}`}>Create your Family Space <ArrowRight/></Link>
-      </div>
+      </motion.div>
     </section>
 
     <section className={styles.familySpace} aria-labelledby="family-space-heading">

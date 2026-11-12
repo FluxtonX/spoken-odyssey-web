@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { ArrowRight, Camera, Brain, Feather, Truck, ShieldCheck, Gift, Globe, ChevronDown } from "lucide-react";
 import styles from "./StoreHeroSection.module.css";
+
+const heroEase = [0.22, 1, 0.36, 1];
 
 const features = [
   [Camera, "Capture naturally", "Photos, video and audio with a single touch."],
@@ -32,11 +35,11 @@ export default function StoreHeroSection() {
     <section className={styles.hero} aria-labelledby="store-heading">
       <div className={styles.heroPhoto}/>
 
-      <div className={styles.heroCopy}>
+      <motion.div className={styles.heroCopy} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: heroEase }}>
         <p className={styles.eyebrow}>AI GLASSES</p>
         <h1 id="store-heading">See life<br/><span className={styles.gradientText}>differently.</span></h1>
         <p className={styles.heroDescription}>Capture, remember and share<br/>the moments that matter —<br/>hands free.</p>
-      </div>
+      </motion.div>
     </section>
 
     <section className={styles.perspective} aria-labelledby="perspective-heading">
