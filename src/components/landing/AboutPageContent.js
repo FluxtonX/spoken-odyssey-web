@@ -1,8 +1,11 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Lock, Star, Users, Globe, Rocket, Lightbulb, ChartNoAxesColumnIncreasing, Handshake, CodeXml, Settings, ShieldCheck, ShoppingCart, Gift, ArrowRight, ChevronDown } from "lucide-react";
 import styles from "./AboutPageContent.module.css";
+
+const heroEase = [0.22, 1, 0.36, 1];
 
 const people = [
   { name: "Nilton Fernandes", role: "Founder & CEO", photo: "/about/team/nilton.webp", photoPosition: "center 48%", description: <>A passion for people, technology<br/>and authentic storytelling.</>, strengths: [[Rocket, "Vision"], [Users, "Leadership"], [Lightbulb, "Innovation"]] },
@@ -44,7 +47,7 @@ export default function AboutPageContent() {
 
     <section className={styles.hero} aria-labelledby="about-heading">
       <div className={styles.heroPhoto}/>
-      <div className={styles.heroCopy}><p className={styles.eyebrow}>ABOUT SPOKEN ODYSSEY</p><h1 id="about-heading">Real lives.<br/><span className={styles.gradientText}>Lasting impact.</span></h1><p className={styles.heroDescription}>We’re building a world where every story<br/>is captured, understood and never forgotten.</p></div>
+      <motion.div className={styles.heroCopy} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: heroEase }}><p className={styles.eyebrow}>ABOUT SPOKEN ODYSSEY</p><h1 id="about-heading">Real lives.<br/><span className={styles.gradientText}>Lasting impact.</span></h1><p className={styles.heroDescription}>Weâ€™re building a world where every story<br/>is captured, understood and never forgotten.</p></motion.div>
     </section>
 
     <section className={styles.values} aria-labelledby="values-heading">
@@ -53,7 +56,7 @@ export default function AboutPageContent() {
         <li><Users strokeWidth={1.5}/><p>Share with who<br/>matters</p></li>
         <li><Globe strokeWidth={1.5}/><p>Make your story<br/>discoverable</p></li>
       </ul>
-      <div className={styles.valuesCopy}><p className={styles.eyebrow}>MORE THAN SOCIAL MEDIA</p><h2 id="values-heading">This isn’t about likes.<br/>It’s about what <span className={styles.gradientText}>really matters.</span></h2></div>
+      <div className={styles.valuesCopy}><p className={styles.eyebrow}>MORE THAN SOCIAL MEDIA</p><h2 id="values-heading">This isnâ€™t about likes.<br/>Itâ€™s about what <span className={styles.gradientText}>really matters.</span></h2></div>
     </section>
 
     <section className={styles.team} aria-labelledby="team-heading">
@@ -67,7 +70,7 @@ export default function AboutPageContent() {
         <div className={styles.footerColumns}>{footerColumns.map(([title, links]) => <div key={title}><h3>{title}</h3><ul>{links.map(([label, href]) => <li key={label}><Link href={href}>{label}</Link></li>)}</ul></div>)}</div>
         <div className={styles.newsletter}><h3>Stay in the <span>journey.</span></h3><p>Get product updates, new features and<br className={styles.desktopBreak}/> inspiring stories straight to your inbox.</p><div className={styles.emailField}><input type="email" aria-label="Your email address" placeholder="Your email address"/><button type="button" className={styles.primaryButton}>Subscribe <ArrowRight/></button></div></div>
       </div>
-      <div className={styles.footerBottom}><div className={styles.legal}><p>© 2026 Spoken Odyssey. All rights reserved.</p><div>{["Privacy Policy", "Terms of Service", "Cookies", "Legal", "Sitemap"].map(label => <Link href="#" key={label}>{label}</Link>)}</div></div><div className={styles.badges}><img src="/play-store-badge.svg" alt="Get it on Google Play" width="93" height="31"/><img src="/app-store-badge.svg" alt="Download on the App Store" width="90" height="31"/><span className={styles.language}><Globe strokeWidth={1.5}/> English <ChevronDown/></span></div></div>
+      <div className={styles.footerBottom}><div className={styles.legal}><p>Â© 2026 Spoken Odyssey. All rights reserved.</p><div>{["Privacy Policy", "Terms of Service", "Cookies", "Legal", "Sitemap"].map(label => <Link href="#" key={label}>{label}</Link>)}</div></div><div className={styles.badges}><img src="/play-store-badge.svg" alt="Get it on Google Play" width="93" height="31"/><img src="/app-store-badge.svg" alt="Download on the App Store" width="90" height="31"/><span className={styles.language}><Globe strokeWidth={1.5}/> English <ChevronDown/></span></div></div>
     </footer>
   </div>;
 }
