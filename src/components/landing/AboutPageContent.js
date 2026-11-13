@@ -47,7 +47,7 @@ export default function AboutPageContent() {
 
     <section className={styles.hero} aria-labelledby="about-heading">
       <div className={styles.heroPhoto}/>
-      <motion.div className={styles.heroCopy} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: heroEase }}><p className={styles.eyebrow}>ABOUT SPOKEN ODYSSEY</p><h1 id="about-heading">Real lives.<br/><span className={styles.gradientText}>Lasting impact.</span></h1><p className={styles.heroDescription}>Weâ€™re building a world where every story<br/>is captured, understood and never forgotten.</p></motion.div>
+      <motion.div className={styles.heroCopy} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: heroEase }}><p className={styles.eyebrow}>ABOUT SPOKEN ODYSSEY</p><h1 id="about-heading">Real lives.<br/><span className={styles.gradientText}>Lasting impact.</span></h1><p className={styles.heroDescription}>We're building a world where every story<br/>is captured, understood and never forgotten.</p></motion.div>
     </section>
 
     <section className={styles.values} aria-labelledby="values-heading">
@@ -56,7 +56,7 @@ export default function AboutPageContent() {
         <li><Users strokeWidth={1.5}/><p>Share with who<br/>matters</p></li>
         <li><Globe strokeWidth={1.5}/><p>Make your story<br/>discoverable</p></li>
       </ul>
-      <div className={styles.valuesCopy}><p className={styles.eyebrow}>MORE THAN SOCIAL MEDIA</p><h2 id="values-heading">This isnâ€™t about likes.<br/>Itâ€™s about what <span className={styles.gradientText}>really matters.</span></h2></div>
+      <div className={styles.valuesCopy}><p className={styles.eyebrow}>MORE THAN SOCIAL MEDIA</p><h2 id="values-heading">This isn't about likes.<br/>It's about what <span className={styles.gradientText}>really matters.</span></h2></div>
     </section>
 
     <section className={styles.team} aria-labelledby="team-heading">

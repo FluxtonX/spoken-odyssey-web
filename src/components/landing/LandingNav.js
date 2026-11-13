@@ -2,12 +2,33 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, Search } from "lucide-react";
 
 export default function LandingNav() {
   const [open, setOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    let previousScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollingDown = currentScrollY > previousScrollY;
+
+      if (currentScrollY < 80 || !scrollingDown) {
+        setIsHidden(false);
+      } else if (currentScrollY - previousScrollY > 4) {
+        setIsHidden(true);
+      }
+
+      previousScrollY = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const links = [
     { label: "Home", href: "/" },
@@ -20,10 +41,9 @@ export default function LandingNav() {
   ];
 
   return (
-    <header className="fixed left-0 right-0 top-3 sm:top-4 z-50 px-3 sm:px-6 pointer-events-none">
+    <header className={`fixed left-0 right-0 top-3 sm:top-4 z-50 px-3 sm:px-6 pointer-events-none transition-transform duration-300 ${isHidden ? "-translate-y-[150%]" : "translate-y-0"}`}>
       {/* ── Main Floating Navbar Bar ── */}
       <div className="mx-auto flex h-[62px] sm:h-[66px] max-w-[1340px] items-center justify-between rounded-2xl border border-slate-200/90 bg-white/95 px-4 sm:px-6 shadow-[0_6px_25px_rgba(0,0,0,0.06)] backdrop-blur-md pointer-events-auto">
-        
         {/* Left: Brand Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <img
@@ -121,7 +141,7 @@ export default function LandingNav() {
                 </Link>
               );
             })}
-            
+
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
               <Link
                 href="/search"
