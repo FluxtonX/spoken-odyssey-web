@@ -89,6 +89,14 @@ async function backendFetch(path, { method = "GET", body, token, isFormData = fa
 }
 
 /** Custom JWT Auth endpoints */
+/** Subscribe a visitor to the newsletter. */
+export async function subscribeToNewsletter(fullName, email) {
+  return backendFetch("/api/newsletter/subscribe", {
+    method: "POST",
+    body: { fullName, email },
+  });
+}
+
 export async function loginWithBackend(email, password) {
   const response = await backendFetch("/api/auth/login", { 
     method: "POST", 

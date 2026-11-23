@@ -3,17 +3,33 @@
 import Link from "next/link";
 import { ArrowRight, Globe, ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { subscribeToNewsletter } from "@/services/backend";
 
 export default function LandingFooter() {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (email) {
-      setSubscribed(true);
-      setTimeout(() => setSubscribed(false), 4000);
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubscriptionStatus("");
+    try {
+      const response = await subscribeToNewsletter(fullName, email);
+      setSubscriptionStatus(response?.message || "Successfully subscribed to the newsletter.");
+      setFullName("");
       setEmail("");
+    } catch (error) {
+      setSubscriptionStatus(
+        error?.status
+          ? error.message
+          : "Could not reach the server. Check your connection and try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -134,24 +150,44 @@ export default function LandingFooter() {
               Get product updates, new features and inspiring stories straight to your inbox.
             </p>
 
-            <form onSubmit={handleSubscribe} className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <form onSubmit={handleSubscribe} className="pt-2 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2.5">
+              <input
+                type="text"
+                required
+                maxLength={150}
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Your full name"
+                aria-label="Your full name"
+                className="w-full rounded-xl border border-slate-700/70 bg-[#081226]/80 px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#0055FF] backdrop-blur-sm shadow-inner sm:col-span-2"
+              />
               <input
                 type="email"
                 required
+                maxLength={254}
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Your email address"
-                className="w-full sm:w-60 xl:w-68 rounded-xl border border-slate-700/70 bg-[#081226]/80 px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#0055FF] backdrop-blur-sm shadow-inner"
+                aria-label="Your email address"
+                className="w-full rounded-xl border border-slate-700/70 bg-[#081226]/80 px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#0055FF] backdrop-blur-sm shadow-inner"
               />
 
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0055FF] via-[#3346FF] to-[#7C3AED] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_16px_rgba(0,85,255,0.4)] transition-all hover:opacity-95 active:scale-95 shrink-0"
+                disabled={isSubmitting}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0055FF] via-[#3346FF] to-[#7C3AED] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_16px_rgba(0,85,255,0.4)] transition-all hover:opacity-95 active:scale-95 disabled:cursor-wait disabled:opacity-70 shrink-0"
               >
-                <span>{subscribed ? "Subscribed!" : "Subscribe"}</span>
+                <span>{isSubmitting ? "Submitting…" : "Subscribe"}</span>
                 <ArrowRight size={14} strokeWidth={2.5} />
               </button>
             </form>
+            {subscriptionStatus && (
+              <p role="status" aria-live="polite" className="text-xs text-slate-200">
+                {subscriptionStatus}
+              </p>
+            )}
           </div>
 
         </div>
